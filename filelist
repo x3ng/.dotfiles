@@ -3,3 +3,5 @@
 .vimrc
 
 .ssh/config
+
+.config/kitty/kitty.conf
