@@ -1,6 +1,7 @@
 # .dotfiles/filelist
 
 .vimrc
+.tmux.conf
 
 .ssh/config
 
