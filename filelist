@@ -5,4 +5,5 @@
 
 .ssh/config
 
+.config/alacritty/alacritty.toml
 .config/kitty/kitty.conf
