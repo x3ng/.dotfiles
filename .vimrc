@@ -121,6 +121,10 @@ call mkdir(expand('~/.vim/logs'), 'p')
 let g:lsp_auto_enable = 1
 let g:lsp_diagnostics_enable = 1
 let g:lsp_diagnostics_echo_cursor = 1
+let g:lsp_diagnostics_signs_enabled = 1
+let g:lsp_diagnostics_virtual_text_enabled = 0
+let g:lsp_diagnostics_float_cursor = 0
+let g:lsp_diagnostics_highlights_enabled = 1
 """ completion ui
 let g:asyncomplete_auto_popup = 0
 let g:asyncomplete_popup_max_width = 80
