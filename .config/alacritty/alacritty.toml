@@ -1,4 +1,8 @@
 [window]
 opacity = 0.75
-decorations = "none"
 dynamic_padding = true
+decorations = "none"
+blur = true
+
+[general]
+live_config_reload = true
