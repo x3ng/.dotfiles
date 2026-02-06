@@ -1,0 +1,7 @@
+modmap:
+  - name: ThinkPad Right PRTSC to Right Super
+    device:
+      only: ["AT Translated Set 2 keyboard"]
+    remap:
+      SYSRQ: RIGHTMETA
+

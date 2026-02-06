@@ -8,3 +8,4 @@
 .config/alacritty/alacritty.toml
 .config/kitty/kitty.conf
 .config/hypr/hyprland.conf
+.config/xremap/config.yml
