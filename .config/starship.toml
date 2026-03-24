@@ -1,0 +1,4 @@
+# auto completion form schema
+"$schema" = 'https://starship.rs/config-schema.json'
+
+add_newline = true
