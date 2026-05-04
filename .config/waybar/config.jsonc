@@ -1,0 +1,86 @@
+{
+
+	"layer": "top",
+	"modules-left": ["cpu", "temperature", "memory", "clock"],
+	"modules-center": ["hyprland/workspaces"],
+	"modules-right": ["tray", "network", "backlight", "pulseaudio", "battery"],
+	"height": 30,
+
+    "cpu": {
+        "interval": 5,
+        "format": "  {usage}%",
+        "max-length": 10
+    },
+    "temperature": {
+        "interval": 5,
+        "tooltip": false,
+        "format": " {temperatureC}°C",
+        "max-length": 10,
+        "thermal-zone": 1,
+        "input-filename": "temp1_input",
+    },
+    "memory": {
+        "interval": 10,
+        "format": "  {}%",
+        "max-length": 10
+    },
+    "hyprland/workspaces": {
+        "format": "{icon}: {windows}",
+        "format-window-separator": "",
+        "show-special": true,
+        "special-visible-only": true,
+        "on-click": "activate",
+        "tooltip": true,
+        "workspace-taskbar": {
+            "enable": true,
+            "update-active-window": true,
+            "icon-size": 20,
+            "format": "{icon}"
+        }
+    },
+	"backlight": {
+		"tooltip": false,
+		"format": "  {}%"
+	},
+	"pulseaudio": {
+		"tooltip": false,
+		"format": " {volume}%"
+	},
+	"network": {
+		"tooltip": false,
+        "format-wifi": "{icon} {essid}",
+        "format-alt": "{icon}",
+        "format-alt-click": "click-right",
+        "format-disconnected": "{icon} offline",
+        "margin-top": 9,
+        "margin-bottom": 9,
+        "margin-right": 9,
+        "margin-left": 9,
+        "format-icons": {
+            "wifi": [""],
+            "ethernet": [""],
+            "disconnected": ["睊"]
+        }
+	},
+    "battery": {
+        "states": {
+            "good": 95,
+            "warning": 30,
+            "critical": 20
+        },
+        "format": "{icon} {capacity}%",
+        "format-charging": " {capacity}%",
+        "format-plugged": " {capacity}%",
+        "format-alt": "{time} {icon}",
+        "format-icons": ["", "", "", "", ""]
+    },
+    "clock": {
+        "format": "{:%H:%M}",
+        "format-alt": "{:%a, %d %b}"
+    },
+    "tray": {
+        "icon-size": 20,
+        "spacing": 8,
+        "show-passive-items": true
+    }
+}

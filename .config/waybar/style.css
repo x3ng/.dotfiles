@@ -1,0 +1,96 @@
+/* ── Palette ── */
+@define-color base      #1e2021;
+@define-color text      #ffffff;
+@define-color blue      #96cdfb;
+@define-color lavender  #b4befe;
+@define-color teal      #b5e8e0;
+@define-color green     #abe9b3;
+@define-color yellow    #fae3b0;
+@define-color peach     #f8bd96;
+@define-color magenta   #ddb6f2;
+@define-color purple    #bd93f9;
+@define-color red       #f28fad;
+
+/* ── Base ── */
+* {
+    min-height: 10px;
+    font-family: "Noto Sans";
+    font-size: 15px;
+    border: none;
+    border-radius: 3px;
+}
+
+window#waybar {
+    background-color: transparent;
+    border-top: 8px transparent;
+    border-radius: 8px;
+    color: @text;
+    margin: 16px 16px;
+    transition-property: background-color;
+    transition-duration: 5s;
+}
+
+window#waybar.hidden {
+    opacity: 0.2;
+    padding: 0 10px;
+}
+
+/* ── Modules (shared base) ── */
+#cpu,
+#memory,
+#temperature,
+#network,
+#pulseaudio,
+#backlight,
+#battery,
+#clock {
+    background: @base;
+    border-radius: 3px;
+    margin: 4px 0 0 4px;
+    padding: 0 10px;
+    transition: none;
+}
+
+#cpu         { color: @blue; }
+#memory      { color: @magenta; }
+#temperature { color: @peach; }
+#network     { color: @purple; }
+#pulseaudio  { color: @yellow; }
+#backlight   { color: @peach; }
+#battery     { color: @teal; }
+#clock       { color: @green; }
+
+/* ── Workspaces ── */
+#workspaces {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 10px;
+    margin: 0 4px;
+}
+
+#workspaces button {
+    background-color: @base;
+    color: @teal;
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 10px;
+    margin: 4px 2px 0 2px;
+    min-width: 32px;
+    padding: 2px 0 0 0;
+}
+
+#workspaces button.active {
+    background: linear-gradient(220deg, @peach 0%, @teal 49%, #00d4ff 100%);
+    color: @base;
+}
+
+#workspaces button.focused {
+    background-color: @teal;
+    color: @base;
+}
+
+#workspaces button:hover {
+    color: @lavender;
+}
+
+#workspaces button.urgent {
+    background-color: @yellow;
+}
