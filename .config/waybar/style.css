@@ -1,7 +1,7 @@
 /* ── Nord palette ── */
 @define-color base    #2e3440;
 @define-color surface #3b4252;
-@define-color text    #1b1f27;
+@define-color text    #000000;
 @define-color muted   #3b4252;
 
 /* ── Overlay window ── */
@@ -52,25 +52,25 @@ window#waybar.hidden {
 #network,
 #backlight,
 #pulseaudio {
-  border-right: 1px solid rgba(27, 31, 39, 0.35);
+  border-right: 1px solid rgba(0, 0, 0, 0.35);
 }
 
 #clock {
-  border-right: 1px solid rgba(27, 31, 39, 0.35);
+  border-right: 1px solid rgba(0, 0, 0, 0.35);
 }
 
 /* ── Workspaces ── */
 #workspaces {
   background: transparent;
   padding-right: 8px;
-  border-right: 1px solid rgba(27, 31, 39, 0.35);
+  border-right: 1px solid rgba(0, 0, 0, 0.35);
 }
 
 #workspaces button {
   font-size: 15px;
   font-weight: bold;
   background: transparent;
-  color: @muted;
+  color: @text;
   padding: 0 4px;
   margin: 0;
   border: none;
@@ -79,7 +79,7 @@ window#waybar.hidden {
 }
 
 #workspaces button.active {
-  background: rgba(27, 31, 39, 0.65);
+  background: rgba(0, 0, 0, 0.65);
   color: #eceff4;
   border-radius: 4px;
 }
@@ -100,7 +100,7 @@ window#waybar.hidden {
   color: @text;
   padding: 0 12px;
   margin: 0;
-  border-right: 1px solid rgba(27, 31, 39, 0.35);
+  border-right: 1px solid rgba(0, 0, 0, 0.35);
 }
 
 /* ── Tray ── */

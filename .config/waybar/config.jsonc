@@ -111,8 +111,7 @@
         ]
     },
     "clock": {
-        "format": "{:%H:%M}",
-        "format-alt": "{:%a, %d %b}"
+        "format": "{:%a %d %b  %H:%M}"
     },
     "tray": {
         "icon-size": 20,
