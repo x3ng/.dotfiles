@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
+# Symlinks dotfiles from this repo into $HOME.
+# Usage: ./scripts/link_all.sh <filelist>
 set -uo pipefail
 
+# ---- paths ----
 SCRIPT_PATH="$(readlink -f "$0")"
 DOTFILES_DIR="$(dirname "$(dirname "$SCRIPT_PATH")")"
 DESTINATION="${DESTINATION:-$HOME}"
-FILE_LIST="${FILE_LIST:-$DOTFILES_DIR/filelist}"
+FILE_LIST="${1:-}"
 
+# ---- state ----
 declare -i success=0 skip=0 error=0
 declare -a errors=()
 
@@ -24,11 +28,13 @@ validate_source() {
     return 0
 }
 
+# Ensure the resolved target is under $DESTINATION — prevents
+# accidental writes outside home from misconfigured filelists.
 validate_target_path() {
     local target=$1 path=$2
     local resolved_target=$(readlink -f "$target" 2>/dev/null || echo "$target")
     local dest_real=$(readlink -f "$DESTINATION")
-    
+
     if [[ -n "$resolved_target" && "$resolved_target" != "$dest_real"* ]]; then
         errors+=("Security check failed: $path (escapes destination)")
         return 1
@@ -36,6 +42,7 @@ validate_target_path() {
     return 0
 }
 
+# Move an existing file/dir to a timestamped backup before overwriting.
 create_backup() {
     local target=$1
     local backup="${target}.backup.$(date +%Y%m%d%H%M%S)"
@@ -48,6 +55,8 @@ create_backup() {
     fi
 }
 
+# Check what's already at the target path: correct link → skip,
+# wrong link or real file → backup first.
 handle_existing_target() {
     local target=$1 src=$2 path=$3
     validate_target_path "$target" "$path" || return 1
@@ -73,6 +82,7 @@ create_symlink() {
     return 1
 }
 
+# Orchestrate source validation, backup, and symlink for one path.
 process_item() {
     local path=$1
     local src="$DOTFILES_DIR/$path"
@@ -85,25 +95,35 @@ process_item() {
 
 main() {
     log INFO "Starting dotfiles linking..."
-    log INFO "Dotfiles dir: $DOTFILES_DIR | Destination: $DESTINATION | Config: $FILE_LIST"
+    log INFO "Dotfiles dir: $DOTFILES_DIR | Destination: $DESTINATION"
+
+    if [[ -z "$FILE_LIST" ]]; then
+        log ERROR "Usage: $0 <filelist>  (e.g. hosts/desktop)"
+        exit 1
+    fi
+
+    log INFO "Config: $FILE_LIST"
     echo
 
     if [[ ! -f "$FILE_LIST" ]]; then
-        log ERROR "Config file not found: $FILE_LIST"
+        log ERROR "File not found: $FILE_LIST"
         exit 1
     elif [[ ! -r "$FILE_LIST" ]]; then
-        log ERROR "Config file not readable: $FILE_LIST"
+        log ERROR "File not readable: $FILE_LIST"
         exit 1
     elif [[ ! -s "$FILE_LIST" ]]; then
-        log WARNING "Config file is empty: $FILE_LIST"
+        log WARNING "File is empty: $FILE_LIST"
         exit 1
     fi
 
     while IFS= read -r line || [[ -n "$line" ]]; do
+        # Skip blank lines and comments
         [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-        local path=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        [[ -z "$path" ]] && continue
-        process_item "$path"
+        # Trim leading/trailing whitespace
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+        [[ -z "$line" ]] && continue
+        process_item "$line"
     done < "$FILE_LIST"
 
     echo
