@@ -1,0 +1,5 @@
+window-padding-balance = true
+theme = Catppuccin Mocha
+cursor-style = block
+window-save-state = always
+term = xterm-256color
