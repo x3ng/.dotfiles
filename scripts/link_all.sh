@@ -82,15 +82,16 @@ create_symlink() {
     return 1
 }
 
-# Orchestrate source validation, backup, and symlink for one path.
+# Each line: <src> [<dst>] — if dst is omitted, src is used as dst.
 process_item() {
-    local path=$1
-    local src="$DOTFILES_DIR/$path"
-    local target="$DESTINATION/$path"
+    local src=$1 dst=$2
+    dst="${dst:-$src}"
+    local src_full="$DOTFILES_DIR/$src"
+    local target="$DESTINATION/$dst"
 
-    validate_source "$src" "$path" || { ((error++)); return 1; }
-    handle_existing_target "$target" "$src" "$path" || return 1
-    create_symlink "$src" "$target" "$path" || ((error++))
+    validate_source "$src_full" "$src" || { ((error++)); return 1; }
+    handle_existing_target "$target" "$src_full" "$src" || return 1
+    create_symlink "$src_full" "$target" "$src" || ((error++))
 }
 
 main() {
@@ -123,7 +124,8 @@ main() {
         line="${line#"${line%%[![:space:]]*}"}"
         line="${line%"${line##*[![:space:]]}"}"
         [[ -z "$line" ]] && continue
-        process_item "$line"
+        # Split into src and optional dst
+        process_item $line
     done < "$FILE_LIST"
 
     echo
