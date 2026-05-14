@@ -88,10 +88,11 @@ process_item() {
     dst="${dst:-$src}"
     local src_full="$DOTFILES_DIR/$src"
     local target="$DESTINATION/$dst"
+    local label="$src -> $dst"
 
-    validate_source "$src_full" "$src" || { ((error++)); return 1; }
-    handle_existing_target "$target" "$src_full" "$src" || return 1
-    create_symlink "$src_full" "$target" "$src" || ((error++))
+    validate_source "$src_full" "$label" || { ((error++)); return 1; }
+    handle_existing_target "$target" "$src_full" "$label" || return 1
+    create_symlink "$src_full" "$target" "$label" || ((error++))
 }
 
 main() {
