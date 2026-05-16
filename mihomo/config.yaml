@@ -33,7 +33,7 @@ profile:
 proxy-providers:
   sub:
     type: http
-    url: "SUBSCRIPTION_URL"
+    url: "SUB_URL"
     path: ./proxy-providers/sub.yaml
     interval: 3600
     health-check:
