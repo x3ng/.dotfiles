@@ -1,5 +1,8 @@
 {
-    "layer": "overlay",
+    "layer": "top",
+    "mode": "overlay",
+    "exclusive": false,
+    "start_hidden": true,
     "modules-left": [
         "cpu",
         "temperature",

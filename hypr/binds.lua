@@ -2,6 +2,9 @@ local terminal = "ghostty"
 local fileManager = "thunar"
 local menu = "rofi -show combi -combi-modes drun,run,window,filebrowser"
 
+-- Toggle waybar
+hl.bind("SUPER + B", hl.dsp.exec_cmd("pkill -SIGUSR1 waybar"))
+
 -- Launch
 hl.bind("SUPER + Q", hl.dsp.exec_cmd(terminal))
 hl.bind("SUPER + C", hl.dsp.window.close())
@@ -19,7 +22,7 @@ hl.bind("SUPER + SHIFT + V", hl.dsp.exec_cmd("cliphist list | rofi -dmenu | clip
 
 -- Lock & exit
 hl.bind("SUPER + M", hl.dsp.exec_cmd("hyprlock"))
-hl.bind("SUPER + SHIFT + M", hl.dsp.exec_cmd("hyprshutdown"))
+hl.bind("SUPER + SHIFT + M", hl.dsp.exec_cmd("hyprshutdown --no-fork"))
 
 -- Move focus
 hl.bind("SUPER + H", hl.dsp.focus({ direction = "l" }))
