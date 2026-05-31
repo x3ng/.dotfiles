@@ -1,7 +1,7 @@
 /* ── Nord palette ── */
 @define-color base    #2e3440;
 @define-color surface #3b4252;
-@define-color text    #000000;
+@define-color text    #2e3440;
 @define-color muted   #3b4252;
 
 /* ── Overlay window ── */
@@ -17,25 +17,15 @@ window#waybar.hidden {
   opacity: 0;
 }
 
-/* ── Three independent rounded sections ── */
-.modules-left,
-.modules-center,
-.modules-right {
-  background: rgba(236, 239, 244, 0.30);
+/* ── Single centered section ── */
+.modules-center {
+  background: rgba(168, 168, 168, 0.88);
   padding: 3px 14px;
   margin: 0 2px;
   border-radius: 6px;
 }
 
 /* ── Modules ── */
-#cpu,
-#temperature,
-#memory,
-#disk,
-#network,
-#backlight,
-#pulseaudio,
-#battery,
 #clock {
   background: transparent;
   color: @text;
@@ -45,25 +35,10 @@ window#waybar.hidden {
   transition: none;
 }
 
-/* ── Separators ── */
-#cpu,
-#temperature,
-#memory,
-#network,
-#backlight,
-#pulseaudio {
-  border-right: 1px solid rgba(0, 0, 0, 0.35);
-}
-
-#clock {
-  border-right: 1px solid rgba(0, 0, 0, 0.35);
-}
-
 /* ── Workspaces ── */
 #workspaces {
   background: transparent;
   padding-right: 8px;
-  border-right: 1px solid rgba(0, 0, 0, 0.35);
 }
 
 #workspaces button {
@@ -79,7 +54,7 @@ window#waybar.hidden {
 }
 
 #workspaces button.active {
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.55);
   color: #eceff4;
   border-radius: 4px;
 }
@@ -94,15 +69,6 @@ window#waybar.hidden {
   color: #bf616a;
 }
 
-/* ── Active window title ── */
-#window {
-  background: transparent;
-  color: @text;
-  padding: 0 12px;
-  margin: 0;
-  border-right: 1px solid rgba(0, 0, 0, 0.35);
-}
-
 /* ── Tray ── */
 #tray {
   background: transparent;
@@ -112,4 +78,21 @@ window#waybar.hidden {
 
 #tray > .needs-attention {
   -gtk-icon-effect: highlight;
+}
+
+#custom-battery,
+#backlight,
+#pulseaudio {
+  background: transparent;
+  padding: 0 6px;
+  margin: 0;
+  border: none;
+}
+
+#custom-battery.warning {
+  color: #d08770;
+}
+
+#custom-battery.critical {
+  color: #bf616a;
 }

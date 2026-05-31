@@ -1,50 +1,18 @@
 {
     "layer": "top",
-    "mode": "overlay",
+    "position": "bottom",
+    "mode": "hide",
     "exclusive": false,
     "start_hidden": true,
-    "modules-left": [
-        "cpu",
-        "temperature",
-        "memory",
-        "disk"
-    ],
     "modules-center": [
         "hyprland/workspaces",
-        "hyprland/window",
         "clock",
+        "pulseaudio",
+        "backlight",
+        "custom/battery",
         "tray"
     ],
-    "modules-right": [
-        "network",
-        "backlight",
-        "pulseaudio",
-        "battery"
-    ],
     "height": 30,
-    "cpu": {
-        "interval": 5,
-        "format": "  {usage}%",
-        "max-length": 10
-    },
-    "temperature": {
-        "interval": 5,
-        "tooltip": false,
-        "format": " {temperatureC}°C",
-        "max-length": 10,
-        "thermal-zone": 1,
-        "input-filename": "temp1_input"
-    },
-    "memory": {
-        "interval": 10,
-        "format": "  {used}%",
-        "max-length": 10
-    },
-    "disk": {
-        "interval": 30,
-        "format": "󰋊  {percentage_used}%",
-        "path": "/"
-    },
     "hyprland/workspaces": {
         "format": "{icon} {windows}",
         "format-window-separator": " ",
@@ -59,66 +27,32 @@
             "format": "{icon}"
         }
     },
-    "hyprland/window": {
-        "format": "{}",
-        "max-length": 40,
-        "separate-outputs": true
-    },
-    "backlight": {
-        "tooltip": false,
-        "format": "  {percent}%"
-    },
-    "pulseaudio": {
-        "tooltip": false,
-        "format": "{icon} {volume}%",
-        "format-muted": "  muted",
-        "format-icons": {
-            "default": [
-                ""
-            ]
-        }
-    },
-    "network": {
-        "tooltip": false,
-        "format-wifi": "{icon}  {essid}",
-        "format-disconnected": "{icon}  off",
-        "max-length": 16,
-        "format-icons": {
-            "wifi": [
-                ""
-            ],
-            "ethernet": [
-                ""
-            ],
-            "disconnected": [
-                "ﮩ"
-            ]
-        }
-    },
-    "battery": {
-        "states": {
-            "good": 95,
-            "warning": 30,
-            "critical": 20
-        },
-        "format": "{icon} {capacity}%",
-        "format-charging": " {capacity}%",
-        "format-plugged": " {capacity}%",
-        "format-alt": "{time} {icon}",
-        "format-icons": [
-            "",
-            "",
-            "",
-            "",
-            ""
-        ]
-    },
     "clock": {
-        "format": "{:%a %d %b  %H:%M}"
+        "format": "{:%H:%M}",
+        "tooltip-format": "{:%A, %d %B %Y}"
     },
     "tray": {
         "icon-size": 20,
         "spacing": 8,
         "show-passive-items": true
+    },
+    "custom/battery": {
+        "exec": "~/.config/waybar/waybar-battery.sh",
+        "return-type": "json",
+        "interval": 30,
+        "tooltip": true
+    },
+    "backlight": {
+        "format": "◐ {percent}%",
+        "tooltip-format": "{percent}%",
+        "on-scroll-up": "brightnessctl -e3 -n2 set 1%+",
+        "on-scroll-down": "brightnessctl -e3 -n2 set 1%-"
+    },
+    "pulseaudio": {
+        "format": "♪ {volume}%",
+        "format-muted": "♪ muted",
+        "tooltip-format": "{volume}%",
+        "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "scroll-step": 5
     }
 }
