@@ -22,7 +22,7 @@ hl.bind("SUPER + SHIFT + V", hl.dsp.exec_cmd("cliphist list | rofi -dmenu | clip
 
 -- Lock & exit
 hl.bind("SUPER + M", hl.dsp.exec_cmd("hyprlock"))
-hl.bind("SUPER + SHIFT + M", hl.dsp.exec_cmd("hyprshutdown --no-fork"))
+hl.bind("SUPER + SHIFT + M", hl.dsp.exec_cmd("hyprshutdown"))
 
 -- Move focus
 hl.bind("SUPER + H", hl.dsp.focus({ direction = "l" }))
