@@ -1,0 +1,2 @@
+include base
+tmux/tmux.conf .config/tmux/tmux.conf

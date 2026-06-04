@@ -95,6 +95,26 @@ process_item() {
     create_symlink "$src_full" "$target" "$label" || ((error++))
 }
 
+# Expand "base <name>" references into a flat list of entries.
+# Looks up <name> relative to the current file's directory.
+# Supports nested base references (no cycle detection — don't be clever).
+expand_file() {
+    local file=$1
+    local dir
+    dir="$(dirname "$file")"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+        [[ -z "$line" ]] && continue
+        if [[ "$line" =~ ^include[[:space:]]+(.+)$ ]]; then
+            expand_file "$dir/${BASH_REMATCH[1]}"
+        else
+            echo "$line"
+        fi
+    done < "$file"
+}
+
 main() {
     log INFO "Starting dotfiles linking..."
     log INFO "Dotfiles dir: $DOTFILES_DIR | Destination: $DESTINATION"
@@ -119,15 +139,8 @@ main() {
     fi
 
     while IFS= read -r line || [[ -n "$line" ]]; do
-        # Skip blank lines and comments
-        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-        # Trim leading/trailing whitespace
-        line="${line#"${line%%[![:space:]]*}"}"
-        line="${line%"${line##*[![:space:]]}"}"
-        [[ -z "$line" ]] && continue
-        # Split into src and optional dst
         process_item $line
-    done < "$FILE_LIST"
+    done < <(expand_file "$FILE_LIST")
 
     echo
     log INFO "Success: $success | Skipped: $skip | Errors: $error"
