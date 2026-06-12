@@ -46,7 +46,7 @@ dns:
     - 'ntp.*.com'
     - '*.msftncsi.com'
     - 'www.msftconnecttest.com'
-  listen: 127.0.0.1:53
+  # listen 已删除：TUN dns-hijack: any:53 已在 TUN 层面接管 DNS，dns.listen 是死配置
   default-nameserver:
     - 223.5.5.5
     - 119.29.29.29
