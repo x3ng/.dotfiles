@@ -121,6 +121,7 @@ rule-providers:
     interval: 86400
 
 rules:
+  - DST-PORT,22,DIRECT
   - RULE-SET,reject,REJECT
   - RULE-SET,direct,DIRECT
   - RULE-SET,cncidr,DIRECT
