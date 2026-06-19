@@ -24,13 +24,6 @@ hl.window_rule({
   move = { 20, "monitor_h-120" },
 })
 
--- Waybar layer blur
-hl.layer_rule({
-  match = { namespace = "waybar" },
-  blur = true,
-  ignore_alpha = 0.2,
-})
-
 -- "Smart gaps" / "No gaps when only" — uncomment to enable
 -- hl.workspace_rule({
 --   match = { workspace = "w[tv1]" },

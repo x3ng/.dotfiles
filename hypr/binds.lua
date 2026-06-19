@@ -1,9 +1,9 @@
 local terminal = "ghostty"
 local fileManager = "thunar"
-local menu = "rofi -show combi -combi-modes drun,run,window,filebrowser"
+local menu = "rofi -show combi"
 
--- Toggle waybar
-hl.bind("SUPER + B", hl.dsp.exec_cmd("pkill -SIGUSR1 waybar"))
+-- Toggle bar
+hl.bind("SUPER + B", hl.dsp.exec_cmd("qs ipc call bar toggle"))
 
 -- Launch
 hl.bind("SUPER + Q", hl.dsp.exec_cmd(terminal))
@@ -14,11 +14,14 @@ hl.bind("SUPER + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "t
 hl.bind("SUPER + R", hl.dsp.exec_cmd(menu))
 hl.bind("SUPER + P", hl.dsp.window.pseudo({ action = "toggle" }))
 
--- Screenshot
-hl.bind("SUPER + PRINT", hl.dsp.exec_cmd("grim -g \"$(slurp)\" - | wl-copy"))
+-- Screenshot (region select → annotate with satty → copy)
+hl.bind("SUPER + PRINT", hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | satty -f - --copy-command wl-copy'"))
+-- Screenshot (fullscreen → copy)
+hl.bind("SUPER + SHIFT + PRINT", hl.dsp.exec_cmd("sh -c 'grim - | wl-copy'"))
 
 -- Clipboard history
-hl.bind("SUPER + SHIFT + V", hl.dsp.exec_cmd("cliphist list | rofi -dmenu | cliphist decode | wl-copy"))
+hl.bind("SUPER + SHIFT + V", hl.dsp.exec_cmd("clipse"))
+hl.bind("SUPER + SHIFT + C", hl.dsp.exec_cmd("sh -c 'cliphist list | rofi -dmenu | cliphist decode | wl-copy'"))
 
 -- Lock & exit
 hl.bind("SUPER + M", hl.dsp.exec_cmd("hyprlock"))

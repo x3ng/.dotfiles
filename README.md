@@ -22,6 +22,18 @@ Plain text, one mapping per line:
 
 `src` relative to repo root, `dst` relative to `$HOME`. Blank lines and `#` comments are ignored.
 
+Host files may include another host file:
+
+```
+include base
+```
+
+Current host split:
+
+- `base`: shared CLI configuration that is safe on both laptops and servers.
+- `laptop`: personal graphical desktop session, including Hyprland, Quickshell, and graphical terminals.
+- `server`: server-specific overrides on top of `base`.
+
 ## scripts/
 
 `link_all.sh` reads a host file and symlinks each `src` to `$HOME/<dst>`.
