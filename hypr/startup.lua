@@ -1,8 +1,6 @@
 -- Environment variables
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
-hl.env("GTK_ICON_THEME", "Adwaita")
-hl.env("QT_ICON_THEME", "Adwaita")
 
 -- Monitor (auto-detect all, preferred resolution)
 hl.monitor({
