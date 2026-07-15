@@ -1,8 +1,43 @@
+# ========== 主题与窗口 ==========
 window-padding-balance = true
 theme = Catppuccin Mocha
+window-theme = auto
+
+# ========== 渲染基础 ==========
+window-vsync = true
+alpha-blending = linear-corrected
+
+# ========== 光标 ==========
 cursor-style = block
 cursor-style-blink = false
-shell-integration-features = no-cursor
+cursor-opacity = 1.0
+
+# ========== 自定义着色器 ==========
+custom-shader-animation = true
+custom-shader = cursor_smear.glsl
+
+# ========== 字体渲染 ==========
+font-family = "JetBrainsMono Nerd Font"
+font-size = 13
+adjust-cell-height = 2
+
+# Linux 字体加载标志（macOS 可删除）
+freetype-load-flags = light,hinting
+
+# ========== 滚动与缓冲区 ==========
+scrollback-limit = 10000000
+mouse-scroll-multiplier = 1.2
+scrollbar = system
+
+# ========== 交互与剪贴板 ==========
+copy-on-select = clipboard
+mouse-hide-while-typing = true
 clipboard-paste-protection = false
+
+# ========== 分屏体验 ==========
+unfocused-split-opacity = 0.9
+
+# ========== Shell 与环境 ==========
+shell-integration-features = no-cursor
 window-save-state = always
 term = xterm-256color
