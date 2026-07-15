@@ -2,3 +2,15 @@
 "$schema" = 'https://starship.rs/config-schema.json'
 
 add_newline = true
+
+[time]
+disabled = false
+
+[cmd_duration]
+min_time = 1500
+
+[status]
+disabled = false
+
+[battery]
+display = [{ threshold = 20}]
