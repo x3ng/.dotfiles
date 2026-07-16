@@ -1,6 +1,6 @@
 # ========== 主题与窗口 ==========
 window-padding-balance = true
-theme = Catppuccin Mocha
+theme = Dark+
 window-theme = auto
 
 # ========== 渲染基础 ==========
