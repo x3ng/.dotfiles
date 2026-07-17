@@ -17,3 +17,4 @@ ghostty/config .config/ghostty/config
 ghostty/cursor_smear.glsl .config/ghostty/cursor_smear.glsl
 
 tmux/tmux.conf .config/tmux/tmux.conf
+zellij/config.kdl .config/zellij/config.kdl
