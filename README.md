@@ -1,45 +1,61 @@
 # dotfiles
 
-Config files versioned in git, deployed to `$HOME` as symlinks.
+Config files versioned in git, each directory owns its own deployment logic.
 
 ## Layout
 
 ```
-app-name/       # each directory holds one application's config files
-hosts/<name>    # per-machine filelists mapping source to target
-scripts/        # deployment tooling
+app-name/          # each directory holds one application's configs + install.sh
+deploy/
+  deploy           # orchestrator
+  lib.sh           # shared helpers (dot_link, dot_template, etc.)
+  all              # manifest: tui + gui
+  tui              # manifest: cli/tui essentials
+  gui              # manifest: graphical desktop
 ```
 
-Source paths under each app directory do not mirror `$HOME`. Host files define the mapping.
-
-## hosts/
-
-Plain text, one mapping per line:
-
-```
-<src> <dst>
-```
-
-`src` relative to repo root, `dst` relative to `$HOME`. Blank lines and `#` comments are ignored.
-
-Host files may include another host file:
-
-```
-include base
-```
-
-Current host split:
-
-- `base`: shared CLI configuration that is safe on both laptops and servers.
-- `laptop`: personal graphical desktop session, including Hyprland, Quickshell, and graphical terminals.
-- `server`: server-specific overrides on top of `base`.
-
-## scripts/
-
-`link_all.sh` reads a host file and symlinks each `src` to `$HOME/<dst>`.
+## Usage
 
 ```bash
-./scripts/link_all.sh hosts/<name>
+./deploy/deploy                  # show help
+./deploy/deploy -f deploy/all    # install everything
+./deploy/deploy -f deploy/tui    # install cli-only
+./deploy/deploy -f deploy/gui    # install gui-only
+
+./deploy/deploy --undo -f deploy/tui
+./deploy/deploy --undo vim
+./deploy/deploy --list            # list deploy/all
+./deploy/deploy --dry-run -f deploy/tui
 ```
 
-Correct existing links are skipped. Real files at the target are backed up to `<target>.backup.<timestamp>` before being replaced.
+## Manifests
+
+Plain text, one package name per line. Support `include <name>` for composition.
+Names are resolved relative to the manifest's directory.
+Packages are deduplicated (first occurrence wins).
+
+```
+# deploy/all
+include tui
+include gui
+```
+
+Use `./deploy/deploy --list` to see the resolved package list.
+
+## install.sh convention
+
+Each `install.sh` accepts `install` or `uninstall`:
+
+```bash
+./vim/install.sh install
+./vim/install.sh uninstall
+```
+
+Interactive packages refuse batch execution and guide the user:
+
+```bash
+./deploy/deploy mihomo                          # prompts for SUB_URL
+sudo MIHOMO_SUB_URL=<url> ./deploy/deploy mihomo
+sudo XREMAP_SKIP_REVIEW=1 ./deploy/deploy xremap
+TMUX_PREFIX=C-a ./deploy/deploy tmux             # server prefix override
+```

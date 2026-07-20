@@ -1,0 +1,3 @@
+# full desktop: include both base categories
+include tui
+include gui

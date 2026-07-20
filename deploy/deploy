@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+DOTFILES="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/lib.sh"
+
+# ---- defaults ----
+MANIFEST="$SCRIPT_DIR/all"
+MANIFEST_EXPLICIT=0
+MODE="install"
+DRY_RUN=0
+PACKAGES=()
+ERRORS=()
+
+# ---- usage ----
+usage() {
+    cat <<'EOF'
+usage: deploy [options] [packages...]
+
+options:
+  -f <file>    deploy packages from an explicit manifest file
+  --undo       uninstall instead of install
+  --dry-run    show what would happen, do nothing
+  --list       list resolved packages from deploy/all, or from -f <file>
+  --help       show this message
+
+Examples:
+  deploy vim tmux
+  deploy --dry-run -f deploy/tui
+  deploy -f deploy/all
+
+Manifests support:
+  include <name>    pull in another manifest (resolved relative to deploy/)
+  # comments        ignored, along with blank lines
+
+Packages listed or included are deduplicated (first occurrence wins).
+EOF
+    exit "${1:-0}"
+}
+
+# ---- manifest expander (recursive, deduplicated) ----
+declare -A _SEEN=()
+
+_expand_manifest() {
+    local file="$1" dir; dir="$(dirname "$file")"
+    local line pkg
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # strip comments, trim whitespace, skip blanks
+        line="${line%%#*}"
+        line="$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+        [[ -z "$line" ]] && continue
+
+        if [[ "$line" =~ ^include[[:space:]]+(.+)$ ]]; then
+            local inc="${BASH_REMATCH[1]}"
+            local inc_file; inc_file="$dir/$inc"
+            if [[ ! -f "$inc_file" ]]; then
+                log_err "include not found: $inc (from $file)"
+                exit 1
+            fi
+            _expand_manifest "$inc_file"
+        else
+            pkg="$line"
+            if [[ -z "${_SEEN[$pkg]:-}" ]]; then
+                _SEEN[$pkg]=1
+                echo "$pkg"
+            fi
+        fi
+    done < "$file"
+}
+
+_list_manifest() {
+    if [[ ! -f "$MANIFEST" ]]; then
+        log_err "manifest not found: $MANIFEST"
+        exit 1
+    fi
+    echo "packages (resolved from $(basename "$MANIFEST")):"
+    _expand_manifest "$MANIFEST" | while read -r pkg; do
+        echo "  $pkg"
+    done
+}
+
+# ---- arg parsing ----
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -f)
+            if [[ $# -lt 2 ]]; then
+                log_err "-f requires a manifest file"
+                echo
+                usage 2
+            fi
+            MANIFEST="$2"; MANIFEST_EXPLICIT=1; shift 2
+            ;;
+        --undo) MODE="uninstall"; shift ;;
+        --dry-run) DRY_RUN=1; shift ;;
+        --list) _list_manifest; exit 0 ;;
+        --help) usage ;;
+        --) shift; break ;;
+        -*)  log_err "unknown option: $1"; echo; usage 2 ;;
+        *)   PACKAGES+=("$1"); shift ;;
+    esac
+done
+while [[ $# -gt 0 ]]; do PACKAGES+=("$1"); shift; done
+
+export DRY_RUN
+
+# ---- resolve package list ----
+if [[ ${#PACKAGES[@]} -eq 0 ]]; then
+    if [[ "$MANIFEST_EXPLICIT" -eq 1 ]]; then
+        if [[ ! -f "$MANIFEST" ]]; then
+            log_err "manifest not found: $MANIFEST"
+            exit 1
+        fi
+        while IFS= read -r pkg; do
+            PACKAGES+=("$pkg")
+        done < <(_expand_manifest "$MANIFEST")
+    else
+        usage
+    fi
+fi
+
+if [[ ${#PACKAGES[@]} -eq 0 ]]; then
+    log_warn "nothing to do (empty manifest: $MANIFEST)"
+    exit 0
+fi
+
+# ---- main ----
+log_info "${MODE}ing $((${#PACKAGES[@]})) package(s)..."
+if is_dry_run; then
+    log_info "DRY-RUN MODE (no changes will be made)"
+fi
+echo
+
+for pkg in "${PACKAGES[@]}"; do
+    pkg_dir="$DOTFILES/$pkg"
+    installer="$pkg_dir/install.sh"
+
+    if [[ ! -d "$pkg_dir" ]]; then
+        ERRORS+=("$pkg: directory not found")
+        continue
+    fi
+    if [[ ! -x "$installer" ]]; then
+        ERRORS+=("$pkg: install.sh not found or not executable")
+        continue
+    fi
+
+    echo "--- $pkg ---"
+    if "$installer" "$MODE"; then
+        :
+    else
+        ERRORS+=("$pkg: $MODE failed (exit $?)")
+    fi
+    echo
+done
+
+# ---- report ----
+if [[ ${#ERRORS[@]} -gt 0 ]]; then
+    echo "errors:"
+    for e in "${ERRORS[@]}"; do
+        log_err "$e"
+    done
+    exit 1
+fi
+
+log_info "all done."
