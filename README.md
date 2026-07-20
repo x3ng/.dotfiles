@@ -51,6 +51,11 @@ Each `install.sh` accepts `install` or `uninstall`:
 ./vim/install.sh uninstall
 ```
 
+Most packages symlink files into place. Packages may copy generated or
+declarative files instead when the target application writes runtime fields back
+to the same file. Runtime state, caches, logs, auth files, sessions, and
+installed package directories stay outside dotfiles.
+
 Interactive packages refuse batch execution and guide the user:
 
 ```bash
