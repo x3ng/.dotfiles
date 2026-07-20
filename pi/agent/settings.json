@@ -1,0 +1,15 @@
+{
+  "theme": "dark",
+  "packages": [
+    "npm:@gotgenes/pi-permission-system",
+    "npm:pi-subagents",
+    "npm:@narumitw/pi-goal",
+    "npm:pi-web-access",
+    "npm:@juicesharp/rpiv-ask-user-question",
+    "npm:@juicesharp/rpiv-todo",
+    "npm:pi-shazam"
+  ],
+  "quietStartup": false,
+  "defaultThinkingLevel": "high",
+  "lastChangelogVersion": "0.80.8"
+}
