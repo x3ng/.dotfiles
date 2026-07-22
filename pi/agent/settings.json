@@ -2,12 +2,13 @@
   "theme": "dark",
   "packages": [
     "npm:@gotgenes/pi-permission-system",
-    "npm:pi-subagents",
     "npm:@narumitw/pi-goal",
     "npm:pi-web-access",
     "npm:@juicesharp/rpiv-ask-user-question",
     "npm:@juicesharp/rpiv-todo",
-    "npm:pi-shazam"
+    "npm:pi-shazam",
+    "npm:@gotgenes/pi-subagents",
+    "npm:pi-lens"
   ],
   "quietStartup": false,
   "defaultThinkingLevel": "high",
