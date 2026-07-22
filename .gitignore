@@ -1,2 +1,7 @@
 *CLAUDE*
 .claude/
+
+# pi extension runtime state (configs are tracked)
+pi/agent/extensions/*/logs/
+pi/agent/extensions/*/cache/
+pi/agent/extensions/*/state/

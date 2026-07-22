@@ -1,0 +1,33 @@
+{
+  "permission": {
+    "*": "allow",
+    "path": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow",
+      "~/.ssh/*": "deny",
+      "~/.gnupg/*": "deny"
+    },
+    "read": "allow",
+    "write": "ask",
+    "edit": "ask",
+    "bash": {
+      "*": "allow",
+      "rm -rf *": "deny",
+      "rm -r *": "ask",
+      "sudo *": "ask",
+      "curl * | sh": "deny",
+      "curl * | bash": "deny",
+      "wget * -O - | sh": "deny",
+      "chmod 777 *": "deny",
+      "git push --force *": "ask",
+      "git push -f *": "ask"
+    },
+    "external_directory": {
+      "*": "ask",
+      "~/.cache/*": "allow",
+      "/tmp/*": "allow"
+    }
+  }
+}

@@ -5,19 +5,15 @@ source "$SCRIPT_DIR/../deploy/lib.sh"
 
 PREFIX="${PI_AGENT_HOME:-$HOME/.pi/agent}"
 
-# Dotfiles only manages Pi's global declarative settings. The file is copied,
-# not linked, because Pi writes runtime keys such as lastChangelogVersion.
-MANAGED_ITEM="settings.json"
+# Pi declarative config managed via symlinks for real-time sync.
+# settings.json is the root: packages, theme, thinking level.
+# extension configs under extensions/*/config.json are optional policy files.
+# Both are symlinked so edits in dotfiles take effect immediately.
+# Pi may write runtime keys (e.g. lastChangelogVersion) to settings.json;
+# those show as dirty in git — commit them as part of normal maintenance.
 
 LEGACY_LINKS=(
-  AGENTS.md
-  agents
-  skills
-  prompts
-  subagents.json
-  pi-goal.json
-  extensions
-  themes
+  AGENTS.md agents skills prompts subagents.json pi-goal.json extensions themes
 )
 
 ensure_agent_dir() {
@@ -27,7 +23,6 @@ ensure_agent_dir() {
       rm "$PREFIX"
     fi
   fi
-
   if is_dry_run; then
     log_info "DRY: mkdir -p $PREFIX"
   else
@@ -42,7 +37,6 @@ cleanup_legacy_links() {
     if [[ ! -L "$dst" ]]; then
       continue
     fi
-
     target="$(readlink "$dst")"
     case "$target" in
       "$SCRIPT_DIR/agent/$item")
@@ -55,43 +49,85 @@ cleanup_legacy_links() {
   done
 }
 
-case "${1:-install}" in
-  install)
-    ensure_agent_dir
-    cleanup_legacy_links
+# Symlink a single file from dotfiles to Pi agent, creating parent dirs as needed.
+# $1 = relative path under pi/agent/ (e.g. "settings.json", "extensions/pi-permission-system/config.json")
+link_managed_file() {
+  local rel="$1"
+  local src="$SCRIPT_DIR/agent/$rel"
+  local dst="$PREFIX/$rel"
+  local dst_dir
+  dst_dir="$(dirname "$dst")"
 
-    src="$SCRIPT_DIR/agent/$MANAGED_ITEM"
-    dst="$PREFIX/$MANAGED_ITEM"
+  if is_dry_run; then
+    log_info "DRY: mkdir -p $dst_dir"
+    log_info "DRY: ln -sf $src -> $dst"
+    return
+  fi
 
+  mkdir -p "$dst_dir"
+
+  if [[ -L "$dst" ]]; then
+    local current_target
+    current_target="$(readlink "$dst")"
+    if [[ "$current_target" == "$src" ]]; then
+      log_info "skip (already linked): $dst"
+      return
+    fi
+  fi
+
+  if [[ -f "$dst" ]] && [[ ! -L "$dst" ]]; then
+    _backup_target "$dst"
+  fi
+
+  ln -sf "$src" "$dst"
+  log_info "linked: $dst -> $src"
+}
+
+# Remove a managed symlink and restore any backup.
+unlink_managed_file() {
+  local rel="$1"
+  local dst="$PREFIX/$rel"
+
+  if [[ -L "$dst" ]]; then
     if is_dry_run; then
-      log_info "DRY: install $src -> $dst"
+      log_info "DRY: rm $dst"
     else
-      if [[ ! -L "$dst" ]] && [[ -f "$dst" ]] && cmp -s "$src" "$dst"; then
-        log_info "skip (same content): $dst"
-        exit 0
-      fi
-      if [[ -L "$dst" ]] || [[ -e "$dst" ]]; then
-        _backup_target "$dst"
-      fi
-      cp "$src" "$dst"
-      log_info "installed: $dst"
+      rm "$dst"
+      log_info "removed: $dst"
     fi
-    ;;
+    _restore_latest_backup "$dst"
+  fi
+}
 
-  uninstall)
-    dst="$PREFIX/$MANAGED_ITEM"
-    if [[ -f "$dst" ]] || [[ -L "$dst" ]]; then
-      if is_dry_run; then
-        log_info "DRY: rm $dst"
-      else
-        rm "$dst"
-        log_info "removed: $dst"
-      fi
-      _restore_latest_backup "$dst"
-    fi
-    ;;
+install_all() {
+  ensure_agent_dir
+  cleanup_legacy_links
 
-  *)
-    echo "usage: $0 {install|uninstall}" >&2; exit 1
-    ;;
+  # Core settings
+  link_managed_file "settings.json"
+
+  # Extension configs
+  local ext_config
+  for ext_config in "$SCRIPT_DIR/agent/extensions"/*/config.json; do
+    [[ -f "$ext_config" ]] || continue
+    local rel="${ext_config#$SCRIPT_DIR/agent/}"
+    link_managed_file "$rel"
+  done
+}
+
+uninstall_all() {
+  local ext_config
+  for ext_config in "$SCRIPT_DIR/agent/extensions"/*/config.json; do
+    [[ -f "$ext_config" ]] || continue
+    local rel="${ext_config#$SCRIPT_DIR/agent/}"
+    unlink_managed_file "$rel"
+  done
+
+  unlink_managed_file "settings.json"
+}
+
+case "${1:-install}" in
+  install)   install_all ;;
+  uninstall) uninstall_all ;;
+  *)         echo "usage: $0 {install|uninstall}" >&2; exit 1 ;;
 esac
