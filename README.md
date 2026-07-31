@@ -21,6 +21,7 @@ deploy/
 ./deploy/deploy -f deploy/all    # install everything
 ./deploy/deploy -f deploy/tui    # install cli-only
 ./deploy/deploy -f deploy/gui    # install gui-only
+./deploy/deploy vim tmux         # install specific packages
 
 ./deploy/deploy --undo -f deploy/tui
 ./deploy/deploy --undo vim
