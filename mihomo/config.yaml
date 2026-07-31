@@ -26,9 +26,17 @@ tun:
   dns-hijack:
     - any:53
     - tcp://any:53
+  # 内网/组播段绕开 TUN 直连；DNS 服务器排除在外避免查询环路
   route-exclude-address:
     - 223.5.5.5/32
     - 119.29.29.29/32
+    - 192.168.0.0/16
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 100.64.0.0/10 # Tailscale CGNAT
+    - 224.0.0.0/4 # 组播: mDNS/SSDP
+    - fc00::/7 # IPv6 ULA
+    - fe80::/10 # IPv6 link-local
 
 dns:
   enable: true
@@ -39,13 +47,15 @@ dns:
   use-hosts: true
   use-system-hosts: true
   fake-ip-filter:
-    - '*.lan'
-    - '*.local'
-    - '*.arpa'
-    - 'time.*.com'
-    - 'ntp.*.com'
-    - '*.msftncsi.com'
-    - 'www.msftconnecttest.com'
+    - "*.lan"
+    - "*.local"
+    - "*.arpa"
+    - "*.home.arpa" # RFC 8375 家庭内网后缀
+    - "stun.*" # STUN 需真实公网 IP
+    - "time.*.com"
+    - "ntp.*.com"
+    - "*.msftncsi.com"
+    - "www.msftconnecttest.com"
   # listen 已删除：TUN dns-hijack: any:53 已在 TUN 层面接管 DNS，dns.listen 是死配置
   default-nameserver:
     - 223.5.5.5
@@ -95,32 +105,44 @@ proxy-groups:
       - DIRECT
 
 rule-providers:
+  # gcore.jsdelivr.net: cdn.jsdelivr.net 国内不可达
   reject:
     type: http
     behavior: domain
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt"
+    url: "https://gcore.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt"
     path: ./ruleset/reject.yaml
     interval: 86400
   proxy:
     type: http
     behavior: domain
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt"
+    url: "https://gcore.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt"
     path: ./ruleset/proxy.yaml
     interval: 86400
   direct:
     type: http
     behavior: domain
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt"
+    url: "https://gcore.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt"
     path: ./ruleset/direct.yaml
     interval: 86400
   cncidr:
     type: http
     behavior: ipcidr
-    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt"
+    url: "https://gcore.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt"
     path: ./ruleset/cncidr.yaml
     interval: 86400
 
 rules:
+  # 私有段直连，避免落入 MATCH,PROXY 被代理
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve # Tailscale CGNAT
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve # link-local
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve # 组播: mDNS/SSDP
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve # IPv6 ULA
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve # IPv6 link-local
   - DST-PORT,22,DIRECT
   - RULE-SET,reject,REJECT
   - RULE-SET,direct,DIRECT
