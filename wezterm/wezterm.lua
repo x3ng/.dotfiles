@@ -3,7 +3,7 @@ local wezterm = require("wezterm")
 local config = wezterm.config_builder()
 
 config.color_scheme = "CGA"
-config.window_background_opacity = 0.6
+config.window_background_opacity = 0.7
 config.wayland_window_background_blur = true
 config.text_background_opacity = 1.0
 config.window_decorations = "TITLE | RESIZE"
@@ -56,22 +56,22 @@ config.colors = {
 	selection_fg = "#ffffff",
 	ansi = {
 		"#000000",
-		"#b03030",
-		"#00aa00",
-		"#aaaa00",
-		"#0000aa",
-		"#aa00aa",
-		"#00aaaa",
+		"#e85d5d",
+		"#4fd66d",
+		"#d6ad4f",
+		"#5fa8ff",
+		"#e46bd0",
+		"#42c7bd",
 		"#d8d8d8",
 	},
 	brights = {
 		"#555555",
-		"#ff4040",
-		"#55ff55",
-		"#ffff55",
-		"#5555ff",
-		"#ff55ff",
-		"#55ffff",
+		"#ff9a9a",
+		"#9affb7",
+		"#ffe69a",
+		"#a8d4ff",
+		"#ffadeb",
+		"#9ff7ea",
 		"#ffffff",
 	},
 	tab_bar = {
