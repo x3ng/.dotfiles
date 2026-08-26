@@ -8,16 +8,15 @@ config.wayland_window_background_blur = true
 config.text_background_opacity = 1.0
 config.window_decorations = "TITLE | RESIZE"
 config.window_padding = {
-	left = 0,
-	right = 0,
-	top = 0,
-	bottom = 0,
+	left = 7,
+	right = 7,
+	top = 7,
+	bottom = 7,
 }
 
 config.font = wezterm.font_with_fallback({
-	"JetBrainsMono Nerd Font Mono",
-	"JetBrainsMono Nerd Font",
-	"Noto Sans Mono CJK SC",
+	"IosevkaTerm Nerd Font Mono",
+	"Sarasa Mono SC",
 	"Noto Color Emoji",
 })
 config.font_size = 12.0
@@ -33,6 +32,7 @@ config.enable_scroll_bar = true
 config.mouse_wheel_scrolls_tabs = false
 config.hide_mouse_cursor_when_typing = true
 config.audible_bell = "Disabled"
+config.detect_password_input = false
 
 config.window_close_confirmation = "NeverPrompt"
 config.check_for_updates = false
