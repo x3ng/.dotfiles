@@ -1,0 +1,7 @@
+[mgr]
+prepend_keymap = [
+  { on = [ "!" ], run = 'shell "$SHELL" --block', desc = "Open shell here" },
+  { on = [ "g", "h" ], run = "cd ~", desc = "Go home" },
+  { on = [ "g", "c" ], run = "cd ~/.config", desc = "Go config" },
+  { on = [ "g", "d" ], run = "cd ~/Downloads", desc = "Go downloads" },
+]

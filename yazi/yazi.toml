@@ -1,0 +1,22 @@
+[mgr]
+ratio = [ 2, 4, 4 ]
+sort_by = "natural"
+sort_sensitive = false
+sort_reverse = false
+sort_dir_first = true
+linemode = "size"
+show_hidden = true
+show_symlink = true
+
+[preview]
+tab_size = 2
+max_width = 1200
+max_height = 1800
+
+[opener]
+edit = [
+  { run = '${EDITOR:-vi} "$@"', block = true, for = "unix" },
+]
+open = [
+  { run = 'xdg-open "$@"', orphan = true, desc = "Open", for = "linux" },
+]
