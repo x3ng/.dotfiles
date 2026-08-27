@@ -1,10 +1,14 @@
-# auto completion form schema
 "$schema" = 'https://starship.rs/config-schema.json'
 
 add_newline = true
 
+[directory]
+truncation_length = 5
+truncate_to_repo = true
+
 [time]
 disabled = false
+format = '[$time]($style) '
 
 [cmd_duration]
 min_time = 1500
@@ -13,4 +17,7 @@ min_time = 1500
 disabled = false
 
 [battery]
-display = [{ threshold = 20}]
+display = [
+  { threshold = 20, style = "bold red" },
+  { threshold = 50, style = "bold yellow" },
+]
