@@ -1,8 +1,2 @@
-# graphical desktop session
-hypr
-quickshell
-alacritty
+# Graphical daily tools.
 kitty
-ghostty
-wezterm
-waybar

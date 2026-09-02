@@ -6,7 +6,7 @@ DOTFILES="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/lib.sh"
 
 # ---- defaults ----
-MANIFEST="$SCRIPT_DIR/all"
+MANIFEST=""
 MANIFEST_EXPLICIT=0
 MODE="install"
 DRY_RUN=0
@@ -22,13 +22,12 @@ options:
   -f <file>    deploy packages from an explicit manifest file
   --undo       uninstall instead of install
   --dry-run    show what would happen, do nothing
-  --list       list resolved packages from deploy/all, or from -f <file>
   --help       show this message
 
 Examples:
   deploy vim tmux
   deploy --dry-run -f deploy/tui
-  deploy -f deploy/all
+  deploy -f deploy/gui
 
 Manifests support:
   include <name>    pull in another manifest (resolved relative to deploy/)
@@ -69,17 +68,6 @@ _expand_manifest() {
     done < "$file"
 }
 
-_list_manifest() {
-    if [[ ! -f "$MANIFEST" ]]; then
-        log_err "manifest not found: $MANIFEST"
-        exit 1
-    fi
-    echo "packages (resolved from $(basename "$MANIFEST")):"
-    _expand_manifest "$MANIFEST" | while read -r pkg; do
-        echo "  $pkg"
-    done
-}
-
 # ---- arg parsing ----
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -93,7 +81,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --undo) MODE="uninstall"; shift ;;
         --dry-run) DRY_RUN=1; shift ;;
-        --list) _list_manifest; exit 0 ;;
         --help) usage ;;
         --) shift; break ;;
         -*)  log_err "unknown option: $1"; echo; usage 2 ;;

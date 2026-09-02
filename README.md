@@ -9,23 +9,21 @@ app-name/          # each directory holds one application's configs + install.sh
 deploy/
   deploy           # orchestrator
   lib.sh           # shared helpers (dot_link, dot_template, etc.)
-  all              # manifest: tui + gui
-  tui              # manifest: cli/tui essentials
-  gui              # manifest: graphical desktop
+  tui              # CLI and terminal tool profile
+  gui              # graphical tool profile
 ```
 
 ## Usage
 
 ```bash
 ./deploy/deploy                  # show help
-./deploy/deploy -f deploy/all    # install everything
-./deploy/deploy -f deploy/tui    # install cli-only
-./deploy/deploy -f deploy/gui    # install gui-only
+./deploy/deploy -f deploy/tui    # install CLI and terminal tools
+./deploy/deploy -f deploy/gui    # install graphical tools
 ./deploy/deploy vim tmux         # install specific packages
+./deploy/deploy hypr quickshell waybar  # deploy optional desktop configs explicitly
 
 ./deploy/deploy --undo -f deploy/tui
 ./deploy/deploy --undo vim
-./deploy/deploy --list            # list deploy/all
 ./deploy/deploy --dry-run -f deploy/tui
 ```
 
@@ -36,12 +34,26 @@ Names are resolved relative to the manifest's directory.
 Packages are deduplicated (first occurrence wins).
 
 ```
-# deploy/all
-include tui
-include gui
+# deploy/tui
+vim
+starship
+tmux
+zellij
+yazi
 ```
 
-Use `./deploy/deploy --list` to see the resolved package list.
+## Deployment model
+
+`deploy/deploy` is the orchestrator: it expands profiles, deduplicates
+packages, supports dry-runs, and invokes each package. Each package's
+`install.sh` is its lifecycle adapter: it owns that package's file targets and
+implements `install` and `uninstall`. Keeping those two layers separate lets
+simple symlinked packages and interactive/system-level packages use the same
+orchestrator.
+
+Desktop-specific configurations remain versioned but are intentionally absent
+from the TUI and GUI profiles. Deploy them explicitly when that desktop is in
+use.
 
 ## install.sh convention
 
