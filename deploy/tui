@@ -1,5 +1,6 @@
 # CLI and terminal tools.
 vim
+helix
 starship
 tmux
 zellij
