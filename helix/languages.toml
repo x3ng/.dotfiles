@@ -1,0 +1,9 @@
+# Helix defaults to svlangserver for Verilog, which is unavailable in nixpkgs.
+# Verible provides a maintained SystemVerilog-aware language server instead.
+
+[language-server.verible]
+command = "verible-verilog-ls"
+
+[[language]]
+name = "verilog"
+language-servers = ["verible"]
