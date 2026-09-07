@@ -17,13 +17,6 @@ hl.window_rule({
   no_focus = true,
 })
 
--- hyprland-run positioning
-hl.window_rule({
-  match = { class = "hyprland-run" },
-  float = true,
-  move = { 20, "monitor_h-120" },
-})
-
 -- "Smart gaps" / "No gaps when only" — uncomment to enable
 -- hl.workspace_rule({
 --   match = { workspace = "w[tv1]" },

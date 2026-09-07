@@ -1,6 +1,6 @@
 local terminal = "kitty"
 local fileManager = "thunar"
-local menu = "rofi -show combi"
+local menu = "anyrun"
 
 -- Toggle bar
 hl.bind("SUPER + B", hl.dsp.exec_cmd("qs ipc call bar toggle"))
@@ -21,7 +21,6 @@ hl.bind("SUPER + SHIFT + PRINT", hl.dsp.exec_cmd("sh -c 'grim - | wl-copy'"))
 
 -- Clipboard history
 hl.bind("SUPER + SHIFT + V", hl.dsp.exec_cmd("clipse"))
-hl.bind("SUPER + SHIFT + C", hl.dsp.exec_cmd("sh -c 'cliphist list | rofi -dmenu | cliphist decode | wl-copy'"))
 
 -- Lock & exit
 hl.bind("SUPER + M", hl.dsp.exec_cmd("hyprlock"))

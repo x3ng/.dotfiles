@@ -1,6 +1,6 @@
 keybinds {
+    unbind "Ctrl g"
     locked {
-        unbind "Ctrl g"
         bind "Ctrl \\" { SwitchToMode "normal"; }
     }
     shared_except "locked" {
