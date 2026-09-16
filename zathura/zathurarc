@@ -1,1 +1,34 @@
+# ── 基础 ──────────────────────────────────────────────────
+set guioptions          shv        # scrollbar, handles, vertical bar
+set page-padding        1
+set adjust-open         best-fit
+set scroll-wrap         true
+set scroll-page-aware   true
+set incremental-search  true
 set selection-clipboard clipboard
+set database            sqlite
+
+# ── 窗口标题 ──────────────────────────────────────────────
+set statusbar-home-tilde     true
+set window-title-home-tilde  true
+set statusbar-page-percent   true
+set statusbar-basename       true
+
+# ── 渲染 ──────────────────────────────────────────────────
+set render-loading      true
+set zoom-step           10
+
+# ── 快捷键 ────────────────────────────────────────────────
+map r        reload
+map R        rotate
+map c        recolor
+map p        print
+map g        goto top
+map <C-b>    feedkeys ":bmark "
+map u        follow
+map <C-f>    toggle_presentation
+
+# ── 索引模式 ──────────────────────────────────────────────
+map [index] i            toggle_index
+map [index] <Tab>        navigate_index toggle
+map [index] <Shift-Tab>  navigate_index expand-all
