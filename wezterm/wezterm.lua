@@ -27,6 +27,9 @@ config.adjust_window_size_when_changing_font_size = false
 config.default_cursor_style = "SteadyBlock"
 config.cursor_blink_rate = 0
 
+-- kitty 键盘协议：Neovim 等可获得 Ctrl+Enter / Shift+Enter / 精确修饰键
+config.enable_kitty_keyboard = true
+
 config.scrollback_lines = 100000
 config.enable_scroll_bar = true
 config.mouse_wheel_scrolls_tabs = false
@@ -41,7 +44,7 @@ config.enable_wayland = true
 
 config.enable_tab_bar = true
 config.use_fancy_tab_bar = false
-config.hide_tab_bar_if_only_one_tab = false
+config.hide_tab_bar_if_only_one_tab = true
 config.tab_bar_at_bottom = true
 config.show_new_tab_button_in_tab_bar = false
 config.show_close_tab_button_in_tabs = false
