@@ -75,5 +75,4 @@ Interactive packages refuse batch execution and guide the user:
 ./deploy/deploy mihomo                          # prompts for SUB_URL
 sudo MIHOMO_SUB_URL=<url> ./deploy/deploy mihomo
 sudo XREMAP_SKIP_REVIEW=1 ./deploy/deploy xremap
-TMUX_PREFIX=C-a ./deploy/deploy tmux             # server prefix override
 ```
