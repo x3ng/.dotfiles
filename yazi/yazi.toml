@@ -15,8 +15,13 @@ max_height = 1800
 
 [opener]
 edit = [
-  { run = '${EDITOR:-vi} "$@"', block = true, for = "unix" },
+  { run = '${EDITOR:-vi} %s', block = true, desc = "Editor ($EDITOR)", for = "unix" },
 ]
 open = [
-  { run = 'xdg-open "$@"', orphan = true, desc = "Open", for = "linux" },
+  { run = 'xdg-open %s', orphan = true, desc = "Open (xdg-open)", for = "linux" },
+]
+
+[open]
+rules = [
+  { url = "*", use = [ "edit", "open" ] },
 ]
