@@ -2,9 +2,6 @@ local terminal = "kitty"
 local fileManager = "thunar"
 local menu = "anyrun"
 
--- Toggle bar
-hl.bind("SUPER + B", hl.dsp.exec_cmd("qs ipc call bar toggle"))
-
 -- Launch
 hl.bind("SUPER + Q", hl.dsp.exec_cmd(terminal))
 hl.bind("SUPER + C", hl.dsp.window.close())
