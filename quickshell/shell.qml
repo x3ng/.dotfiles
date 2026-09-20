@@ -461,9 +461,9 @@ ShellRoot {
                             var active = workspace.id === focusedId;
                             var showTitles = active ? showActiveTitles : showInactiveTitles;
                             var windows = windowsFor(workspace.id);
-                            // 16 px number badge, followed by one stable 16 px
+                            // 20 px number badge, followed by one stable 16 px
                             // application icon slot for every toplevel.
-                            var contents = 16;
+                            var contents = 20;
                             for (var j = 0; j < windows.length; j++) {
                                 contents += 5 + 16;
                                 var title = windows[j].title ?? "";
@@ -576,16 +576,36 @@ ShellRoot {
                                     wsContainer.windowRevision;
                                     return wsContainer.windowsFor(modelData.id);
                                 }
+                                readonly property bool hasWindows: workspaceWindows.length > 0
 
                                 implicitWidth: workspaceContents.implicitWidth + 14
                                 width: Math.max(23, implicitWidth)
-                                height: 24
+                                height: 26
                                 radius: 7
-                                color: isActive ? root.surfaceRaised : (wsMouse.containsMouse ? root.surfaceHover : "transparent")
-                                border.width: 0
-                                border.color: root.outline
+                                color: {
+                                    if (isActive) return "#1e2530";
+                                    if (wsMouse.containsMouse) return root.surfaceHover;
+                                    if (hasWindows) return "#1d2230";
+                                    return "transparent";
+                                }
+                                border.width: wsMouse.containsMouse ? 1 : 0
+                                border.color: root.accent
 
                                 Behavior on color { ColorAnimation { duration: 130 } }
+                                Behavior on border.width { NumberAnimation { duration: 100 } }
+
+                                scale: wsMouse.pressed ? 0.97 : 1
+                                Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
+
+                                Rectangle {
+                                    anchors.bottom: parent.bottom
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    width: parent.width - 10
+                                    height: 2
+                                    radius: 1
+                                    color: root.accent
+                                    visible: workspaceDelegate.isActive
+                                }
 
                                 Row {
                                     id: workspaceContents
@@ -593,20 +613,19 @@ ShellRoot {
                                     spacing: 5
 
                                     Item {
-                                        width: 16; height: 16
+                                        width: 20; height: 20
 
                                         Rectangle {
                                             anchors.fill: parent
-                                            radius: 5
-                                            visible: workspaceDelegate.isActive
-                                            color: root.accent
+                                            radius: 6
+                                            color: wsMouse.containsMouse ? "#3a4556" : "#2a3342"
                                         }
                                         Text {
                                             anchors.centerIn: parent
                                             text: workspaceDelegate.modelData.id
-                                            color: workspaceDelegate.isActive ? root.accentInk : root.textSecondary
-                                            font.pixelSize: 11
-                                            font.weight: Font.DemiBold
+                                            color: root.textPrimary
+                                            font.pixelSize: 13
+                                            font.weight: Font.Bold
                                         }
                                     }
 
@@ -659,13 +678,18 @@ ShellRoot {
                                     id: wsMouse
                                     anchors.fill: parent
                                     hoverEnabled: true
+                                    acceptedButtons: Qt.LeftButton
+                                    cursorShape: Qt.PointingHandCursor
                                     onClicked: {
                                         bar.trayExpanded = false;
                                         bar.closeTrayMenu();
                                         calendarPopup.dismiss();
                                         quickToolsPopup.dismiss();
                                         statusPopup.dismiss();
-                                        root.dispatch("workspace " + workspaceDelegate.modelData.id);
+                                        if (Hyprland.usingLua)
+                                            Hyprland.dispatch("hl.dsp.focus({workspace = " + workspaceDelegate.modelData.id + "})");
+                                        else
+                                            Hyprland.dispatch("workspace " + workspaceDelegate.modelData.id);
                                     }
                                 }
                             }
