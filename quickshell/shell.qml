@@ -10,38 +10,42 @@ import Quickshell.Widgets
 import Quickshell.Services.SystemTray
 import Quickshell.Services.UPower
 import Quickshell.Services.Pipewire
+// Reusable visual components live beside the deployed entry point.
+import "components"
 
 ShellRoot {
     id: root
 
-    // Visual system: a quiet, high-contrast floating surface instead of a
-    // collection of independent black boxes.
-    readonly property int barHeight: 40
-    // Keep the transparent tail outside the reserved zone. This offsets
-    // Hyprland's global outer gap without letting a visible control overlap
-    // the window below.
-    readonly property int barReservedHeight: 36
-    readonly property int barOuterMarginX: 8
-    readonly property int barBackgroundPaddingX: 12
-    readonly property int barBackgroundHeight: 34
-    readonly property int barSectionGap: 14
-    readonly property real barBackgroundOpacity: 0.97
-    readonly property color surface: "#171a22"
-    readonly property color surfaceRaised: "#232936"
-    readonly property color surfaceHover: "#303847"
-    // QML uses #AARRGGBB for 8-digit colours. Keep these as translucent
-    // white; #ffffff18 would instead render as an opaque yellow.
-    readonly property color outline: "#20ffffff"
-    readonly property color separator: "#18ffffff"
-    readonly property color textPrimary: "#f3f5fa"
-    readonly property color textSecondary: "#c7cddd"
-    readonly property color textMuted: "#949db0"
-    readonly property color accent: "#72b7e8"
-    readonly property color accentWarm: "#e8b86a"
-    readonly property color positive: "#7bc89c"
-    readonly property color accentInk: "#0c202d"
-    readonly property color warning: "#e0aa62"
-    readonly property color critical: "#ec8796"
+    Theme { id: theme }
+
+    // Compatibility aliases keep the bar logic concise while Theme.qml owns
+    // the visual system in one place.
+    readonly property alias barHeight: theme.barHeight
+    readonly property alias barReservedHeight: theme.barReservedHeight
+    readonly property alias barOuterMarginX: theme.barOuterMarginX
+    readonly property alias barBackgroundPaddingX: theme.barBackgroundPaddingX
+    readonly property alias barBackgroundHeight: theme.barBackgroundHeight
+    readonly property alias barSectionGap: theme.barSectionGap
+    readonly property alias barBackgroundOpacity: theme.barBackgroundOpacity
+    readonly property alias surface: theme.surface
+    readonly property alias surfaceRaised: theme.surfaceRaised
+    readonly property alias surfaceHover: theme.surfaceHover
+    readonly property alias outline: theme.outline
+    readonly property alias separator: theme.separator
+    readonly property alias textPrimary: theme.textPrimary
+    readonly property alias textSecondary: theme.textSecondary
+    readonly property alias textMuted: theme.textMuted
+    readonly property alias accent: theme.accent
+    readonly property alias accentWarm: theme.accentWarm
+    readonly property alias positive: theme.positive
+    readonly property alias accentInk: theme.accentInk
+    readonly property alias warning: theme.warning
+    readonly property alias critical: theme.critical
+    readonly property alias fontSizeSmall: theme.fontSizeSmall
+    readonly property alias fontSizeMedium: theme.fontSizeMedium
+    readonly property alias fontSizeLarge: theme.fontSizeLarge
+    readonly property alias iconSizeSmall: theme.iconSizeSmall
+    readonly property alias separatorHeight: theme.separatorHeight
 
     // Quick tools are global even though each monitor owns its own menu.
     // Keep-awake intentionally resets with Quickshell to avoid an inhibitor
@@ -96,173 +100,6 @@ ShellRoot {
         if (device.state === UPowerDeviceState.FullyCharged) return "FULLY CHARGED";
         return "BATTERY";
     }
-
-    component QuickToolTile: Rectangle {
-        id: quickToolTile
-        required property string label
-        required property string detail
-        property bool active: false
-        property bool available: true
-        signal triggered()
-
-        width: 126
-        height: 58
-        radius: 10
-        color: active
-            ? root.surfaceHover
-            : (toolMouse.containsMouse && available ? root.surfaceRaised : "transparent")
-        border.width: active ? 1 : 0
-        border.color: root.accent
-        opacity: available ? 1 : 0.52
-
-        Behavior on color { ColorAnimation { duration: 120 } }
-
-        Column {
-            anchors.left: parent.left
-            anchors.leftMargin: 12
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 3
-
-            Text {
-                text: quickToolTile.label
-                color: quickToolTile.active ? root.textPrimary : root.textSecondary
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-            }
-            Text {
-                text: quickToolTile.detail
-                color: quickToolTile.active ? root.accent : root.textMuted
-                font.pixelSize: 9
-            }
-        }
-
-        MouseArea {
-            id: toolMouse
-            anchors.fill: parent
-            enabled: quickToolTile.available
-            hoverEnabled: true
-            onClicked: quickToolTile.triggered()
-        }
-    }
-
-    component StatusMeter: Item {
-        id: statusMeter
-        required property real level
-        property color fillColor: root.accent
-        property bool dimmed: false
-        property bool adjustable: false
-        property bool overflow: false
-        property bool groupOpen: false
-        signal activated(bool wasOpen)
-        signal stepped(real amount)
-
-        width: 12
-        height: 24
-
-        Rectangle {
-            id: meterTrack
-            width: 4
-            height: 18
-            radius: 2
-            color: root.separator
-            anchors.centerIn: parent
-
-            Rectangle {
-                width: parent.width
-                height: statusMeter.dimmed
-                    ? 0
-                    : Math.round(parent.height * Math.max(0, Math.min(1, statusMeter.level)))
-                radius: 2
-                color: statusMeter.fillColor
-                anchors.bottom: parent.bottom
-
-                Behavior on height {
-                    NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
-                }
-            }
-
-            Rectangle {
-                visible: statusMeter.overflow && !statusMeter.dimmed
-                width: 4
-                height: 2
-                radius: 1
-                color: statusMeter.fillColor
-                anchors.bottom: parent.top
-                anchors.bottomMargin: 2
-            }
-        }
-
-        MouseArea {
-            property bool wasOpenOnPress: false
-            anchors.fill: parent
-            hoverEnabled: true
-            onPressed: wasOpenOnPress = statusMeter.groupOpen
-            onClicked: statusMeter.activated(wasOpenOnPress)
-            onWheel: function(wheel) {
-                if (!statusMeter.adjustable) return;
-                statusMeter.stepped(wheel.angleDelta.y > 0 ? 0.05 : -0.05);
-                wheel.accepted = true;
-            }
-        }
-    }
-
-    component ValueSlider: Item {
-        id: valueSlider
-        required property real value
-        property color fillColor: root.accent
-        property bool available: true
-        signal edited(real newValue)
-
-        width: 258
-        height: 20
-        opacity: available ? 1 : 0.5
-
-        function valueAt(mouseX) {
-            return Math.max(0, Math.min(1, mouseX / width));
-        }
-
-        Rectangle {
-            height: 4
-            radius: 2
-            color: root.separator
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-
-            Rectangle {
-                width: parent.width * Math.max(0, Math.min(1, valueSlider.value))
-                height: parent.height
-                radius: 2
-                color: valueSlider.fillColor
-            }
-        }
-
-        Rectangle {
-            x: Math.max(0, Math.min(parent.width - width,
-                parent.width * Math.max(0, Math.min(1, valueSlider.value)) - width / 2))
-            width: 10
-            height: 10
-            radius: 5
-            color: valueSlider.fillColor
-            anchors.verticalCenter: parent.verticalCenter
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            enabled: valueSlider.available
-            onPressed: function(mouse) { valueSlider.edited(valueSlider.valueAt(mouse.x)); }
-            onPositionChanged: function(mouse) {
-                if (pressed) valueSlider.edited(valueSlider.valueAt(mouse.x));
-            }
-        }
-    }
-
-    // ── Font sizes ─────────────────────────────────────────────────
-    readonly property int fontSizeSmall: 13    // workspace numbers
-    readonly property int fontSizeMedium: 13   // volume, brightness, battery
-    readonly property int fontSizeLarge: 16    // clock
-    readonly property int iconSizeSmall: 20    // tray icons
-    readonly property int separatorHeight: 18
 
     // ── Bar visibility per monitor ──────────────────────────────────
     property var monitorBarState: ({})
@@ -415,18 +252,6 @@ ShellRoot {
             property bool surfaceVisible: true
             property real visibilityProgress: 1
             property bool trayExpanded: false
-            property bool trayMenuOpen: false
-            property var trayMenuOwner: null
-            property var trayMenuCurrent: null
-            property var trayMenuStack: []
-            property real trayMenuAnchorRight: 0
-            property bool calendarOpen: false
-            property date calendarMonth: new Date()
-            property string calendarTodayKey: ""
-            property string calendarTodayLabel: ""
-            property bool toolsOpen: false
-            property bool statusOpen: false
-            property string statusFocus: "volume"
             readonly property var trayItems: SystemTray.items?.values ?? []
             readonly property bool hasTrayItems: trayItems.length > 0
             readonly property bool trayNeedsAttention: {
@@ -440,112 +265,34 @@ ShellRoot {
             onHasTrayItemsChanged: {
                 if (!hasTrayItems) {
                     trayExpanded = false;
-                    closeTrayMenu();
+                    trayMenuPopup.dismiss();
                 }
             }
 
             onTrayItemsChanged: {
-                if (!trayMenuOwner) return;
+                if (!trayMenuPopup.owner) return;
                 var ownerStillPresent = false;
                 for (var i = 0; i < trayItems.length; i++) {
-                    if (trayItems[i] === trayMenuOwner) {
+                    if (trayItems[i] === trayMenuPopup.owner) {
                         ownerStillPresent = true;
                         break;
                     }
                 }
-                if (!ownerStillPresent) closeTrayMenu();
+                if (!ownerStillPresent) trayMenuPopup.dismiss();
             }
 
             function openTrayMenu(owner, anchorItem) {
-                // QsMenuOpener expects the handle exported by the tray item.
-                // It resolves the DBusMenu root and owns its open/close
-                // lifecycle internally.
-                var menuHandle = owner?.menu;
-                if (!menuHandle) return false;
-
-                closeTrayMenu();
-                var pos = anchorItem.mapToItem(null, 0, 0);
-                trayMenuAnchorRight = pos.x + anchorItem.width;
-                trayMenuOwner = owner;
-                trayMenuStack = [menuHandle];
-                trayMenuCurrent = menuHandle;
-                trayMenuOpen = true;
-                calendarOpen = false;
-                toolsOpen = false;
-                statusOpen = false;
-                return true;
-            }
-
-            function enterTraySubmenu(entry) {
-                if (!entry?.hasChildren) return;
-                trayMenuStack = trayMenuStack.concat([entry]);
-                trayMenuCurrent = entry;
-            }
-
-            function leaveTraySubmenu() {
-                if (trayMenuStack.length <= 1) return;
-                trayMenuStack = trayMenuStack.slice(0, trayMenuStack.length - 1);
-                trayMenuCurrent = trayMenuStack[trayMenuStack.length - 1];
+                var opened = trayMenuPopup.openFor(owner, anchorItem);
+                if (opened) {
+                    calendarPopup.dismiss();
+                    quickToolsPopup.dismiss();
+                    statusPopup.dismiss();
+                }
+                return opened;
             }
 
             function closeTrayMenu() {
-                // Clearing the QsMenuOpener binding releases the active
-                // entry, which emits the matching DBusMenu close event.
-                trayMenuCurrent = null;
-                trayMenuOpen = false;
-                trayMenuStack = [];
-                trayMenuOwner = null;
-            }
-
-            function triggerTrayMenuEntry(entry) {
-                // QsMenuEntry's generic signal is bridged to DBusMenu's
-                // Event("clicked") call by the concrete tray entry.
-                entry.triggered();
-                closeTrayMenu();
-            }
-
-            function trayMenuHeading() {
-                if (trayMenuStack.length > 1 && trayMenuCurrent?.text)
-                    return trayMenuCurrent.text.toUpperCase();
-                var title = trayMenuOwner?.title || trayMenuOwner?.id || "APPLICATION";
-                return title.toUpperCase();
-            }
-
-            function resetCalendarMonth() {
-                var now = new Date();
-                calendarMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            }
-
-            function shiftCalendarMonth(offset) {
-                calendarMonth = new Date(
-                    calendarMonth.getFullYear(),
-                    calendarMonth.getMonth() + offset,
-                    1
-                );
-            }
-
-            function calendarTitle() {
-                return Qt.formatDateTime(calendarMonth, "MMMM yyyy").toUpperCase();
-            }
-
-            function calendarCells() {
-                // Keep the model reactive when midnight updates the key.
-                calendarTodayKey;
-                var year = calendarMonth.getFullYear();
-                var month = calendarMonth.getMonth();
-                var first = new Date(year, month, 1);
-                var mondayOffset = (first.getDay() + 6) % 7;
-                var cells = [];
-
-                for (var i = 0; i < 42; i++) {
-                    var date = new Date(year, month, 1 - mondayOffset + i);
-                    cells.push({
-                        day: date.getDate(),
-                        inMonth: date.getMonth() === month,
-                        today: Qt.formatDateTime(date, "yyyy-MM-dd") === calendarTodayKey
-                    });
-                }
-                return cells;
+                trayMenuPopup.dismiss();
             }
 
             onIsVisibleChanged: {
@@ -556,9 +303,9 @@ ShellRoot {
                 } else {
                     trayExpanded = false;
                     closeTrayMenu();
-                    calendarOpen = false;
-                    toolsOpen = false;
-                    statusOpen = false;
+                    calendarPopup.dismiss();
+                    quickToolsPopup.dismiss();
+                    statusPopup.dismiss();
                     visibilityAnimation.to = 0;
                 }
                 visibilityAnimation.start();
@@ -915,9 +662,9 @@ ShellRoot {
                                     onClicked: {
                                         bar.trayExpanded = false;
                                         bar.closeTrayMenu();
-                                        bar.calendarOpen = false;
-                                        bar.toolsOpen = false;
-                                        bar.statusOpen = false;
+                                        calendarPopup.dismiss();
+                                        quickToolsPopup.dismiss();
+                                        statusPopup.dismiss();
                                         root.dispatch("workspace " + workspaceDelegate.modelData.id);
                                     }
                                 }
@@ -941,7 +688,7 @@ ShellRoot {
                     Rectangle {
                         anchors.fill: parent
                         radius: 7
-                        color: bar.calendarOpen
+                        color: calendarPopup.open
                             ? root.surfaceRaised
                             : (clockMouse.containsMouse ? root.surfaceHover : "transparent")
 
@@ -973,11 +720,6 @@ ShellRoot {
                         var now = new Date();
                         clockTime.text = Qt.formatDateTime(now, "HH:mm");
                         clockDate.text = Qt.formatDateTime(now, "MM/dd · ddd");
-                        var todayKey = Qt.formatDateTime(now, "yyyy-MM-dd");
-                        if (bar.calendarTodayKey !== todayKey) {
-                            bar.calendarTodayKey = todayKey;
-                            bar.calendarTodayLabel = Qt.formatDateTime(now, "dddd · MMMM d").toUpperCase();
-                        }
                     }
                     Timer { interval: 1000; running: true; repeat: true; onTriggered: clock.refresh() }
                     Component.onCompleted: refresh()
@@ -987,241 +729,26 @@ ShellRoot {
                         property bool wasOpenOnPress: false
                         anchors.fill: parent
                         hoverEnabled: true
-                        onPressed: wasOpenOnPress = bar.calendarOpen
+                        onPressed: wasOpenOnPress = calendarPopup.open
                         onClicked: {
                             if (wasOpenOnPress) {
-                                bar.calendarOpen = false;
+                                calendarPopup.dismiss();
                             } else {
-                                bar.resetCalendarMonth();
                                 bar.trayExpanded = false;
                                 bar.closeTrayMenu();
-                                bar.toolsOpen = false;
-                                bar.statusOpen = false;
-                                bar.calendarOpen = true;
+                                quickToolsPopup.dismiss();
+                                statusPopup.dismiss();
+                                calendarPopup.showCalendar();
                             }
                         }
                     }
                 }
 
-                PopupWindow {
+                CalendarPopup {
                     id: calendarPopup
-                    parentWindow: bar
-                    visible: bar.calendarOpen && bar.isVisible
-                    implicitWidth: 280
-                    implicitHeight: 294
-                    relativeX: Math.round(Math.max(
-                        root.barOuterMarginX,
-                        Math.min(
-                            bar.width - root.barOuterMarginX - width,
-                            inputRegion.x + clock.x
-                        )
-                    ))
-                    relativeY: root.barHeight + 6
-                    color: "transparent"
-                    grabFocus: true
-
-                    onVisibleChanged: {
-                        if (!visible && bar.calendarOpen) bar.calendarOpen = false;
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 14
-                        color: root.surface
-                        border.width: 1
-                        border.color: root.outline
-
-                        Item {
-                            id: calendarHeader
-                            anchors.top: parent.top
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            height: 44
-
-                            Item {
-                                width: 30
-                                height: 30
-                                anchors.left: parent.left
-                                anchors.leftMargin: 9
-                                anchors.verticalCenter: parent.verticalCenter
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: 8
-                                    color: previousMonthMouse.containsMouse
-                                        ? root.surfaceHover
-                                        : "transparent"
-                                }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "‹"
-                                    color: root.textSecondary
-                                    font.pixelSize: 20
-                                    font.weight: Font.Medium
-                                }
-
-                                MouseArea {
-                                    id: previousMonthMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: bar.shiftCalendarMonth(-1)
-                                }
-                            }
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: bar.calendarTitle()
-                                color: root.textPrimary
-                                font.pixelSize: 11
-                                font.weight: Font.DemiBold
-                            }
-
-                            Item {
-                                width: 30
-                                height: 30
-                                anchors.right: parent.right
-                                anchors.rightMargin: 9
-                                anchors.verticalCenter: parent.verticalCenter
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: 8
-                                    color: nextMonthMouse.containsMouse
-                                        ? root.surfaceHover
-                                        : "transparent"
-                                }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "›"
-                                    color: root.textSecondary
-                                    font.pixelSize: 20
-                                    font.weight: Font.Medium
-                                }
-
-                                MouseArea {
-                                    id: nextMonthMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: bar.shiftCalendarMonth(1)
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            anchors.top: calendarHeader.bottom
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.leftMargin: 14
-                            anchors.rightMargin: 14
-                            height: 1
-                            color: root.separator
-                        }
-
-                        Row {
-                            id: weekdayRow
-                            anchors.top: calendarHeader.bottom
-                            anchors.topMargin: 5
-                            anchors.horizontalCenter: parent.horizontalCenter
-
-                            Repeater {
-                                model: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
-
-                                Item {
-                                    required property string modelData
-                                    width: 36
-                                    height: 22
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: parent.modelData
-                                        color: root.textMuted
-                                        font.pixelSize: 8
-                                        font.weight: Font.DemiBold
-                                    }
-                                }
-                            }
-                        }
-
-                        Grid {
-                            id: calendarGrid
-                            anchors.top: weekdayRow.bottom
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            columns: 7
-
-                            Repeater {
-                                model: bar.calendarCells()
-
-                                Item {
-                                    id: calendarDay
-                                    required property var modelData
-                                    width: 36
-                                    height: 32
-
-                                    Rectangle {
-                                        width: 28
-                                        height: 26
-                                        radius: 8
-                                        anchors.centerIn: parent
-                                        color: calendarDay.modelData.today
-                                            ? root.accent
-                                            : "transparent"
-                                    }
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: calendarDay.modelData.day
-                                        color: calendarDay.modelData.today
-                                            ? root.accentInk
-                                            : (calendarDay.modelData.inMonth
-                                                ? root.textPrimary
-                                                : root.textMuted)
-                                        opacity: calendarDay.modelData.inMonth || calendarDay.modelData.today
-                                            ? 1
-                                            : 0.45
-                                        font.pixelSize: 11
-                                        font.weight: calendarDay.modelData.today
-                                            ? Font.DemiBold
-                                            : Font.Normal
-                                    }
-                                }
-                            }
-                        }
-
-                        Item {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: 27
-
-                            Rectangle {
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.leftMargin: 14
-                                anchors.rightMargin: 14
-                                height: 1
-                                color: root.separator
-                            }
-
-                            Text {
-                                anchors.centerIn: parent
-                                anchors.verticalCenterOffset: 1
-                                text: bar.calendarTodayLabel
-                                color: todayMouse.containsMouse ? root.accent : root.textSecondary
-                                font.pixelSize: 9
-                                font.weight: Font.Medium
-                            }
-
-                            MouseArea {
-                                id: todayMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                onClicked: bar.resetCalendarMonth()
-                            }
-                        }
-                    }
+                    style: root
+                    barWindow: bar
+                    anchorX: inputRegion.x + clock.x
                 }
 
                 // ── Right: fixed system status ──────────────────────
@@ -1242,12 +769,11 @@ ShellRoot {
                     }
 
                     function open(section, wasOpen) {
-                        bar.statusFocus = section;
                         bar.trayExpanded = false;
                         bar.closeTrayMenu();
-                        bar.calendarOpen = false;
-                        bar.toolsOpen = false;
-                        bar.statusOpen = !wasOpen;
+                        calendarPopup.dismiss();
+                        quickToolsPopup.dismiss();
+                        statusPopup.showSection(section, wasOpen);
                     }
 
                     implicitWidth: statusRow.implicitWidth + 12
@@ -1261,7 +787,7 @@ ShellRoot {
                     Rectangle {
                         anchors.fill: parent
                         radius: 7
-                        color: bar.statusOpen ? root.surfaceRaised : "transparent"
+                        color: statusPopup.open ? root.surfaceRaised : "transparent"
 
                         Behavior on color { ColorAnimation { duration: 130 } }
                     }
@@ -1269,8 +795,8 @@ ShellRoot {
                     MouseArea {
                         property bool wasOpenOnPress: false
                         anchors.fill: parent
-                        onPressed: wasOpenOnPress = bar.statusOpen
-                        onClicked: statusGroup.open(bar.statusFocus, wasOpenOnPress)
+                        onPressed: wasOpenOnPress = statusPopup.open
+                        onClicked: statusGroup.open(statusPopup.focus, wasOpenOnPress)
                     }
 
                     Row {
@@ -1279,12 +805,13 @@ ShellRoot {
                         anchors.centerIn: parent
 
                         StatusMeter {
+                            style: root
                             level: statusGroup.sink?.audio?.volume ?? 0
                             fillColor: root.accent
                             dimmed: statusGroup.sink?.audio?.muted ?? true
                             adjustable: statusGroup.sink?.audio ?? false
                             overflow: (statusGroup.sink?.audio?.volume ?? 0) > 1
-                            groupOpen: bar.statusOpen
+                            groupOpen: statusPopup.open
                             onActivated: function(wasOpen) { statusGroup.open("volume", wasOpen); }
                             onStepped: function(amount) {
                                 root.setVolume((statusGroup.sink?.audio?.volume ?? 0) + amount);
@@ -1292,11 +819,12 @@ ShellRoot {
                         }
 
                         StatusMeter {
+                            style: root
                             level: Math.max(0, root.brightness)
                             fillColor: root.accentWarm
                             dimmed: root.brightness < 0
                             adjustable: root.brightness >= 0
-                            groupOpen: bar.statusOpen
+                            groupOpen: statusPopup.open
                             onActivated: function(wasOpen) { statusGroup.open("brightness", wasOpen); }
                             onStepped: function(amount) {
                                 root.setBrightness(Math.max(0, root.brightness) + amount);
@@ -1304,247 +832,26 @@ ShellRoot {
                         }
 
                         StatusMeter {
+                            style: root
                             visible: statusGroup.hasBattery
                             level: statusGroup.battery?.percentage ?? 0
                             fillColor: statusGroup.batteryColor
-                            groupOpen: bar.statusOpen
+                            groupOpen: statusPopup.open
                             onActivated: function(wasOpen) { statusGroup.open("battery", wasOpen); }
                         }
                     }
                 }
 
-                PopupWindow {
+                SystemStatusPopup {
                     id: statusPopup
-                    parentWindow: bar
-                    visible: bar.statusOpen && bar.isVisible
-                    implicitWidth: 300
-                    implicitHeight: statusGroup.hasBattery ? 214 : 158
-                    relativeX: Math.round(inputRegion.x
-                        + statusGroup.x
-                        + statusGroup.width
-                        - width)
-                    relativeY: root.barHeight + 6
-                    color: "transparent"
-                    grabFocus: true
-
-                    onVisibleChanged: {
-                        if (!visible && bar.statusOpen) bar.statusOpen = false;
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 14
-                        color: root.surface
-                        border.width: 1
-                        border.color: root.outline
-
-                        Text {
-                            id: statusPopupTitle
-                            anchors.top: parent.top
-                            anchors.left: parent.left
-                            anchors.topMargin: 12
-                            anchors.leftMargin: 12
-                            text: "SYSTEM STATUS"
-                            color: root.textMuted
-                            font.pixelSize: 9
-                            font.weight: Font.DemiBold
-                        }
-
-                        Item {
-                            id: volumeControl
-                            anchors.top: statusPopupTitle.bottom
-                            anchors.topMargin: 8
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.leftMargin: 12
-                            anchors.rightMargin: 12
-                            height: 52
-
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: 8
-                                color: bar.statusFocus === "volume"
-                                    ? root.surfaceRaised
-                                    : "transparent"
-                            }
-
-                            Text {
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.leftMargin: 8
-                                anchors.topMargin: 4
-                                text: "VOL"
-                                color: bar.statusFocus === "volume" ? root.textPrimary : root.textSecondary
-                                font.pixelSize: 10
-                                font.weight: Font.DemiBold
-                            }
-
-                            Text {
-                                anchors.top: parent.top
-                                anchors.right: volumeMute.left
-                                anchors.rightMargin: 8
-                                anchors.topMargin: 4
-                                text: statusGroup.sink?.audio
-                                    ? Math.round(statusGroup.sink.audio.volume * 100) + "%"
-                                    : "—"
-                                color: root.textPrimary
-                                font.pixelSize: 10
-                            }
-
-                            Rectangle {
-                                id: volumeMute
-                                anchors.top: parent.top
-                                anchors.right: parent.right
-                                anchors.rightMargin: 6
-                                width: 48
-                                height: 18
-                                radius: 6
-                                color: statusGroup.sink?.audio?.muted
-                                    ? root.surfaceHover
-                                    : "transparent"
-                                border.width: statusGroup.sink?.audio?.muted ? 1 : 0
-                                border.color: root.warning
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: statusGroup.sink?.audio?.muted ? "MUTED" : "MUTE"
-                                    color: statusGroup.sink?.audio?.muted ? root.warning : root.textMuted
-                                    font.pixelSize: 8
-                                    font.weight: Font.DemiBold
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    enabled: statusGroup.sink?.audio ?? false
-                                    onClicked: {
-                                        statusGroup.sink.audio.muted = !statusGroup.sink.audio.muted;
-                                    }
-                                }
-                            }
-
-                            ValueSlider {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.leftMargin: 8
-                                anchors.rightMargin: 8
-                                anchors.bottom: parent.bottom
-                                value: statusGroup.sink?.audio?.volume ?? 0
-                                available: statusGroup.sink?.audio ?? false
-                                onEdited: function(newValue) { root.setVolume(newValue); }
-                            }
-                        }
-
-                        Item {
-                            id: brightnessControl
-                            anchors.top: volumeControl.bottom
-                            anchors.topMargin: 8
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.leftMargin: 12
-                            anchors.rightMargin: 12
-                            height: 52
-
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: 8
-                                color: bar.statusFocus === "brightness"
-                                    ? root.surfaceRaised
-                                    : "transparent"
-                            }
-
-                            Text {
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.leftMargin: 8
-                                anchors.topMargin: 4
-                                text: "BRI"
-                                color: bar.statusFocus === "brightness" ? root.textPrimary : root.textSecondary
-                                font.pixelSize: 10
-                                font.weight: Font.DemiBold
-                            }
-
-                            Text {
-                                anchors.top: parent.top
-                                anchors.right: parent.right
-                                anchors.rightMargin: 8
-                                anchors.topMargin: 4
-                                text: root.brightness >= 0
-                                    ? Math.round(root.brightness * 100) + "%"
-                                    : "—"
-                                color: root.textPrimary
-                                font.pixelSize: 10
-                            }
-
-                            ValueSlider {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.leftMargin: 8
-                                anchors.rightMargin: 8
-                                anchors.bottom: parent.bottom
-                                value: Math.max(0, root.brightness)
-                                fillColor: root.accentWarm
-                                available: root.brightness >= 0
-                                onEdited: function(newValue) { root.setBrightness(newValue); }
-                            }
-                        }
-
-                        Item {
-                            id: batteryControl
-                            visible: statusGroup.hasBattery
-                            anchors.top: brightnessControl.bottom
-                            anchors.topMargin: 8
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.leftMargin: 12
-                            anchors.rightMargin: 12
-                            height: 44
-
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: 8
-                                color: bar.statusFocus === "battery"
-                                    ? root.surfaceRaised
-                                    : "transparent"
-                            }
-
-                            Text {
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.leftMargin: 8
-                                anchors.topMargin: 5
-                                text: "BAT"
-                                color: bar.statusFocus === "battery" ? root.textPrimary : root.textSecondary
-                                font.pixelSize: 10
-                                font.weight: Font.DemiBold
-                            }
-
-                            Text {
-                                anchors.top: parent.top
-                                anchors.right: parent.right
-                                anchors.rightMargin: 8
-                                anchors.topMargin: 5
-                                text: statusGroup.battery
-                                    ? Math.round(statusGroup.battery.percentage * 100) + "%"
-                                    : "—"
-                                color: statusGroup.batteryColor
-                                font.pixelSize: 10
-                                font.weight: Font.DemiBold
-                            }
-
-                            Text {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.leftMargin: 8
-                                anchors.rightMargin: 8
-                                anchors.bottom: parent.bottom
-                                anchors.bottomMargin: 5
-                                text: root.batteryDetail(statusGroup.battery)
-                                elide: Text.ElideRight
-                                color: root.textMuted
-                                font.pixelSize: 8
-                            }
-                        }
-                    }
+                    style: root
+                    shell: root
+                    barWindow: bar
+                    anchorRight: inputRegion.x + statusGroup.x + statusGroup.width
+                    sink: statusGroup.sink
+                    battery: statusGroup.battery
+                    hasBattery: statusGroup.hasBattery
+                    batteryColor: statusGroup.batteryColor
                 }
 
                 // ── Far right: quick tools ──────────────────────────
@@ -1559,7 +866,7 @@ ShellRoot {
                     Rectangle {
                         anchors.fill: parent
                         radius: 7
-                        color: bar.toolsOpen
+                        color: quickToolsPopup.open
                             ? root.surfaceRaised
                             : (quickToolsMouse.containsMouse ? root.surfaceHover : "transparent")
                         border.width: root.keepAwake ? 1 : 0
@@ -1592,92 +899,22 @@ ShellRoot {
                         property bool wasOpenOnPress: false
                         anchors.fill: parent
                         hoverEnabled: true
-                        onPressed: wasOpenOnPress = bar.toolsOpen
+                        onPressed: wasOpenOnPress = quickToolsPopup.open
                         onClicked: {
                             bar.trayExpanded = false;
                             bar.closeTrayMenu();
-                            bar.calendarOpen = false;
-                            bar.statusOpen = false;
-                            bar.toolsOpen = !wasOpenOnPress;
+                            calendarPopup.dismiss();
+                            statusPopup.dismiss();
+                            quickToolsPopup.open = !wasOpenOnPress;
                         }
                     }
                 }
 
-                PopupWindow {
+                QuickToolsPopup {
                     id: quickToolsPopup
-                    parentWindow: bar
-                    visible: bar.toolsOpen && bar.isVisible
-                    implicitWidth: 284
-                    implicitHeight: 174
-                    relativeX: Math.round(bar.width
-                        - root.barOuterMarginX
-                        - root.barBackgroundPaddingX
-                        - width)
-                    relativeY: root.barHeight + 6
-                    color: "transparent"
-                    grabFocus: true
-
-                    onVisibleChanged: {
-                        if (!visible && bar.toolsOpen) bar.toolsOpen = false;
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 14
-                        color: root.surface
-                        border.width: 1
-                        border.color: root.outline
-
-                        Text {
-                            id: quickToolsTitle
-                            anchors.top: parent.top
-                            anchors.left: parent.left
-                            anchors.topMargin: 12
-                            anchors.leftMargin: 12
-                            text: "QUICK TOOLS"
-                            color: root.textMuted
-                            font.pixelSize: 9
-                            font.weight: Font.DemiBold
-                        }
-
-                        Grid {
-                            anchors.top: quickToolsTitle.bottom
-                            anchors.topMargin: 10
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            columns: 2
-                            spacing: 8
-
-                            QuickToolTile {
-                                label: "AWAKE"
-                                detail: root.keepAwake ? "ON" : "OFF"
-                                active: root.keepAwake
-                                onTriggered: root.keepAwake = !root.keepAwake
-                            }
-
-                            QuickToolTile {
-                                label: "NIGHT"
-                                detail: "UNAVAILABLE"
-                                available: false
-                            }
-
-                            QuickToolTile {
-                                property var source: Pipewire.defaultAudioSource
-                                label: "MIC"
-                                detail: !source?.audio ? "UNAVAILABLE"
-                                    : (source.audio.muted ? "MUTED" : "LIVE")
-                                active: source?.audio?.muted ?? false
-                                available: source?.audio ?? false
-                                onTriggered: root.toggleMicMute()
-                            }
-
-                            QuickToolTile {
-                                label: "POWER"
-                                detail: root.powerProfileLabel()
-                                active: PowerProfiles.profile !== PowerProfile.Balanced
-                                onTriggered: root.cyclePowerProfile()
-                            }
-                        }
-                    }
+                    style: root
+                    shell: root
+                    barWindow: bar
                 }
 
                 // ── Separator ─────────────────────────────────────
@@ -1737,9 +974,9 @@ ShellRoot {
                         hoverEnabled: true
                         onClicked: {
                             bar.closeTrayMenu();
-                            bar.calendarOpen = false;
-                            bar.toolsOpen = false;
-                            bar.statusOpen = false;
+                            calendarPopup.dismiss();
+                            quickToolsPopup.dismiss();
+                            statusPopup.dismiss();
                             bar.trayExpanded = !bar.trayExpanded;
                         }
                     }
@@ -1844,289 +1081,10 @@ ShellRoot {
                     }
                 }
 
-                PopupWindow {
+                TrayMenuPopup {
                     id: trayMenuPopup
-                    parentWindow: bar
-                    visible: bar.trayMenuOpen && bar.isVisible
-                    implicitWidth: 260
-                    implicitHeight: Math.min(
-                        420,
-                        Math.max(62, bar.screen.height - root.barHeight - 18),
-                        Math.max(62, trayMenuList.contentHeight + 50)
-                    )
-                    relativeX: Math.round(Math.max(
-                        root.barOuterMarginX,
-                        Math.min(
-                            bar.width - root.barOuterMarginX - width,
-                            bar.trayMenuAnchorRight - width
-                        )
-                    ))
-                    relativeY: root.barHeight + 6
-                    color: "transparent"
-                    grabFocus: true
-
-                    onVisibleChanged: {
-                        if (!visible && bar.trayMenuOpen) bar.closeTrayMenu();
-                    }
-
-                    QsMenuOpener {
-                        id: trayMenuOpener
-                        menu: bar.trayMenuCurrent
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 12
-                        color: root.surface
-                        border.width: 1
-                        border.color: root.outline
-
-                        Item {
-                            id: trayMenuHeader
-                            anchors.top: parent.top
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            height: 42
-
-                            Item {
-                                id: trayMenuBack
-                                visible: bar.trayMenuStack.length > 1
-                                width: visible ? 28 : 0
-                                height: 28
-                                anchors.left: parent.left
-                                anchors.leftMargin: 7
-                                anchors.verticalCenter: parent.verticalCenter
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: 7
-                                    color: trayMenuBackMouse.containsMouse
-                                        ? root.surfaceHover
-                                        : "transparent"
-                                }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "‹"
-                                    color: root.textSecondary
-                                    font.pixelSize: 19
-                                    font.weight: Font.Medium
-                                }
-
-                                MouseArea {
-                                    id: trayMenuBackMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: bar.leaveTraySubmenu()
-                                }
-                            }
-
-                            Text {
-                                anchors.left: trayMenuBack.right
-                                anchors.right: trayMenuClose.left
-                                anchors.leftMargin: trayMenuBack.visible ? 4 : 12
-                                anchors.rightMargin: 6
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: bar.trayMenuHeading()
-                                elide: Text.ElideRight
-                                color: root.textMuted
-                                font.pixelSize: 9
-                                font.weight: Font.DemiBold
-                            }
-
-                            Item {
-                                id: trayMenuClose
-                                width: 28
-                                height: 28
-                                anchors.right: parent.right
-                                anchors.rightMargin: 7
-                                anchors.verticalCenter: parent.verticalCenter
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: 7
-                                    color: trayMenuCloseMouse.containsMouse
-                                        ? root.surfaceHover
-                                        : "transparent"
-                                }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "×"
-                                    color: root.textMuted
-                                    font.pixelSize: 15
-                                }
-
-                                MouseArea {
-                                    id: trayMenuCloseMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: bar.closeTrayMenu()
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            anchors.top: trayMenuHeader.bottom
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.leftMargin: 10
-                            anchors.rightMargin: 10
-                            height: 1
-                            color: root.separator
-                        }
-
-                        ListView {
-                            id: trayMenuList
-                            anchors.top: trayMenuHeader.bottom
-                            anchors.topMargin: 5
-                            anchors.bottom: parent.bottom
-                            anchors.bottomMargin: 5
-                            anchors.left: parent.left
-                            anchors.leftMargin: 5
-                            anchors.right: parent.right
-                            anchors.rightMargin: 5
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-                            model: trayMenuOpener.children
-                                ? [...trayMenuOpener.children.values]
-                                : []
-
-                            delegate: Item {
-                                id: menuEntry
-                                required property QsMenuEntry modelData
-                                readonly property bool checked: modelData.checkState !== Qt.Unchecked
-                                width: trayMenuList.width
-                                height: modelData.isSeparator ? 9 : 34
-                                opacity: modelData.enabled ? 1 : 0.52
-
-                                Rectangle {
-                                    visible: menuEntry.modelData.isSeparator
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.leftMargin: 8
-                                    anchors.rightMargin: 8
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    height: 1
-                                    color: root.separator
-                                }
-
-                                Rectangle {
-                                    visible: !menuEntry.modelData.isSeparator
-                                    anchors.fill: parent
-                                    radius: 7
-                                    color: menuEntryMouse.containsMouse && menuEntry.modelData.enabled
-                                        ? root.surfaceHover
-                                        : "transparent"
-
-                                    Behavior on color { ColorAnimation { duration: 100 } }
-                                }
-
-                                Item {
-                                    visible: !menuEntry.modelData.isSeparator
-                                    width: 18
-                                    height: 18
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: 9
-                                    anchors.verticalCenter: parent.verticalCenter
-
-                                    IconImage {
-                                        anchors.centerIn: parent
-                                        implicitSize: 16
-                                        source: menuEntry.modelData.icon
-                                        visible: menuEntry.modelData.buttonType === QsMenuButtonType.None
-                                            && source !== ""
-                                            && status !== Image.Error
-                                    }
-
-                                    Rectangle {
-                                        visible: menuEntry.modelData.buttonType !== QsMenuButtonType.None
-                                        width: 13
-                                        height: 13
-                                        anchors.centerIn: parent
-                                        radius: menuEntry.modelData.buttonType === QsMenuButtonType.RadioButton
-                                            ? 7
-                                            : 3
-                                        color: menuEntry.checked ? root.accent : "transparent"
-                                        border.width: 1
-                                        border.color: menuEntry.checked ? root.accent : root.textMuted
-
-                                        Rectangle {
-                                            visible: menuEntry.checked
-                                                && menuEntry.modelData.buttonType === QsMenuButtonType.RadioButton
-                                            width: 5
-                                            height: 5
-                                            radius: 3
-                                            anchors.centerIn: parent
-                                            color: root.accentInk
-                                        }
-
-                                        Text {
-                                            visible: menuEntry.checked
-                                                && menuEntry.modelData.buttonType === QsMenuButtonType.CheckBox
-                                            anchors.centerIn: parent
-                                            anchors.verticalCenterOffset: -1
-                                            text: menuEntry.modelData.checkState === Qt.PartiallyChecked ? "−" : "✓"
-                                            color: root.accentInk
-                                            font.pixelSize: 10
-                                            font.weight: Font.DemiBold
-                                        }
-                                    }
-                                }
-
-                                Text {
-                                    visible: !menuEntry.modelData.isSeparator
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: 36
-                                    anchors.right: menuEntryArrow.left
-                                    anchors.rightMargin: 8
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: menuEntry.modelData.text
-                                    elide: Text.ElideRight
-                                    color: root.textPrimary
-                                    font.pixelSize: 11
-                                    font.weight: Font.Medium
-                                }
-
-                                Text {
-                                    id: menuEntryArrow
-                                    visible: !menuEntry.modelData.isSeparator
-                                        && menuEntry.modelData.hasChildren
-                                    width: visible ? 18 : 0
-                                    anchors.right: parent.right
-                                    anchors.rightMargin: 8
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: "›"
-                                    color: root.textMuted
-                                    font.pixelSize: 17
-                                    horizontalAlignment: Text.AlignHCenter
-                                }
-
-                                MouseArea {
-                                    id: menuEntryMouse
-                                    anchors.fill: parent
-                                    enabled: !menuEntry.modelData.isSeparator
-                                        && menuEntry.modelData.enabled
-                                    hoverEnabled: true
-                                    onClicked: {
-                                        if (menuEntry.modelData.hasChildren)
-                                            bar.enterTraySubmenu(menuEntry.modelData);
-                                        else
-                                            bar.triggerTrayMenuEntry(menuEntry.modelData);
-                                    }
-                                }
-                            }
-
-                            Text {
-                                visible: trayMenuList.count === 0
-                                anchors.centerIn: parent
-                                text: "NO ACTIONS"
-                                color: root.textMuted
-                                font.pixelSize: 9
-                                font.weight: Font.Medium
-                            }
-                        }
-                    }
+                    style: root
+                    barWindow: bar
                 }
             }
         }
