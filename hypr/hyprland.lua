@@ -1,6 +1,7 @@
 require("settings")
 require("binds")
 require("rules")
+require("apps")
 require("startup")
 
 -- `monitors.lua` is generated locally by hyprmoncfg and intentionally not

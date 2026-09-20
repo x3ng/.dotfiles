@@ -1,9 +1,3 @@
--- Suppress maximize events from all apps
-hl.window_rule({
-  match = { class = ".*" },
-  suppress_event = "maximize",
-})
-
 -- Fix dragging issues with XWayland
 hl.window_rule({
   match = {
@@ -15,6 +9,12 @@ hl.window_rule({
     pin = false,
   },
   no_focus = true,
+})
+
+-- Center floating dialogs to prevent submenu/popup mispositioning
+hl.window_rule({
+  match = { float = true, modal = true },
+  center = true,
 })
 
 -- "Smart gaps" / "No gaps when only" — uncomment to enable

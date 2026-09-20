@@ -81,16 +81,32 @@ dot_unlink() {
 
 # ---- system-space template helpers ----
 
-# dot_template <src> <dst> [KEY=VALUE ...]
+# dot_template [--mode MODE] <src> <dst> [KEY=VALUE ...]
 #   Reads <src> as a template, replaces {{KEY}} placeholders with values,
-#   then sudo-installs to <dst>. If dst already exists, backs it up first.
+#   then sudo-installs to <dst> with an explicit mode (default: 0600).
+#   If dst already exists, backs it up first.
 #   If the calling install.sh is non-interactive and no values are provided
 #   via environment, it aborts with guidance.
 dot_template() {
+    local mode="0600"
+    if [[ "${1:-}" == "--mode" ]]; then
+        if [[ $# -lt 4 ]]; then
+            log_err "dot_template --mode requires MODE, src, and dst"
+            return 2
+        fi
+        mode="$2"
+        shift 2
+    fi
+
+    if [[ ! "$mode" =~ ^0?[0-7]{3}$ ]]; then
+        log_err "invalid file mode: $mode"
+        return 2
+    fi
+
     local src="$1" dst="$2"; shift 2
 
     if is_dry_run; then
-        log_info "DRY: template $src -> $dst (vars: $*)"
+        log_info "DRY: template $src -> $dst (mode: $mode, vars: $*)"
         return 0
     fi
 
@@ -107,10 +123,9 @@ dot_template() {
         _backup_target "$dst"
     fi
 
-    as_root mkdir -p "$(dirname "$dst")"
-    as_root cp "$tmp" "$dst"
+    as_root install -D -m "$mode" "$tmp" "$dst"
     rm "$tmp"
-    log_info "installed: $dst"
+    log_info "installed: $dst (mode: $mode)"
 }
 
 # dot_untemplate <dst>

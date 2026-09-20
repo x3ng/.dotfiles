@@ -8,6 +8,7 @@ FILES=(
   settings.lua
   binds.lua
   rules.lua
+  apps.lua
   startup.lua
   hypridle.conf
   hyprlock.conf

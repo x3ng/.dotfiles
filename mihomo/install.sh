@@ -32,6 +32,7 @@ case "${1:-install}" in
     fi
 
     dot_template \
+      --mode 0644 \
       "$SCRIPT_DIR/config.yaml" \
       "/etc/mihomo/config.yaml" \
       SUB_URL="$sub_url"
