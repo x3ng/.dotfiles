@@ -95,7 +95,7 @@ hl.bind("SUPER + V", hl.dsp.exec_cmd("clipse"))
 
 -- Lock & exit
 hl.bind("SUPER + M",        hl.dsp.exec_cmd("hyprlock"))
-hl.bind("SUPER + SHIFT + M", hl.dsp.exec_cmd("hyprctl dispatch exit"))
+hl.bind("SUPER + SHIFT + M", hl.dsp.exec_cmd("hyprshutdown"))
 
 -- ══════════════════════════════════════════════════════════════
 -- 媒体 / 硬件控制键
