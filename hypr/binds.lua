@@ -1,6 +1,6 @@
 local terminal = "kitty"
 local fileManager = "thunar"
-local menu = "anyrun"
+local menu = "rofi -show combi"
 
 -- ══════════════════════════════════════════════════════════════
 -- Hyprland 原生快捷键（窗口/工作区/布局管理）
