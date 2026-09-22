@@ -31,7 +31,6 @@ ShellRoot {
     readonly property alias radiusCard: theme.radiusCard
     readonly property alias radiusControl: theme.radiusControl
     readonly property alias radiusSmall: theme.radiusSmall
-    readonly property alias barBackgroundOpacity: theme.barBackgroundOpacity
     readonly property alias darkMode: theme.darkMode
     readonly property alias modeLabel: theme.modeLabel
     readonly property alias surface: theme.surface
@@ -370,14 +369,39 @@ ShellRoot {
                 height: bar.surfaceVisible ? root.barBackgroundHeight : 0
                 opacity: bar.visibilityProgress
 
-                Rectangle {
-                    id: bgRect
-                    anchors.fill: parent
-                    radius: root.radiusBar
-                    color: root.barSurface
-                    opacity: root.barBackgroundOpacity
-                    border.width: 1
-                    border.color: root.outline
+                // Three macro surfaces keep the wallpaper visible in the
+                // empty space while preserving a clear left/center/right
+                // grouping for the bar contents.
+                ContentSurface {
+                    id: leftContentSurface
+                    style: root
+                    // Match the bar's outer edge; the clock keeps its own
+                    // internal padding from this surface.
+                    x: clock.x - root.barBackgroundPaddingX
+                    width: clock.width + root.barBackgroundPaddingX * 2
+                    height: root.barBackgroundHeight
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                ContentSurface {
+                    id: centerContentSurface
+                    style: root
+                    x: wsContainer.x - 6
+                    width: wsContainer.width + 12
+                    height: root.barBackgroundHeight
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                ContentSurface {
+                    id: rightContentSurface
+                    style: root
+                    x: (trayToggle.visible ? trayToggle.x : statusGroup.x) - 6
+                    // Extend through the quick-tools side padding so the
+                    // outer margin matches the left side.
+                    width: quickToolsButton.x + quickToolsButton.width - x
+                        + root.barBackgroundPaddingX
+                    height: root.barBackgroundHeight
+                    anchors.verticalCenter: parent.verticalCenter
                 }
 
                 MouseArea {

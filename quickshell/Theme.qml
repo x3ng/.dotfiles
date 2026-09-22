@@ -24,10 +24,6 @@ QtObject {
     readonly property int radiusCard: 5
     readonly property int radiusControl: 4
     readonly property int radiusSmall: 3
-    // Keep the alpha in the surface colours. Applying another opacity to the
-    // whole rectangle would multiply the alpha and make dark mode muddy.
-    readonly property real barBackgroundOpacity: 1.0
-
     // Neutral surfaces carry most of the UI; accents are reserved for focus
     // and status, so the palette stays calm without becoming monochrome.
     // QML uses #AARRGGBB for 8-digit colours.

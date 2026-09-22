@@ -79,7 +79,8 @@ hl.layer_rule({
   },
   blur = true,
   blur_popups = true,
-  xray = true,
+  -- Respect transparent holes between the three bar surfaces.
+  ignore_alpha = false,
 })
 
 -- Bezier curves
