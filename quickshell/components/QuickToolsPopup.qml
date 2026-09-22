@@ -35,7 +35,7 @@ PopupWindow {
 
     Rectangle {
         anchors.fill: parent
-        radius: 14
+        radius: popup.style.radiusPopup
         color: popup.style.surface
         border.width: 1
         border.color: popup.style.outline
@@ -69,9 +69,10 @@ PopupWindow {
 
             QuickToolTile {
                 style: popup.style
-                label: "NIGHT"
-                detail: "UNAVAILABLE"
-                available: false
+                label: "THEME"
+                detail: popup.shell.modeLabel
+                active: !popup.shell.darkMode
+                onTriggered: popup.shell.toggleTheme()
             }
 
             QuickToolTile {

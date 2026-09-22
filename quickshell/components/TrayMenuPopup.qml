@@ -14,14 +14,14 @@ PopupWindow {
     property var currentMenu: null
     property var menuStack: []
     property real anchorRight: 0
+    property real trayPanelOffset: 0
 
-    function openFor(trayItem, anchorItem) {
+    function openFor(trayItem, anchorRightValue) {
         var menuHandle = trayItem?.menu;
         if (!menuHandle) return false;
 
         dismiss();
-        var pos = anchorItem.mapToItem(null, 0, 0);
-        anchorRight = pos.x + anchorItem.width;
+        anchorRight = anchorRightValue;
         owner = trayItem;
         menuStack = [menuHandle];
         currentMenu = menuHandle;
@@ -77,7 +77,10 @@ PopupWindow {
             anchorRight - width
         )
     ))
+    // A tray item's menu is a second layer below the tray drawer. Derive the
+    // offset from the drawer's actual height so the two surfaces stay close.
     relativeY: style.barHeight + 6
+        + (barWindow.trayExpanded ? trayPanelOffset : 0)
     color: "transparent"
     grabFocus: true
 
@@ -92,7 +95,7 @@ PopupWindow {
 
     Rectangle {
         anchors.fill: parent
-        radius: 12
+        radius: popup.style.radiusPopup
         color: popup.style.surface
         border.width: 1
         border.color: popup.style.outline
@@ -115,7 +118,7 @@ PopupWindow {
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 7
+                    radius: popup.style.radiusControl
                     color: backMouse.containsMouse
                         ? popup.style.surfaceHover
                         : "transparent"
@@ -160,7 +163,7 @@ PopupWindow {
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 7
+                    radius: popup.style.radiusControl
                     color: closeMouse.containsMouse
                         ? popup.style.surfaceHover
                         : "transparent"
@@ -228,7 +231,7 @@ PopupWindow {
                 Rectangle {
                     visible: !entry.modelData.isSeparator
                     anchors.fill: parent
-                    radius: 7
+                    radius: popup.style.radiusControl
                     color: entryMouse.containsMouse && entry.modelData.enabled
                         ? popup.style.surfaceHover
                         : "transparent"

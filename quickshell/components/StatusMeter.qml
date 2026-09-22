@@ -9,13 +9,9 @@ Item {
     required property real level
     property color fillColor: style.accent
     property bool dimmed: false
-    property bool adjustable: false
     property bool overflow: false
-    property bool groupOpen: false
-    signal activated(bool wasOpen)
-    signal stepped(real amount)
 
-    width: 12
+    width: 8
     height: 24
 
     Rectangle {
@@ -50,16 +46,4 @@ Item {
         }
     }
 
-    MouseArea {
-        property bool wasOpenOnPress: false
-        anchors.fill: parent
-        hoverEnabled: true
-        onPressed: wasOpenOnPress = meter.groupOpen
-        onClicked: meter.activated(wasOpenOnPress)
-        onWheel: function(wheel) {
-            if (!meter.adjustable) return;
-            meter.stepped(wheel.angleDelta.y > 0 ? 0.05 : -0.05);
-            wheel.accepted = true;
-        }
-    }
 }

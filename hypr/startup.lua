@@ -7,6 +7,7 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("quickshell --no-duplicate")
   hl.exec_cmd("clipse -listen")
   hl.exec_cmd("udiskie")
+  hl.exec_cmd("hyprpaper")
 end)
 
 -- Per-device input config — uncomment and set your device name

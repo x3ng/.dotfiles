@@ -26,8 +26,16 @@ ShellRoot {
     readonly property alias barBackgroundPaddingX: theme.barBackgroundPaddingX
     readonly property alias barBackgroundHeight: theme.barBackgroundHeight
     readonly property alias barSectionGap: theme.barSectionGap
+    readonly property alias radiusBar: theme.radiusBar
+    readonly property alias radiusPopup: theme.radiusPopup
+    readonly property alias radiusCard: theme.radiusCard
+    readonly property alias radiusControl: theme.radiusControl
+    readonly property alias radiusSmall: theme.radiusSmall
     readonly property alias barBackgroundOpacity: theme.barBackgroundOpacity
+    readonly property alias darkMode: theme.darkMode
+    readonly property alias modeLabel: theme.modeLabel
     readonly property alias surface: theme.surface
+    readonly property alias barSurface: theme.barSurface
     readonly property alias surfaceRaised: theme.surfaceRaised
     readonly property alias surfaceHover: theme.surfaceHover
     readonly property alias outline: theme.outline
@@ -44,6 +52,7 @@ ShellRoot {
     readonly property alias fontSizeSmall: theme.fontSizeSmall
     readonly property alias fontSizeMedium: theme.fontSizeMedium
     readonly property alias fontSizeLarge: theme.fontSizeLarge
+    readonly property alias fontFamily: theme.fontFamily
     readonly property alias iconSizeSmall: theme.iconSizeSmall
     readonly property alias separatorHeight: theme.separatorHeight
 
@@ -55,6 +64,10 @@ ShellRoot {
     function toggleMicMute() {
         var audio = Pipewire.defaultAudioSource?.audio;
         if (audio) audio.muted = !audio.muted;
+    }
+
+    function toggleTheme() {
+        theme.toggle();
     }
 
     function cyclePowerProfile() {
@@ -281,8 +294,8 @@ ShellRoot {
                 if (!ownerStillPresent) trayMenuPopup.dismiss();
             }
 
-            function openTrayMenu(owner, anchorItem) {
-                var opened = trayMenuPopup.openFor(owner, anchorItem);
+            function openTrayMenu(owner, anchorRight) {
+                var opened = trayMenuPopup.openFor(owner, anchorRight);
                 if (opened) {
                     calendarPopup.dismiss();
                     quickToolsPopup.dismiss();
@@ -360,8 +373,8 @@ ShellRoot {
                 Rectangle {
                     id: bgRect
                     anchors.fill: parent
-                    radius: 15
-                    color: root.surface
+                    radius: root.radiusBar
+                    color: root.barSurface
                     opacity: root.barBackgroundOpacity
                     border.width: 1
                     border.color: root.outline
@@ -389,9 +402,7 @@ ShellRoot {
                     readonly property real collisionWidth: {
                         var centre = inputRegion.width / 2;
                         var leftEdge = clock.x + clock.width + root.barSectionGap;
-                        var rightStart = trayDrawer.width > 0
-                            ? trayDrawer.x
-                            : (trayToggle.visible ? trayToggle.x : statusGroup.x);
+                        var rightStart = trayToggle.visible ? trayToggle.x : statusGroup.x;
                         var rightEdge = rightStart - root.barSectionGap;
                         return Math.max(0, Math.floor(2 * Math.min(
                             centre - leftEdge,
@@ -581,18 +592,15 @@ ShellRoot {
                                 implicitWidth: workspaceContents.implicitWidth + 14
                                 width: Math.max(23, implicitWidth)
                                 height: 26
-                                radius: 7
-                                color: {
-                                    if (isActive) return "#1e2530";
-                                    if (wsMouse.containsMouse) return root.surfaceHover;
-                                    if (hasWindows) return "#1d2230";
-                                    return "transparent";
-                                }
-                                border.width: wsMouse.containsMouse ? 1 : 0
-                                border.color: root.accent
+                                // Keep workspaces flat: state is communicated
+                                // by text and the active underline below.
+                                color: "transparent"
 
-                                Behavior on color { ColorAnimation { duration: 130 } }
-                                Behavior on border.width { NumberAnimation { duration: 100 } }
+                                HoverSurface {
+                                    style: root
+                                    hovered: wsMouse.containsMouse
+                                    radius: root.radiusSmall
+                                }
 
                                 scale: wsMouse.pressed ? 0.97 : 1
                                 Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
@@ -617,15 +625,18 @@ ShellRoot {
 
                                         Rectangle {
                                             anchors.fill: parent
-                                            radius: 6
-                                            color: wsMouse.containsMouse ? "#3a4556" : "#2a3342"
+                                            color: "transparent"
                                         }
                                         Text {
                                             anchors.centerIn: parent
                                             text: workspaceDelegate.modelData.id
-                                            color: root.textPrimary
+                                            color: workspaceDelegate.isActive
+                                                ? root.accent
+                                                : (wsMouse.containsMouse ? root.textPrimary : root.textSecondary)
                                             font.pixelSize: 13
                                             font.weight: Font.Bold
+
+                                            Behavior on color { ColorAnimation { duration: 120 } }
                                         }
                                     }
 
@@ -709,14 +720,10 @@ ShellRoot {
                     anchors.leftMargin: root.barBackgroundPaddingX
                     anchors.verticalCenter: parent.verticalCenter
 
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 7
-                        color: calendarPopup.open
-                            ? root.surfaceRaised
-                            : (clockMouse.containsMouse ? root.surfaceHover : "transparent")
-
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                    HoverSurface {
+                        style: root
+                        hovered: clockMouse.containsMouse
+                        radius: root.radiusSmall
                     }
 
                     Row {
@@ -726,7 +733,8 @@ ShellRoot {
 
                         Text {
                             id: clockDate
-                            color: root.textSecondary
+                            color: root.textPrimary
+                            font.family: root.fontFamily
                             font.pixelSize: root.fontSizeMedium
                             font.weight: Font.Medium
                             anchors.verticalCenter: parent.verticalCenter
@@ -734,6 +742,7 @@ ShellRoot {
                         Text {
                             id: clockTime
                             color: root.textPrimary
+                            font.family: root.fontFamily
                             font.pixelSize: root.fontSizeMedium
                             font.weight: Font.Medium
                             anchors.verticalCenter: parent.verticalCenter
@@ -808,60 +817,51 @@ ShellRoot {
                     anchors.rightMargin: 9
                     anchors.verticalCenter: parent.verticalCenter
 
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 7
-                        color: statusPopup.open ? root.surfaceRaised : "transparent"
-
-                        Behavior on color { ColorAnimation { duration: 130 } }
+                    HoverSurface {
+                        style: root
+                        // The meters are one control: the outer MouseArea
+                        // owns hover and click handling for the whole group.
+                        hovered: statusMouse.containsMouse
+                        radius: root.radiusSmall
                     }
 
                     MouseArea {
+                        id: statusMouse
                         property bool wasOpenOnPress: false
                         anchors.fill: parent
+                        hoverEnabled: true
                         onPressed: wasOpenOnPress = statusPopup.open
                         onClicked: statusGroup.open(statusPopup.focus, wasOpenOnPress)
                     }
 
                     Row {
                         id: statusRow
-                        spacing: 4
+                        spacing: 2
                         anchors.centerIn: parent
 
                         StatusMeter {
+                            id: volumeMeter
                             style: root
                             level: statusGroup.sink?.audio?.volume ?? 0
                             fillColor: root.accent
                             dimmed: statusGroup.sink?.audio?.muted ?? true
-                            adjustable: statusGroup.sink?.audio ?? false
                             overflow: (statusGroup.sink?.audio?.volume ?? 0) > 1
-                            groupOpen: statusPopup.open
-                            onActivated: function(wasOpen) { statusGroup.open("volume", wasOpen); }
-                            onStepped: function(amount) {
-                                root.setVolume((statusGroup.sink?.audio?.volume ?? 0) + amount);
-                            }
                         }
 
                         StatusMeter {
+                            id: brightnessMeter
                             style: root
                             level: Math.max(0, root.brightness)
                             fillColor: root.accentWarm
                             dimmed: root.brightness < 0
-                            adjustable: root.brightness >= 0
-                            groupOpen: statusPopup.open
-                            onActivated: function(wasOpen) { statusGroup.open("brightness", wasOpen); }
-                            onStepped: function(amount) {
-                                root.setBrightness(Math.max(0, root.brightness) + amount);
-                            }
                         }
 
                         StatusMeter {
+                            id: batteryMeter
                             style: root
                             visible: statusGroup.hasBattery
                             level: statusGroup.battery?.percentage ?? 0
                             fillColor: statusGroup.batteryColor
-                            groupOpen: statusPopup.open
-                            onActivated: function(wasOpen) { statusGroup.open("battery", wasOpen); }
                         }
                     }
                 }
@@ -887,23 +887,19 @@ ShellRoot {
                     anchors.rightMargin: root.barBackgroundPaddingX
                     anchors.verticalCenter: parent.verticalCenter
 
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 7
-                        color: quickToolsPopup.open
-                            ? root.surfaceRaised
-                            : (quickToolsMouse.containsMouse ? root.surfaceHover : "transparent")
-                        border.width: root.keepAwake ? 1 : 0
-                        border.color: root.accent
-
-                        Behavior on color { ColorAnimation { duration: 130 } }
+                    HoverSurface {
+                        style: root
+                        hovered: quickToolsMouse.containsMouse
+                        radius: root.radiusSmall
                     }
 
                     Text {
                         anchors.centerIn: parent
                         anchors.verticalCenterOffset: -2
                         text: "…"
-                        color: root.keepAwake ? root.accent : root.textSecondary
+                        color: root.keepAwake || quickToolsPopup.open
+                            ? root.accent
+                            : root.textSecondary
                         font.pixelSize: 18
                         font.weight: Font.DemiBold
                     }
@@ -941,43 +937,29 @@ ShellRoot {
                     barWindow: bar
                 }
 
-                // ── Separator ─────────────────────────────────────
-                Rectangle {
-                    id: traySeparator
-                    visible: bar.hasTrayItems
-                    width: 1
-                    height: root.separatorHeight
-                    color: root.separator
-                    anchors.right: statusGroup.left
-                    anchors.rightMargin: 9
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-
                 Item {
                     id: trayToggle
                     visible: bar.hasTrayItems
                     width: visible ? 22 : 0
                     height: 22
-                    anchors.right: traySeparator.left
-                    anchors.rightMargin: visible ? 6 : 0
+                    anchors.right: statusGroup.left
+                    anchors.rightMargin: visible ? 9 : 0
                     anchors.verticalCenter: parent.verticalCenter
 
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 7
-                        color: bar.trayExpanded
-                            ? root.surfaceRaised
-                            : (trayToggleMouse.containsMouse ? root.surfaceHover : "transparent")
-
-                        Behavior on color { ColorAnimation { duration: 130 } }
+                    HoverSurface {
+                        style: root
+                        hovered: trayToggleMouse.containsMouse
+                        radius: root.radiusSmall
                     }
 
                     Text {
                         anchors.centerIn: parent
                         // Point towards the action: expand left, then fold the
                         // drawer back towards the fixed status block.
-                        text: bar.trayExpanded ? "›" : "‹"
-                        color: bar.trayNeedsAttention ? root.warning : root.textSecondary
+                        text: bar.trayExpanded ? "⌃" : "⌄"
+                        color: bar.trayNeedsAttention
+                            ? root.warning
+                            : (bar.trayExpanded ? root.accent : root.textSecondary)
                         font.pixelSize: 18
                         font.weight: Font.Medium
                     }
@@ -1007,27 +989,39 @@ ShellRoot {
                 }
 
                 // ── System tray ───────────────────────────────────
-                Item {
+                PopupWindow {
                     id: trayDrawer
-                    width: bar.trayExpanded && bar.hasTrayItems ? trayRow.implicitWidth : 0
-                    height: 28
-                    clip: true
-                    anchors.right: trayToggle.left
-                    anchors.rightMargin: bar.hasTrayItems ? 6 : 0
-                    anchors.verticalCenter: parent.verticalCenter
+                    parentWindow: bar
+                    visible: bar.trayExpanded && bar.hasTrayItems && bar.isVisible
+                    implicitWidth: Math.min(320, Math.max(76, trayRow.implicitWidth + 24))
+                    // Keep the drawer close to the icon row; extra vertical
+                    // padding makes a following context menu feel detached.
+                    implicitHeight: 44
+                    // Center the tray popup on the trigger instead of
+                    // pinning it to the far-right edge of the bar.
+                    relativeX: Math.round(Math.max(
+                        root.barOuterMarginX,
+                        Math.min(
+                            bar.width - root.barOuterMarginX - width,
+                            inputRegion.x + trayToggle.x
+                                + (trayToggle.width - width) / 2
+                        )
+                    ))
+                    relativeY: root.barHeight + 6
+                    color: "transparent"
 
-                    Behavior on width {
-                        NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: root.radiusPopup
+                        color: root.surface
+                        border.width: 1
+                        border.color: root.outline
                     }
 
                     Row {
                         id: trayRow
                         spacing: 4
-                        width: implicitWidth
-                        height: implicitHeight
-                        enabled: trayDrawer.width > 0
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.centerIn: parent
 
                         Repeater {
                             id: trayRepeater
@@ -1043,8 +1037,10 @@ ShellRoot {
                                 // that opens Qt's platform-themed white menu.
                                 // A menu handle may arrive one event-loop turn
                                 // after hasMenu, so retry once instead.
-                                if (!bar.openTrayMenu(trayItem.modelData, trayItem))
-                                    Qt.callLater(() => bar.openTrayMenu(trayItem.modelData, trayItem));
+                                var right = trayDrawer.relativeX + trayRow.x
+                                    + trayItem.x + trayItem.width;
+                                if (!bar.openTrayMenu(trayItem.modelData, right))
+                                    Qt.callLater(() => bar.openTrayMenu(trayItem.modelData, right));
                             }
 
                             function fallbackLabel() {
@@ -1062,7 +1058,7 @@ ShellRoot {
                             }
 
                             Rectangle {
-                                anchors.fill: parent; radius: 4
+                                anchors.fill: parent; radius: root.radiusSmall
                                 color: trayMouse.containsMouse ? root.surfaceHover : "transparent"
                             }
 
@@ -1088,16 +1084,22 @@ ShellRoot {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                onPressed: function(event) {
+                                    if (event.button === Qt.RightButton
+                                        && trayItem.modelData.hasMenu) {
+                                        event.accepted = true;
+                                        trayItem.displayMenu();
+                                    }
+                                }
                                 onClicked: function(event) {
                                     if (event.button === Qt.LeftButton) {
                                         if (trayItem.modelData.onlyMenu && trayItem.modelData.hasMenu)
                                             trayItem.displayMenu();
                                         else {
+                                            bar.trayExpanded = false;
                                             bar.closeTrayMenu();
                                             trayItem.modelData.activate();
                                         }
-                                    } else if (event.button === Qt.RightButton && trayItem.modelData.hasMenu) {
-                                        trayItem.displayMenu();
                                     }
                                 }
                             }
@@ -1109,6 +1111,7 @@ ShellRoot {
                     id: trayMenuPopup
                     style: root
                     barWindow: bar
+                    trayPanelOffset: trayDrawer.height + 2
                 }
             }
         }

@@ -9,35 +9,37 @@ hl.config({
   general = {
     gaps_in = 2,
     gaps_out = 4,
-    border_size = 1,
+    border_size = 2,
     ["col.active_border"] = {
-      colors = { "rgba(33ccffee)", "rgba(00ff99ee)" },
+      -- Keep the compositor chrome neutral; Quickshell owns the UI palette.
+      colors = { "rgba(f0f0f0ee)", "rgba(b8b8b8ee)" },
       angle = 45,
     },
-    ["col.inactive_border"] = "rgba(595959aa)",
+    ["col.inactive_border"] = "rgba(707070bb)",
     resize_on_border = true,
     allow_tearing = false,
     layout = "dwindle",
   },
 
   decoration = {
-    rounding = 6,
+    rounding = 5,
     rounding_power = 2,
-    active_opacity = 1.0,
-    inactive_opacity = 1.0,
+    active_opacity = 0.95,
+    inactive_opacity = 0.85,
     shadow = {
       enabled = true,
       range = 4,
       render_power = 3,
-      color = "rgba(1a1a1aee)",
+      color = "rgba(000000cc)",
     },
     blur = {
       enabled = true,
-      size = 12,
-      passes = 4,
-      vibrancy = 0.4,
-      vibrancy_darkness = 0.3,
-      noise = 0.02,
+      size = 10,
+      passes = 3,
+      -- Low vibrancy avoids the blue/purple cast while retaining depth.
+      vibrancy = 0.05,
+      vibrancy_darkness = 0.1,
+      noise = 0.01,
     },
   },
 
@@ -66,6 +68,18 @@ hl.config({
   xwayland = {
     force_zero_scaling = true,
   },
+})
+
+-- Quickshell uses a layer-shell surface rather than a normal window.  Window
+-- blur rules do not affect it, so give its namespace the acrylic treatment
+-- explicitly.  The QML surfaces remain translucent and provide the tint.
+hl.layer_rule({
+  match = {
+    namespace = "quickshell",
+  },
+  blur = true,
+  blur_popups = true,
+  xray = true,
 })
 
 -- Bezier curves

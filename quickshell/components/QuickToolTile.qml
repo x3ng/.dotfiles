@@ -14,7 +14,7 @@ Rectangle {
 
     width: 126
     height: 58
-    radius: 10
+    radius: style.radiusCard
     color: active
         ? style.surfaceHover
         : (mouseArea.containsMouse && available ? style.surfaceRaised : "transparent")

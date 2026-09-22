@@ -41,7 +41,7 @@ PopupWindow {
 
     Rectangle {
         anchors.fill: parent
-        radius: 14
+        radius: popup.style.radiusPopup
         color: popup.style.surface
         border.width: 1
         border.color: popup.style.outline
@@ -70,7 +70,7 @@ PopupWindow {
 
             Rectangle {
                 anchors.fill: parent
-                radius: 8
+                radius: popup.style.radiusControl
                 color: popup.focus === "volume"
                     ? popup.style.surfaceRaised
                     : "transparent"
@@ -108,7 +108,7 @@ PopupWindow {
                 anchors.rightMargin: 6
                 width: 48
                 height: 18
-                radius: 6
+                radius: popup.style.radiusControl
                 color: popup.sink?.audio?.muted
                     ? popup.style.surfaceHover
                     : "transparent"
@@ -157,7 +157,7 @@ PopupWindow {
 
             Rectangle {
                 anchors.fill: parent
-                radius: 8
+                radius: popup.style.radiusControl
                 color: popup.focus === "brightness"
                     ? popup.style.surfaceRaised
                     : "transparent"
@@ -214,7 +214,7 @@ PopupWindow {
 
             Rectangle {
                 anchors.fill: parent
-                radius: 8
+                radius: popup.style.radiusControl
                 color: popup.focus === "battery"
                     ? popup.style.surfaceRaised
                     : "transparent"

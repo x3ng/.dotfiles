@@ -96,7 +96,7 @@ PopupWindow {
 
     Rectangle {
         anchors.fill: parent
-        radius: 14
+        radius: popup.style.radiusPopup
         color: popup.style.surface
         border.width: 1
         border.color: popup.style.outline
@@ -117,7 +117,7 @@ PopupWindow {
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 8
+                    radius: popup.style.radiusControl
                     color: previousMouse.containsMouse
                         ? popup.style.surfaceHover
                         : "transparent"
@@ -156,7 +156,7 @@ PopupWindow {
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 8
+                    radius: popup.style.radiusControl
                     color: nextMouse.containsMouse
                         ? popup.style.surfaceHover
                         : "transparent"
@@ -231,7 +231,7 @@ PopupWindow {
                     Rectangle {
                         width: 28
                         height: 26
-                        radius: 8
+                        radius: popup.style.radiusControl
                         anchors.centerIn: parent
                         color: dayCell.modelData.today
                             ? popup.style.accent
