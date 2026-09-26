@@ -1,5 +1,4 @@
 local terminal = "kitty"
-local fileManager = "thunar"
 local menu = "rofi -show combi"
 
 -- ══════════════════════════════════════════════════════════════
@@ -9,10 +8,25 @@ local menu = "rofi -show combi"
 -- Launch & window controls
 hl.bind("SUPER + Q", hl.dsp.exec_cmd(terminal))
 hl.bind("SUPER + C", hl.dsp.window.close())
-hl.bind("SUPER + E", hl.dsp.exec_cmd(fileManager))
 hl.bind("SUPER + Space", hl.dsp.window.float({ action = "toggle" }))
 hl.bind("SUPER + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
 hl.bind("SUPER + P", hl.dsp.window.pseudo({ action = "toggle" }))
+-- Pin toggles visibility across workspaces on this monitor; the window must be floating.
+hl.bind("SUPER + ALT + P", hl.dsp.window.pin())
+
+-- Set the tiled algorithm on the current workspace only.
+local function setLayout(layout)
+  return function()
+    local workspace = hl.get_active_workspace()
+    if workspace then
+      hl.workspace_rule({ workspace = workspace.config_name, layout = layout })
+    end
+  end
+end
+hl.bind("SUPER + ALT + 1", setLayout("dwindle"))
+hl.bind("SUPER + ALT + 2", setLayout("master"))
+hl.bind("SUPER + ALT + 3", setLayout("scrolling"))
+hl.bind("SUPER + ALT + 4", setLayout("monocle"))
 
 -- Move focus
 hl.bind("SUPER + H", hl.dsp.focus({ direction = "l" }))
@@ -25,6 +39,19 @@ hl.bind("SUPER + SHIFT + H", hl.dsp.window.swap({ direction = "l" }))
 hl.bind("SUPER + SHIFT + L", hl.dsp.window.swap({ direction = "r" }))
 hl.bind("SUPER + SHIFT + K", hl.dsp.window.swap({ direction = "u" }))
 hl.bind("SUPER + SHIFT + J", hl.dsp.window.swap({ direction = "d" }))
+
+-- Window groups (tabbed windows in one tiled position)
+hl.bind("SUPER + G", hl.dsp.group.toggle())
+hl.bind("SUPER + TAB", hl.dsp.group.next())
+hl.bind("SUPER + SHIFT + TAB", hl.dsp.group.prev())
+hl.bind("SUPER + ALT + H", hl.dsp.window.move({ into_group = "left" }))
+hl.bind("SUPER + ALT + L", hl.dsp.window.move({ into_group = "right" }))
+hl.bind("SUPER + ALT + K", hl.dsp.window.move({ into_group = "up" }))
+hl.bind("SUPER + ALT + J", hl.dsp.window.move({ into_group = "down" }))
+hl.bind("SUPER + ALT + SHIFT + H", hl.dsp.window.move({ out_of_group = "left" }))
+hl.bind("SUPER + ALT + SHIFT + L", hl.dsp.window.move({ out_of_group = "right" }))
+hl.bind("SUPER + ALT + SHIFT + K", hl.dsp.window.move({ out_of_group = "up" }))
+hl.bind("SUPER + ALT + SHIFT + J", hl.dsp.window.move({ out_of_group = "down" }))
 
 -- Move window between monitors (silent)
 hl.bind("SUPER + CTRL + SHIFT + P", hl.dsp.window.move({ monitor = "-1", follow = false }))

@@ -65,6 +65,33 @@ hl.config({
     new_status = "master",
   },
 
+  -- Grouped windows share one tiled slot; the groupbar labels each tab.
+  group = {
+    ["col.border_active"] = "rgba(f0f0f0ee)",
+    ["col.border_inactive"] = "rgba(707070bb)",
+    ["col.border_locked_active"] = "rgba(b8b8b8ee)",
+    ["col.border_locked_inactive"] = "rgba(505050bb)",
+    groupbar = {
+      enabled = true,
+      gradients = true,
+      blur = true,
+      render_titles = true,
+      scrolling = true,
+      height = 24,
+      font_size = 12,
+      text_padding = 6,
+      rounding = 4,
+      gradient_rounding = 4,
+      indicator_height = 0,
+      indicator_gap = 0,
+      text_color = "rgba(ffffffff)",
+      ["col.active"] = "rgba(686868e8)",
+      ["col.inactive"] = "rgba(1d1d1de0)",
+      ["col.locked_active"] = "rgba(7a7a7ae8)",
+      ["col.locked_inactive"] = "rgba(2c2c2ce0)",
+    },
+  },
+
   xwayland = {
     force_zero_scaling = true,
   },
