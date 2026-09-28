@@ -13,7 +13,7 @@ Rectangle {
     signal triggered()
 
     width: 126
-    height: 58
+    height: 62
     radius: style.radiusCard
     color: active
         ? style.surfaceHover
@@ -33,14 +33,16 @@ Rectangle {
         Text {
             text: tile.label
             color: tile.active ? tile.style.textPrimary : tile.style.textSecondary
-            font.pixelSize: 11
+            font.family: tile.style.fontFamily
+            font.pixelSize: 12
             font.weight: Font.DemiBold
         }
 
         Text {
             text: tile.detail
             color: tile.active ? tile.style.accent : tile.style.textMuted
-            font.pixelSize: 9
+            font.family: tile.style.fontFamily
+            font.pixelSize: 11
         }
     }
 

@@ -1,0 +1,15 @@
+[Unit]
+Description=Quickshell desktop shell
+PartOf=graphical-session.target
+After=graphical-session.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=exec
+ExecStart=/run/current-system/sw/bin/quickshell --no-duplicate
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

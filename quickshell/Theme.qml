@@ -1,17 +1,49 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
+import Quickshell.Io
 
-QtObject {
+Scope {
+    id: theme
+
     // One switch drives every Quickshell surface. Keep the palette values
     // below semantic so components never need to know about light/dark hexes.
     property bool darkMode: true
+    property bool appearanceLoaded: false
 
-    function toggle() {
-        darkMode = !darkMode;
+    onDarkModeChanged: {
+        if (!appearanceLoaded) return;
+        appearanceState.darkMode = darkMode;
+        saveAppearance.restart();
     }
 
-    readonly property string modeLabel: darkMode ? "DARK" : "LIGHT"
+    FileView {
+        id: appearanceFile
+        path: Quickshell.statePath("appearance.json")
+        adapter: JsonAdapter {
+            id: appearanceState
+            property bool darkMode: true
+        }
+        onLoaded: {
+            theme.darkMode = appearanceState.darkMode;
+            theme.appearanceLoaded = true;
+        }
+        onLoadFailed: error => {
+            if (error !== FileViewError.FileNotFound) {
+                console.warn("Could not load appearance state:", error);
+                return;
+            }
+            theme.appearanceLoaded = true;
+            saveAppearance.restart();
+        }
+    }
+
+    Timer {
+        id: saveAppearance
+        interval: 100
+        onTriggered: appearanceFile.writeAdapter()
+    }
 
     readonly property int barHeight: 40
     readonly property int barReservedHeight: 36
