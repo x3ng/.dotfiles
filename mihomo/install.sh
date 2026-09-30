@@ -5,14 +5,6 @@ source "$SCRIPT_DIR/../deploy/lib.sh"
 
 case "${1:-install}" in
   install)
-    # refuse non-interactive invocation unless env var is preset
-    if ! is_dry_run && [[ ! -t 0 ]] && [[ -z "${MIHOMO_SUB_URL:-}" ]]; then
-      log_err "mihomo needs interactive input (SUB_URL)"
-      echo "  interactively: sudo ./deploy/deploy mihomo"
-      echo "  noninteractive: sudo MIHOMO_SUB_URL=<url> ./deploy/deploy mihomo"
-      exit 1
-    fi
-
     if ! is_dry_run && [[ $EUID -ne 0 ]]; then
       log_err "mihomo needs root to install to /etc/mihomo/"
       echo "  run with sudo or as root"
@@ -23,8 +15,12 @@ case "${1:-install}" in
     if is_dry_run && [[ -z "$sub_url" ]]; then
       sub_url="<SUB_URL>"
     fi
+    if ! is_dry_run && [[ ! -t 0 && -z "$sub_url" ]]; then
+      log_err "mihomo needs interactive input (SUB_URL) or MIHOMO_SUB_URL"
+      exit 1
+    fi
     if [[ -z "$sub_url" ]]; then
-      read -rp "  订阅地址 (SUB_URL): " sub_url
+      read -rp "  Subscription URL (SUB_URL): " sub_url
     fi
     if [[ -z "$sub_url" ]]; then
       log_err "SUB_URL is required"
@@ -32,7 +28,7 @@ case "${1:-install}" in
     fi
 
     dot_template \
-      --mode 0644 \
+      --mode 0600 \
       "$SCRIPT_DIR/config.yaml" \
       "/etc/mihomo/config.yaml" \
       SUB_URL="$sub_url"

@@ -26,7 +26,7 @@ tun:
   dns-hijack:
     - any:53
     - tcp://any:53
-  # 内网/组播段绕开 TUN 直连；DNS 服务器排除在外避免查询环路
+  # 上游 DNS 和局域网绕开 TUN；resolved 仍使用 DHCP DNS。
   route-exclude-address:
     - 223.5.5.5/32
     - 119.29.29.29/32
@@ -40,23 +40,13 @@ tun:
 
 dns:
   enable: true
-  enhanced-mode: fake-ip
-  fake-ip-range: 198.18.0.1/16
+  listen: 127.0.0.1:53
+  enhanced-mode: redir-host
   cache-algorithm: arc
   prefer-h3: false
   use-hosts: true
   use-system-hosts: true
-  fake-ip-filter:
-    - "*.lan"
-    - "*.local"
-    - "*.arpa"
-    - "*.home.arpa" # RFC 8375 家庭内网后缀
-    - "stun.*" # STUN 需真实公网 IP
-    - "time.*.com"
-    - "ntp.*.com"
-    - "*.msftncsi.com"
-    - "www.msftconnecttest.com"
-  # listen 已删除：TUN dns-hijack: any:53 已在 TUN 层面接管 DNS，dns.listen 是死配置
+  # 本地 DNS 监听供手动指定；TUN hijack 只接管实际进入 TUN 的查询。
   default-nameserver:
     - 223.5.5.5
     - 119.29.29.29
@@ -77,7 +67,6 @@ dns:
 
 profile:
   store-selected: true
-  store-fake-ip: true
 
 proxy-providers:
   sub:
@@ -143,10 +132,10 @@ rules:
   - IP-CIDR6,::1/128,DIRECT,no-resolve
   - IP-CIDR6,fc00::/7,DIRECT,no-resolve # IPv6 ULA
   - IP-CIDR6,fe80::/10,DIRECT,no-resolve # IPv6 link-local
+  - DST-PORT,19302,DIRECT # STUN: 当前代理路径无 UDP 应答
   - DST-PORT,22,DIRECT
   - RULE-SET,reject,REJECT
   - RULE-SET,direct,DIRECT
   - RULE-SET,cncidr,DIRECT
   - RULE-SET,proxy,PROXY
-  - GEOIP,CN,DIRECT
   - MATCH,PROXY

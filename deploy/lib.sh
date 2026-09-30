@@ -106,7 +106,9 @@ dot_template() {
     local src="$1" dst="$2"; shift 2
 
     if is_dry_run; then
-        log_info "DRY: template $src -> $dst (mode: $mode, vars: $*)"
+        local keys=() pair
+        for pair in "$@"; do keys+=("${pair%%=*}"); done
+        log_info "DRY: template $src -> $dst (mode: $mode, vars: ${keys[*]})"
         return 0
     fi
 
@@ -115,7 +117,17 @@ dot_template() {
 
     for pair in "$@"; do
         local key="${pair%%=*}" val="${pair#*=}"
-        sed -i "s|{{${key}}}|${val}|g" "$tmp"
+        if [[ "$val" == *$'\n'* || "$val" == *$'\r'* ]]; then
+            log_err "template value for $key contains a newline"
+            rm "$tmp"
+            return 2
+        fi
+        # Escape sed replacement metacharacters so URL query strings remain literal.
+        local escaped="${val//\\/\\\\}"
+        escaped="${escaped//&/\\&}"
+        escaped="${escaped//|/\\|}"
+        # Feed the expression on stdin so the value is absent from sed's argv.
+        printf 's|{{%s}}|%s|g\n' "$key" "$escaped" | sed -i -f /dev/stdin "$tmp"
     done
 
     if [[ -e "$dst" ]]; then
