@@ -6,8 +6,10 @@ source "$SCRIPT_DIR/../deploy/lib.sh"
 case "${1:-install}" in
   install)
     dot_link "$SCRIPT_DIR/kitty.conf" "$HOME/.config/kitty/kitty.conf"
+    dot_link "$SCRIPT_DIR/shaders" "$HOME/.config/kitty/shaders"
     ;;
   uninstall)
+    dot_unlink "$HOME/.config/kitty/shaders"
     dot_unlink "$HOME/.config/kitty/kitty.conf"
     ;;
   *)

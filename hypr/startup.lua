@@ -8,11 +8,5 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("clipse -listen")
   hl.exec_cmd("udiskie")
   hl.exec_cmd("hyprpaper")
+  hl.exec_cmd("fcitx5 -d --replace")
 end)
-
--- Per-device input config — uncomment and set your device name
--- Find device names with: hyprctl devices
--- hl.device({
---   name = "your-mouse-name",
---   sensitivity = -0.5,
--- })

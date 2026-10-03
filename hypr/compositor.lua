@@ -1,10 +1,4 @@
-hl.env("XCURSOR_THEME", "Bibata-Modern-Classic")
-hl.env("XCURSOR_SIZE", "24")
-hl.env("HYPRCURSOR_THEME", "Bibata-Modern-Classic")
-hl.env("HYPRCURSOR_SIZE", "24")
-hl.env("GTK_ICON_THEME", "Papirus")
-hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
-
+-- Global Hyprland behavior and appearance.
 hl.config({
   general = {
     gaps_in = 2,
@@ -24,8 +18,9 @@ hl.config({
   decoration = {
     rounding = 5,
     rounding_power = 2,
-    active_opacity = 0.95,
-    inactive_opacity = 0.85,
+    -- Keep application windows opaque; reserve backdrop blur for translucent shell surfaces.
+    active_opacity = 1.0,
+    inactive_opacity = 1.0,
     shadow = {
       enabled = true,
       range = 4,
@@ -34,12 +29,11 @@ hl.config({
     },
     blur = {
       enabled = true,
-      size = 10,
-      passes = 3,
-      -- Low vibrancy avoids the blue/purple cast while retaining depth.
-      vibrancy = 0.05,
-      vibrancy_darkness = 0.1,
-      noise = 0.01,
+      size = 6,
+      passes = 2,
+      -- Quickshell provides its own tint; avoid extra color and grain here.
+      vibrancy = 0.0,
+      noise = 0.0,
     },
   },
 
@@ -95,19 +89,6 @@ hl.config({
   xwayland = {
     force_zero_scaling = true,
   },
-})
-
--- Quickshell uses a layer-shell surface rather than a normal window.  Window
--- blur rules do not affect it, so give its namespace the acrylic treatment
--- explicitly.  The QML surfaces remain translucent and provide the tint.
-hl.layer_rule({
-  match = {
-    namespace = "quickshell",
-  },
-  blur = true,
-  blur_popups = true,
-  -- Respect transparent holes between the three bar surfaces.
-  ignore_alpha = false,
 })
 
 -- Bezier curves
