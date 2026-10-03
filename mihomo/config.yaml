@@ -19,6 +19,8 @@ sniffer:
 
 tun:
   enable: true
+  # Keep the device name in sync with nix-config/software/mihomo.nix.
+  device: Mihomo
   stack: gvisor
   auto-route: true
   auto-detect-interface: true
@@ -26,44 +28,46 @@ tun:
   dns-hijack:
     - any:53
     - tcp://any:53
-  # 上游 DNS 和局域网绕开 TUN；resolved 仍使用 DHCP DNS。
+  # 局域网绕开 TUN；Linux 上由 Mihomo 原生向 resolved 登记 TUN DNS。
+  # 不排除公共 DNS 地址，让应用的普通 53 端口查询也能被接管。
   route-exclude-address:
-    - 223.5.5.5/32
-    - 119.29.29.29/32
     - 192.168.0.0/16
     - 10.0.0.0/8
     - 172.16.0.0/12
     - 100.64.0.0/10 # Tailscale CGNAT
+    - 169.254.0.0/16 # IPv4 link-local
     - 224.0.0.0/4 # 组播: mDNS/SSDP
     - fc00::/7 # IPv6 ULA
     - fe80::/10 # IPv6 link-local
 
 dns:
   enable: true
-  listen: 127.0.0.1:53
+  listen: 127.0.0.1:1053
   enhanced-mode: redir-host
+  respect-rules: false
   cache-algorithm: arc
   prefer-h3: false
   use-hosts: true
   use-system-hosts: true
-  # 本地 DNS 监听供手动指定；TUN hijack 只接管实际进入 TUN 的查询。
+  # 本地监听用于诊断；系统 DNS 通过 TUN dns-hijack 接管。
+  # DNS 上游显式指定 DIRECT/PROXY，避免依赖上游 IP 的规则匹配结果。
   default-nameserver:
     - 223.5.5.5
     - 119.29.29.29
   proxy-server-nameserver:
-    - https://doh.pub/dns-query
-    - 223.5.5.5
+    - https://doh.pub/dns-query#DIRECT
+    - https://dns.alidns.com/dns-query#DIRECT
   direct-nameserver:
-    - 223.5.5.5
-    - 119.29.29.29
-  direct-nameserver-follow-policy: true
+    - https://doh.pub/dns-query#DIRECT
+    - https://dns.alidns.com/dns-query#DIRECT
+  direct-nameserver-follow-policy: false
   nameserver-policy:
     "rule-set:direct":
-      - 223.5.5.5
-      - https://doh.pub/dns-query
+      - https://doh.pub/dns-query#DIRECT
+      - https://dns.alidns.com/dns-query#DIRECT
   nameserver:
-    - https://doh.pub/dns-query
-    - https://dns.alidns.com/dns-query
+    - https://1.1.1.1/dns-query#PROXY
+    - https://8.8.8.8/dns-query#PROXY
 
 profile:
   store-selected: true
@@ -136,6 +140,6 @@ rules:
   - DST-PORT,22,DIRECT
   - RULE-SET,reject,REJECT
   - RULE-SET,direct,DIRECT
-  - RULE-SET,cncidr,DIRECT
   - RULE-SET,proxy,PROXY
+  - RULE-SET,cncidr,DIRECT
   - MATCH,PROXY
