@@ -23,9 +23,9 @@ Scope {
             screen: modelData
 
             property bool isVisible: barScope.shell.getBarVisible(modelData.name)
-            // Keep the layer surface alive until its contents have faded out.
-            // Collapsing its geometry while still visible makes the compositor
-            // animate a final frame whose children have converged at x = 0.
+            // Progress drives the slide and layer size. Send the final reserved
+            // area once so Hyprland can animate window reflow independently.
+            // Unmap at the end; never request a zero-sized mapped layer.
             property bool surfaceVisible: true
             property real visibilityProgress: 1
             property bool trayExpanded: false
@@ -97,8 +97,10 @@ Scope {
                 id: visibilityAnimation
                 target: bar
                 property: "visibilityProgress"
-                duration: 150
-                easing.type: Easing.OutCubic
+                // Match hypr/compositor.lua: windows, 4.79, easeOutQuint.
+                duration: 479
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: [0.23, 1, 0.32, 1, 1, 1]
                 onFinished: {
                     if (!bar.isVisible && bar.visibilityProgress <= 0)
                         bar.surfaceVisible = false;
@@ -111,14 +113,16 @@ Scope {
             }
 
             surfaceFormat.opaque: false
-            // Reserve space while the bar is shown so maximized windows and
-            // readers never sit underneath it. `bar toggle` releases the
-            // reservation again on the focused monitor.
+            // Updating this every frame repeatedly retargets Hyprland's
+            // window animation and makes windows trail behind the bar.
             exclusiveZone: isVisible ? barScope.shell.barReservedHeight : 0
+            visible: surfaceVisible
+            WlrLayershell.namespace: "quickshell:bar"
             aboveWindows: true
             focusable: true
             anchors { top: true; left: true; right: true }
-            implicitHeight: surfaceVisible ? barScope.shell.barHeight : 0
+            implicitHeight: Math.max(1, Math.round(barScope.shell.barHeight * visibilityProgress))
+            contentItem.clip: true
             color: "transparent"
 
             // Match pointer input to the floating surface, leaving the outer
@@ -128,11 +132,12 @@ Scope {
             Item {
                 id: inputRegion
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.verticalCenterOffset: -6 * (1 - bar.visibilityProgress)
-                width: bar.surfaceVisible ? Math.max(0, bar.width - barScope.shell.barOuterMarginX * 2) : 0
-                height: bar.surfaceVisible ? barScope.shell.barBackgroundHeight : 0
-                opacity: bar.visibilityProgress
+                // Keep the original content height: slide it through the
+                // shrinking viewport instead of squeezing or fading it.
+                y: (barScope.shell.barHeight - height) / 2
+                    - barScope.shell.barHeight * (1 - bar.visibilityProgress)
+                width: Math.max(0, bar.width - barScope.shell.barOuterMarginX * 2)
+                height: barScope.shell.barBackgroundHeight
 
                 // Three macro surfaces keep the wallpaper visible in the
                 // empty space while preserving a clear left/center/right

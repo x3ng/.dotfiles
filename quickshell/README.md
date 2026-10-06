@@ -21,3 +21,11 @@ quickshell log --tail 50
 Appearance is stored under `$XDG_STATE_HOME/quickshell/by-shell/<shell-id>/appearance.json`
 (`~/.local/state` is used when `XDG_STATE_HOME` is unset). The shell ID is
 derived from the Quickshell config, so it remains stable across service restarts.
+
+The bar toggle slides its contents through a shrinking layer surface, then
+unmaps the window. Its 479ms duration and Bezier curve match the `windows`
+animation in `hypr/compositor.lua`; keep these settings aligned when tuning
+the motion. Reserved space changes once per toggle so Hyprland can animate
+window reflow without receiving a new target every frame. The
+`quickshell:bar` layer has compositor animations disabled in `hypr/apps.lua`
+to avoid replaying the bar after its QML animation ends.
