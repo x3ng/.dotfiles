@@ -94,7 +94,10 @@ PopupWindow {
             anchors.topMargin: 16
             anchors.left: parent.left
             anchors.leftMargin: 14
-            text: "APPEARANCE"
+            text: "APPEARANCE · " + (!popup.shell.appearanceAvailable ? "OFFLINE"
+                : popup.shell.appearanceError ? "ERROR"
+                : !popup.shell.appearanceKnown ? "UNSET"
+                : (popup.shell.darkMode ? "DARK" : "LIGHT"))
             color: popup.style.textMuted
             font.family: popup.style.fontFamily
             font.pixelSize: 11
@@ -112,7 +115,8 @@ PopupWindow {
                 width: 135
                 style: popup.style
                 label: "DARK"
-                selected: popup.shell.darkMode
+                selected: popup.shell.appearanceKnown && popup.shell.darkMode
+                available: popup.shell.appearanceAvailable
                 onTriggered: popup.shell.setTheme(true)
             }
 
@@ -120,7 +124,8 @@ PopupWindow {
                 width: 135
                 style: popup.style
                 label: "LIGHT"
-                selected: !popup.shell.darkMode
+                selected: popup.shell.appearanceKnown && !popup.shell.darkMode
+                available: popup.shell.appearanceAvailable
                 onTriggered: popup.shell.setTheme(false)
             }
         }

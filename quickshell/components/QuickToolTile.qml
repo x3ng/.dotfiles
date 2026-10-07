@@ -16,7 +16,7 @@ Rectangle {
     height: 62
     radius: style.radiusCard
     color: active
-        ? style.surfaceHover
+        ? style.surfaceSelected
         : (mouseArea.containsMouse && available ? style.surfaceRaised : "transparent")
     border.width: active ? 1 : 0
     border.color: style.accent
@@ -32,7 +32,7 @@ Rectangle {
 
         Text {
             text: tile.label
-            color: tile.active ? tile.style.textPrimary : tile.style.textSecondary
+            color: tile.active ? tile.style.textSelected : tile.style.textSecondary
             font.family: tile.style.fontFamily
             font.pixelSize: 12
             font.weight: Font.DemiBold
@@ -40,7 +40,7 @@ Rectangle {
 
         Text {
             text: tile.detail
-            color: tile.active ? tile.style.accent : tile.style.textMuted
+            color: tile.active ? tile.style.textSelected : tile.style.textMuted
             font.family: tile.style.fontFamily
             font.pixelSize: 11
         }

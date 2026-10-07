@@ -14,3 +14,6 @@ if monitor_file then
   monitor_file:close()
   dofile(monitor_config)
 end
+
+-- Follow darkman's own cached mode on startup and config reload.
+require("appearance").apply()

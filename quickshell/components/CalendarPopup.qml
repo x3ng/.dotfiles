@@ -246,9 +246,6 @@ PopupWindow {
                             : (dayCell.modelData.inMonth
                                 ? popup.style.textPrimary
                                 : popup.style.textMuted)
-                        opacity: dayCell.modelData.inMonth || dayCell.modelData.today
-                            ? 1
-                            : 0.45
                         font.pixelSize: 11
                         font.weight: dayCell.modelData.today
                             ? Font.DemiBold

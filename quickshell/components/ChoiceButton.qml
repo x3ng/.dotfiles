@@ -14,7 +14,7 @@ Rectangle {
 
     height: 34
     radius: style.radiusControl
-    color: selected ? style.surfaceHover
+    color: selected ? style.surfaceSelected
         : (mouse.containsMouse && available ? style.surfaceHover : "transparent")
     border.width: selected ? 1 : 0
     border.color: style.accent
@@ -25,7 +25,7 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         text: choice.label
-        color: choice.selected ? choice.style.accent : choice.style.textSecondary
+        color: choice.selected ? choice.style.textSelected : choice.style.textSecondary
         font.family: choice.style.fontFamily
         font.pixelSize: choice.textSize
         font.weight: choice.selected ? Font.DemiBold : Font.Normal

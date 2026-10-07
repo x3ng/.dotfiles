@@ -7,42 +7,60 @@ import Quickshell.Io
 Scope {
     id: theme
 
-    // One switch drives every Quickshell surface. Keep the palette values
-    // below semantic so components never need to know about light/dark hexes.
+    // Darkman owns the mode and sunrise/sunset schedule.
     property bool darkMode: true
-    property bool appearanceLoaded: false
+    property bool appearanceKnown: false
+    readonly property bool appearanceAvailable: modeWatch.connected && modeControl.connected
+    readonly property alias appearanceError: desktopAppearance.error
 
-    onDarkModeChanged: {
-        if (!appearanceLoaded) return;
-        appearanceState.darkMode = darkMode;
-        saveAppearance.restart();
+    Appearance {
+        id: desktopAppearance
+        mode: theme.appearanceKnown ? (theme.darkMode ? "dark" : "light") : ""
     }
 
-    FileView {
-        id: appearanceFile
-        path: Quickshell.statePath("appearance.json")
-        adapter: JsonAdapter {
-            id: appearanceState
-            property bool darkMode: true
-        }
-        onLoaded: {
-            theme.darkMode = appearanceState.darkMode;
-            theme.appearanceLoaded = true;
-        }
-        onLoadFailed: error => {
-            if (error !== FileViewError.FileNotFound) {
-                console.warn("Could not load appearance state:", error);
-                return;
+    function setTheme(dark) {
+        if (!appearanceAvailable) return;
+        modeControl.write("set " + (dark ? "dark" : "light") + "\n");
+        modeControl.flush();
+    }
+
+    Socket {
+        id: modeWatch
+        path: Quickshell.env("XDG_RUNTIME_DIR") + "/darkman/control.sock"
+        connected: true
+        onConnectionStateChanged: {
+            if (connected) {
+                write("watch\n");
+                flush();
             }
-            theme.appearanceLoaded = true;
-            saveAppearance.restart();
         }
+        parser: SplitParser {
+            onRead: data => {
+                const mode = data.trim();
+                theme.appearanceKnown = mode === "dark" || mode === "light";
+                if (theme.appearanceKnown) {
+                    theme.darkMode = mode === "dark";
+                    // Also synchronize after reconnect, even if the mode is unchanged.
+                    Qt.callLater(desktopAppearance.apply);
+                }
+            }
+        }
+    }
+
+    Socket {
+        id: modeControl
+        path: modeWatch.path
+        connected: true
     }
 
     Timer {
-        id: saveAppearance
-        interval: 100
-        onTriggered: appearanceFile.writeAdapter()
+        interval: 2000
+        repeat: true
+        running: !modeWatch.connected || !modeControl.connected
+        onTriggered: {
+            if (!modeWatch.connected) modeWatch.connected = true;
+            if (!modeControl.connected) modeControl.connected = true;
+        }
     }
 
     readonly property int barHeight: 40
@@ -56,27 +74,25 @@ Scope {
     readonly property int radiusCard: 5
     readonly property int radiusControl: 4
     readonly property int radiusSmall: 3
-    // Neutral surfaces carry most of the UI; accents are reserved for focus
-    // and status, so the palette stays calm without becoming monochrome.
-    // QML uses #AARRGGBB for 8-digit colours.
-    // Dark mode uses translucent charcoal instead of pure black/white.
-    // The first byte is alpha: QML colours are #AARRGGBB.
-    readonly property color surface: darkMode ? "#b8141416" : "#cfeef2f2"
-    // A lighter backing for the bar itself; popups keep the stronger surface.
-    readonly property color barSurface: darkMode ? "#70141618" : "#90eef2f2"
-    readonly property color surfaceRaised: darkMode ? "#c91f2022" : "#dffbfbfb"
-    readonly property color surfaceHover: darkMode ? "#d02b2c30" : "#d9e7e9eb"
-    readonly property color outline: darkMode ? "#35ffffff" : "#24000000"
-    readonly property color separator: darkMode ? "#22ffffff" : "#18000000"
-    readonly property color textPrimary: darkMode ? "#e6e6e6" : "#151515"
-    readonly property color textSecondary: darkMode ? "#b8b8b8" : "#4f4f4f"
-    readonly property color textMuted: darkMode ? "#858585" : "#818181"
-    readonly property color accent: darkMode ? "#84b8b0" : "#2f7770"
-    readonly property color accentWarm: darkMode ? "#d8ad72" : "#9a691f"
-    readonly property color positive: darkMode ? "#86bb98" : "#32734a"
-    readonly property color accentInk: darkMode ? "#14201e" : "#f7f7f7"
-    readonly property color warning: darkMode ? "#d4a96f" : "#9a691f"
-    readonly property color critical: darkMode ? "#d17f88" : "#a5434e"
+    // Semantic colours; light surfaces stay nearly opaque to preserve contrast
+    // over dark or colourful wallpapers. QML uses #AARRGGBB.
+    readonly property color surface: darkMode ? "#f21b1d20" : "#faf0f1f3"
+    readonly property color barSurface: darkMode ? "#eb1b1d20" : "#f5eceef1"
+    readonly property color surfaceRaised: darkMode ? "#292c30" : "#f8f9fa"
+    readonly property color surfaceHover: darkMode ? "#34383d" : "#e2e5e9"
+    readonly property color surfaceSelected: darkMode ? "#263a35" : "#bcded2"
+    readonly property color textSelected: darkMode ? "#93c0b1" : "#205e51"
+    readonly property color outline: darkMode ? "#485058" : "#c9ced5"
+    readonly property color separator: darkMode ? "#383e45" : "#d5dbe1"
+    readonly property color textPrimary: darkMode ? "#edf0f3" : "#20262d"
+    readonly property color textSecondary: darkMode ? "#c0c7d0" : "#47515d"
+    readonly property color textMuted: darkMode ? "#9ea8b4" : "#606b78"
+    readonly property color accent: darkMode ? "#79ad9d" : "#1c7057"
+    readonly property color accentWarm: darkMode ? "#e4bb80" : "#805313"
+    readonly property color positive: darkMode ? "#96cda5" : "#28683f"
+    readonly property color accentInk: darkMode ? "#132a23" : "#ffffff"
+    readonly property color warning: darkMode ? "#e4bb80" : "#805313"
+    readonly property color critical: darkMode ? "#e99da6" : "#a33345"
 
     readonly property int fontSizeSmall: 13
     readonly property int fontSizeMedium: 13

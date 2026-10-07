@@ -31,11 +31,16 @@ ShellRoot {
     readonly property alias radiusCard: theme.radiusCard
     readonly property alias radiusControl: theme.radiusControl
     readonly property alias radiusSmall: theme.radiusSmall
+    readonly property alias appearanceKnown: theme.appearanceKnown
+    readonly property alias appearanceAvailable: theme.appearanceAvailable
+    readonly property alias appearanceError: theme.appearanceError
     readonly property alias darkMode: theme.darkMode
     readonly property alias surface: theme.surface
     readonly property alias barSurface: theme.barSurface
     readonly property alias surfaceRaised: theme.surfaceRaised
     readonly property alias surfaceHover: theme.surfaceHover
+    readonly property alias surfaceSelected: theme.surfaceSelected
+    readonly property alias textSelected: theme.textSelected
     readonly property alias outline: theme.outline
     readonly property alias separator: theme.separator
     readonly property alias textPrimary: theme.textPrimary
@@ -65,7 +70,7 @@ ShellRoot {
     }
 
     function setTheme(dark) {
-        theme.darkMode = dark;
+        theme.setTheme(dark);
     }
 
     function setVolume(value) {

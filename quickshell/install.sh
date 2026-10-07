@@ -12,6 +12,7 @@ case "${1:-install}" in
   install)
     dot_link "$SCRIPT_DIR/shell.qml" "$HOME/.config/quickshell/shell.qml"
     dot_link "$SCRIPT_DIR/Theme.qml" "$HOME/.config/quickshell/Theme.qml"
+    dot_link "$SCRIPT_DIR/Appearance.qml" "$HOME/.config/quickshell/Appearance.qml"
     dot_link "$SCRIPT_DIR/components" "$HOME/.config/quickshell/components"
     dot_link "$SCRIPT_DIR/quickshell.service" "$HOME/.config/systemd/user/quickshell.service"
     if ! is_dry_run && user_systemd_available; then
@@ -25,6 +26,7 @@ case "${1:-install}" in
     dot_unlink "$HOME/.config/systemd/user/quickshell.service"
     dot_unlink "$HOME/.config/quickshell/components"
     dot_unlink "$HOME/.config/quickshell/Theme.qml"
+    dot_unlink "$HOME/.config/quickshell/Appearance.qml"
     dot_unlink "$HOME/.config/quickshell/shell.qml"
     if ! is_dry_run && user_systemd_available; then
       systemctl --user daemon-reload || log_warn "could not reload user systemd units"
