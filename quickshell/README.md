@@ -35,6 +35,13 @@ over the footer battery icon.
 There are no keyboard modes or pages. Window icons use their appId to resolve
 DesktopEntries; unmatched entries receive a generic marker. Volume/brightness
 changes also produce a brief independent OSD, including when the panel is closed.
+While muted, the OSD keeps the MUTED label and shows the stored volume with a
+neutral progress bar; adjusting volume does not unmute it. Switching the focused
+workspace shows the workspace numbers and application icons for one second on
+the focused monitor, with the current workspace highlighted. This OSD reuses the
+panel's workspace layout, wraps within the screen width, and fades in/out with a
+slight vertical motion. It does not accept input.
+Initial workspace discovery does not show a popup.
 
 ## Structure
 
@@ -55,7 +62,7 @@ changes also produce a brief independent OSD, including when the panel is closed
 | `components/StatusIcon.qml` | Palette-aware status icons without an icon-font dependency |
 | `components/PanelFooter.qml` | Date/time, icon-based status summary and tray entries |
 | `components/TrayMenuPopup.qml` | Themed DBusMenu entries and submenus |
-| `components/OsdOverlay.qml` | Independent volume/brightness feedback |
+| `components/OsdOverlay.qml` | Independent volume/brightness/workspace feedback |
 
 Brightness reads use brightnessctl's native machine-readable output; kernel
 backlight events trigger updates through udevadm. No custom watcher daemon or

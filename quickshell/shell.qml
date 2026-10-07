@@ -18,7 +18,7 @@ ShellRoot {
         appearance: appearance
         searchModel: desktopSearch
     }
-    OsdOverlay { shell: desktop; style: theme }
+    OsdOverlay { shell: desktop; style: theme; searchModel: desktopSearch }
 
     IpcHandler {
         target: "launcher"

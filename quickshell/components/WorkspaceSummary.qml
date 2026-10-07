@@ -8,11 +8,13 @@ Rectangle {
     id: summary
     required property var style
     required property var searchModel
+    property bool interactive: true
     readonly property var workspaces: Hyprland.workspaces.values
         .filter(w => w.id > 0 && (w.toplevels.values.length > 0
             || w.id === Hyprland.focusedWorkspace?.id))
         .sort((a, b) => a.id - b.id)
 
+    implicitWidth: workspaceFlow.naturalWidth + 18
     implicitHeight: workspaceFlow.implicitHeight + 18
     radius: style.radiusCard
     color: style.surfaceRaised
@@ -43,6 +45,9 @@ Rectangle {
                     radius: summary.style.radiusControl
                     color: active ? summary.style.surfaceSelected
                         : workspaceMouse.containsMouse ? summary.style.surfaceHover : "transparent"
+                    Behavior on color {
+                        ColorAnimation { duration: 140 }
+                    }
 
                     Flow {
                         id: icons
@@ -56,6 +61,9 @@ Rectangle {
                             horizontalAlignment: Text.AlignHCenter
                             text: workspace.modelData.id
                             color: workspace.active ? summary.style.textSelected : summary.style.textSecondary
+                            Behavior on color {
+                                ColorAnimation { duration: 140 }
+                            }
                             font.family: summary.style.fontFamily
                             font.pixelSize: 13
                             font.weight: Font.DemiBold
@@ -89,6 +97,7 @@ Rectangle {
                     }
                     MouseArea {
                         id: workspaceMouse
+                        enabled: summary.interactive
                         anchors.fill: parent
                         hoverEnabled: true
                         onClicked: Hyprland.dispatch("hl.dsp.focus({workspace = " + workspace.modelData.id + "})")
