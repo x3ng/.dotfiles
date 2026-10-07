@@ -1,5 +1,4 @@
 local terminal = "kitty"
-local menu = "rofi -show combi"
 
 -- ══════════════════════════════════════════════════════════════
 -- Hyprland 原生快捷键（窗口/工作区/布局管理）
@@ -104,14 +103,11 @@ hl.bind("SUPER + CTRL + P", hl.dsp.workspace.move({ monitor = "-1" }))
 hl.bind("SUPER + CTRL + N", hl.dsp.workspace.move({ monitor = "+1" }))
 
 -- ══════════════════════════════════════════════════════════════
--- 外部程序命令（启动器 / 工具 / bar）
+-- 外部程序命令（启动器 / 工具）
 -- ══════════════════════════════════════════════════════════════
 
 -- Application launcher
-hl.bind("SUPER + R", hl.dsp.exec_cmd(menu))
-
--- Bar toggle
-hl.bind("SUPER + B", hl.dsp.exec_cmd("quickshell ipc call bar toggle"))
+hl.bind("SUPER + R", hl.dsp.exec_cmd("quickshell ipc call launcher toggle"))
 
 -- Screenshot (region select → annotate with satty → copy)
 hl.bind("SUPER + PRINT",      hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | satty -f - --copy-command wl-copy'"))

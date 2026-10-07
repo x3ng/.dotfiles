@@ -31,7 +31,7 @@ Rectangle {
     Timer {
         interval: 1000
         repeat: true
-        running: card.panelOpen && card.player?.isPlaying && card.hasTimeline
+        running: card.panelOpen && (card.player?.isPlaying ?? false) && card.hasTimeline
         onTriggered: card.positionTick++
     }
 
@@ -86,7 +86,7 @@ Rectangle {
         anchors.right: parent.right
         anchors.rightMargin: 12
         anchors.top: artwork.top
-        text: card.player?.trackTitle || card.player?.identity || "Player"
+        text: card.player?.trackTitle || card.player?.identity || "No media playing"
         color: card.style.textPrimary
         font.family: card.style.fontFamily
         font.pixelSize: 13

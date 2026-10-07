@@ -8,20 +8,21 @@ PopupWindow {
     id: popup
 
     required property var style
-    required property var barWindow
+    required property var panelWindow
     property bool open: false
     property var owner: null
     property var currentMenu: null
     property var menuStack: []
     property real anchorRight: 0
-    property real trayPanelOffset: 0
+    property real anchorBottom: 0
 
-    function openFor(trayItem, anchorRightValue) {
+    function openFor(trayItem, anchorRightValue, anchorBottomValue) {
         var menuHandle = trayItem?.menu;
         if (!menuHandle) return false;
 
         dismiss();
         anchorRight = anchorRightValue;
+        anchorBottom = anchorBottomValue;
         owner = trayItem;
         menuStack = [menuHandle];
         currentMenu = menuHandle;
@@ -62,25 +63,15 @@ PopupWindow {
         return title.toUpperCase();
     }
 
-    parentWindow: barWindow
-    visible: open && barWindow.isVisible
-    implicitWidth: 260
-    implicitHeight: Math.min(
-        420,
-        Math.max(62, barWindow.screen.height - style.barHeight - 18),
-        Math.max(62, menuList.contentHeight + 50)
-    )
-    relativeX: Math.round(Math.max(
-        style.barOuterMarginX,
-        Math.min(
-            barWindow.width - style.barOuterMarginX - width,
-            anchorRight - width
-        )
-    ))
-    // A tray item's menu is a second layer below the tray drawer. Derive the
-    // offset from the drawer's actual height so the two surfaces stay close.
-    relativeY: style.barHeight + 6
-        + (barWindow.trayExpanded ? trayPanelOffset : 0)
+    anchor.window: panelWindow
+    visible: open && panelWindow.visible
+    implicitWidth: Math.min(280, Math.max(100, panelWindow.width - 16))
+    implicitHeight: Math.min(420, Math.max(62, panelWindow.height - 16),
+        Math.max(62, menuList.contentHeight + 50))
+    anchor.rect.x: Math.round(Math.max(8, Math.min(panelWindow.width - width - 8, anchorRight - width)))
+    anchor.rect.y: Math.round(Math.max(8, anchorBottom - height - 6))
+    anchor.edges: Edges.Top | Edges.Left
+    anchor.gravity: Edges.Bottom | Edges.Right
     color: "transparent"
     grabFocus: true
 
@@ -95,6 +86,8 @@ PopupWindow {
 
     Rectangle {
         anchors.fill: parent
+        focus: true
+        Keys.onEscapePressed: popup.dismiss()
         radius: popup.style.radiusPopup
         color: popup.style.surface
         border.width: 1

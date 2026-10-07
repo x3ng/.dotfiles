@@ -1,86 +1,97 @@
-# Quickshell
+# Quickshell desktop panel
 
-`shell.qml` owns shared state, IPC and brightness monitoring. The per-monitor
-bar lives in `components/BarWindow.qml`; its workspace strip and system tray
-drawer are separate components. `Theme.qml` defines the palette and follows darkman through its Unix socket.
-Quickshell does not own a separate appearance preference.
+`Super+R` toggles a panel on the focused monitor. It reserves no screen space;
+there is no bar. Opening it shows battery status, audio/display controls, media
+and tray entries. Typing searches desktop applications and open windows;
+clearing the search restores status. The footer keeps the date, time, battery,
+volume, brightness and appearance summary visible in both views.
 
-`./quickshell/install.sh install` links the config and the user-level
-`quickshell.service`. Hyprland starts that service from `hypr/startup.lua`.
-Systemd restarts Quickshell after an unexpected exit and stops it with the
-graphical session. The unit is linked, not enabled for non-Hyprland logins.
+- `Ctrl+N/P` or `Ctrl+J/K`: next/previous result.
+- `Ctrl+F/B` or `Ctrl+L/H`: move the search cursor.
+- Enter: launch an application or activate a window, then close.
+- Esc, Super+R again, or click outside: close.
+- Sliders: drag/click or use the wheel. Adjustments keep the panel open.
+- Tray: left click activates; right click opens a themed menu.
 
-Useful checks:
+There are no keyboard modes or pages. Window icons use their appId to resolve
+DesktopEntries; unmatched entries receive a generic marker. Volume/brightness
+changes also produce a brief independent OSD, including when the panel is closed.
 
-```sh
-systemctl --user status quickshell.service
-systemctl --user restart quickshell.service
-quickshell log --tail 50
-```
+## Structure
 
-Darkman is the only owner of the light/dark mode and sunrise/sunset schedule.
-NixOS configures its native service, GeoClue automatic location and the Settings
-portal in the separate Nix configuration (`software/hyprland.nix`). No coordinates, custom scheduler,
-policy file or separate appearance CLI are needed. Automatic transitions require
-GeoClue to successfully resolve a location; check the service logs if it cannot.
+| File | Responsibility |
+| --- | --- |
+| `shell.qml` | Composition and launcher IPC |
+| `Theme.qml` | Colours, fonts and shared radii |
+| `AppearanceState.qml` | Darkman socket subscription, controls and reconnect |
+| `Appearance.qml` | Apply Hyprland colours through `hyprctl eval` |
+| `DesktopServices.qml` | PipeWire, UPower, MPRIS and brightness controls |
+| `DesktopSearch.qml` | Search, desktop-entry/icon lookup and native activation |
+| `components/LauncherPanel.qml` | Panel lifetime, keyboard input and search results |
+| `components/StatusPage.qml` | Battery and status control layout |
+| `components/MediaCard.qml` | Media artwork, playback and timeline |
+| `components/FilledSlider.qml`, `ChoiceButton.qml` | Shared controls |
+| `components/TrayMenuPopup.qml` | Themed DBusMenu entries and submenus |
+| `components/OsdOverlay.qml` | Independent volume/brightness feedback |
 
-Deploy the Quickshell config and Hyprland palette module:
+Brightness reads use brightnessctl's native machine-readable output; kernel
+backlight events trigger updates through udevadm. No custom watcher daemon or
+application index is maintained. Theme colours are semantic; the outer panel is
+85% opaque and internal cards are opaque. The launcher namespace is
+`quickshell-launcher`; it does not apply fullscreen background blur. The UI requires Quickshell's desktop-entry,
+Wayland toplevel, layer-shell and Hyprland monitor APIs.
+
+## Deployment
 
 ```sh
 ./hypr/install.sh install
 ./quickshell/install.sh install
+systemctl --user restart quickshell.service
+hyprctl reload
 ```
 
-`Theme.qml` subscribes to darkman's native Unix socket with `watch`, and sends
-`set dark` / `set light` on a separate socket. It reconnects after a daemon
-restart and receives the current mode immediately. Manual selection lasts until
-the next automatic transition; there is no permanent override or separate AUTO
-policy. OFFLINE means disconnected, UNSET means no known mode, and ERROR means
-the compositor adapter failed (see Quickshell logs).
+The installer links every root QML module and the components directory, and
+links the user service. Hyprland starts the service from `hypr/startup.lua`;
+systemd restarts it on failure and stops it with the graphical session.
 
-Darkman's Settings portal publishes the global light/dark preference for
-applications to follow. GTK themes, qt6ct palettes, fonts, icons and cursors are
-not rewritten, generated or owned by Quickshell. Keep using nwg-look and qt6ct
-for those settings. This integration assumes applications follow the preference;
-it intentionally does not force legacy applications or fixed palettes to switch.
-An icon theme's `FollowsColorScheme` flag is not a promise of portal support.
+```sh
+quickshell ipc call launcher toggle
+quickshell ipc call launcher close
+systemctl --user status quickshell.service
+quickshell log --tail 50
+```
 
-`Appearance.qml` only calls the native `hyprctl eval` interface to apply the
-compositor's palette from `hypr/appearance.lua`. There are no theme hooks, shell
-wrappers, dconf writes or application configuration edits on this path. Hyprland
-also restores darkman's own cached mode on startup/config reload. While
-Quickshell is stopped, applications can still receive the portal preference,
-but compositor colours wait until Quickshell reconnects or Hyprland reloads.
+## Appearance ownership
 
-Quickshell supplies no built-in sunrise/sunset scheduler or geolocation policy;
-this configuration delegates both to darkman/GeoClue.
+Darkman is the only owner of the light/dark mode and sunrise/sunset schedule.
+The separate Nix configuration (`software/hyprland.nix`) configures its native
+service, GeoClue automatic location and Settings portal. Automatic scheduling
+requires a successfully resolved location. Manual selection lasts until the next
+automatic transition; there is no permanent override or separate AUTO policy.
 
-The integration requires a darkman version with `$XDG_RUNTIME_DIR/darkman/control.sock`
-(`watch` and `set` commands), its `$XDG_CACHE_HOME/darkman/mode.txt` cache, and a
-Hyprland version supporting Lua configuration and `hyprctl eval`. `hyprctl` must
-be available on Quickshell's PATH. With no cached mode, Hyprland starts with the
-dark palette until Quickshell receives the current mode. These are upstream
-interfaces; recheck them when upgrading either component.
+`AppearanceState.qml` uses darkman's `$XDG_RUNTIME_DIR/darkman/control.sock`:
+`watch` receives mode updates, while a separate connection sends `set dark` or
+`set light`. Connections recover after daemon restart. `Appearance.qml` applies
+Hyprland's palette from `hypr/appearance.lua`; Hyprland also reads darkman's own
+`$XDG_CACHE_HOME/darkman/mode.txt` cache at startup/reload, defaulting to dark if
+no cache exists. These require a darkman version with the native socket/cache
+interfaces and a Hyprland version with Lua configuration and `hyprctl eval`.
+`hyprctl` must be on Quickshell's PATH. Recheck these interfaces on upgrades.
 
-Quickshell's semantic colours live in `Theme.qml`; components use colour roles
-rather than mode-specific hex values. Hyprland's border, groupbar and shadow
-colours live only in `hypr/appearance.lua`. Light surfaces are nearly opaque to
-keep wallpaper colours from undermining text contrast. Selected controls have
-separate background/foreground roles from hover states.
+Applications receive the preference through darkman's Settings portal. This
+integration never rewrites GTK/Qt themes, icons, fonts, cursors or qt6ct/nwg-look
+configuration. Applications must follow the preference themselves; fixed
+palettes and legacy applications are not forced to switch. While Quickshell is
+stopped, the Portal remains available, but live compositor palette updates wait
+for reconnection or a Hyprland reload.
+
+The footer displays OFFLINE when darkman sockets are disconnected, UNSET when
+no mode is known, or ERROR when the compositor update failed. Check logs:
 
 ```sh
 darkman get
 darkman set dark
 darkman set light
 darkman toggle
-systemctl --user status darkman.service
 journalctl --user -u darkman.service -b
 ```
-
-The bar toggle slides its contents through a shrinking layer surface, then
-unmaps the window. Its 479ms duration and Bezier curve match the `windows`
-animation in `hypr/compositor.lua`; keep these settings aligned when tuning
-the motion. Reserved space changes once per toggle so Hyprland can animate
-window reflow without receiving a new target every frame. The
-`quickshell:bar` layer has compositor animations disabled in `hypr/apps.lua`
-to avoid replaying the bar after its QML animation ends.
