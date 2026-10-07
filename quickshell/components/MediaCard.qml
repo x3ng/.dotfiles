@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell.Widgets
 
 Rectangle {
     id: card
@@ -22,7 +23,7 @@ Rectangle {
         return Math.floor(whole / 60) + ":" + String(whole % 60).padStart(2, "0");
     }
 
-    height: 148
+    height: 128
     radius: style.radiusCard
     color: style.surfaceRaised
     border.width: 1
@@ -35,30 +36,16 @@ Rectangle {
         onTriggered: card.positionTick++
     }
 
-    Text {
-        id: heading
-        anchors.left: parent.left
-        anchors.leftMargin: 12
-        anchors.top: parent.top
-        anchors.topMargin: 10
-        text: "MEDIA"
-        color: card.style.textMuted
-        font.family: card.style.fontFamily
-        font.pixelSize: 11
-        font.weight: Font.DemiBold
-    }
-
-    Rectangle {
+    ClippingRectangle {
         id: artwork
         anchors.left: parent.left
         anchors.leftMargin: 12
-        anchors.top: heading.bottom
-        anchors.topMargin: 8
+        anchors.top: parent.top
+        anchors.topMargin: 12
         width: 56
         height: 56
         radius: card.style.radiusCard
         color: card.style.surfaceHover
-        clip: true
 
         Image {
             id: cover

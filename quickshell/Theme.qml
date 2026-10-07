@@ -5,6 +5,10 @@ import Quickshell
 
 Scope {
     required property bool darkMode
+    readonly property int panelPadding: 24
+    readonly property int panelGap: 10
+    readonly property int maximumPanelHeight: 620
+    readonly property int stripHeight: 40
     readonly property int radiusPanel: 16
     readonly property int radiusInput: 10
     readonly property int radiusPopup: 8

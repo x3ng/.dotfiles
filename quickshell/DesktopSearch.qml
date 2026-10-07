@@ -2,11 +2,14 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 
 Scope {
     id: searchModel
     required property string query
+    // Terminal executable and its argument separator; argv stays an array.
+    property list<string> terminalCommand: ["kitty", "--"]
     readonly property var results: {
         const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(t => t);
         const matches = text => terms.every(t => text.toLocaleLowerCase().includes(t));
@@ -52,11 +55,18 @@ Scope {
         return icon.startsWith("/") ? "file://" + icon : "image://icon/" + icon;
     }
 
-    function activate(index) {
+    function activate(index, forceTerminal = false) {
         const result = results[index];
         if (!result) return false;
         if (result.kind === "WINDOW") result.target.activate();
-        else result.target.execute();
+        else if (forceTerminal || result.target.runInTerminal) {
+            const entry = result.target;
+            if (!entry.command.length || !terminalCommand.length) return false;
+            Quickshell.execDetached({
+                command: [...terminalCommand, ...entry.command],
+                workingDirectory: entry.workingDirectory
+            });
+        } else result.target.execute();
         return true;
     }
 }

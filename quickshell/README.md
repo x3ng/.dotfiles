@@ -1,14 +1,33 @@
 # Quickshell desktop panel
 
 `Super+R` toggles a panel on the focused monitor. It reserves no screen space;
-there is no bar. Opening it shows battery status, audio/display controls, media
-and tray entries. Typing searches desktop applications and open windows;
+there is no bar. Both status and search fit their content up to a 620px maximum (or the available
+screen height); excess content scrolls. The search field keeps its position
+between views. Opening it shows audio/display controls, media
+and tray entries. Used workspaces appear below the controls with a number and
+application icons; clicking a workspace switches to it without closing the panel.
+Workspace groups wrap instead of scrolling; the current workspace is included
+even when empty. Typing searches desktop applications and open windows;
 clearing the search restores status. The footer keeps the date, time, battery,
-volume, brightness and appearance summary visible in both views.
+volume, brightness and appearance summary visible in both views. Search and
+footer share the same 40px strip height; battery details are available on hover
+over the footer battery icon.
 
-- `Ctrl+N/P` or `Ctrl+J/K`: next/previous result.
-- `Ctrl+F/B` or `Ctrl+L/H`: move the search cursor.
+- `Ctrl+N/P`: next/previous result.
+- `Ctrl+A/E`: beginning/end of input; `Ctrl+F/B`: character forward/back.
+- `Alt+F/B`: word forward/back; `Alt+D` / `Alt+Backspace`: kill next/previous word.
+- `Ctrl+K/U`: kill to end/beginning; `Ctrl+W`: kill selection or previous word.
+- `Ctrl+H/D`: backward/forward delete; `Ctrl+Y`: restore the last killed text.
+- `Ctrl+G`: close. Vim-style result navigation is not used.
 - Enter: launch an application or activate a window, then close.
+- Applications declaring `Terminal=true` (such as Yazi) open in kitty automatically.
+  `Shift+Enter` forces a selected application to open in the terminal; window results
+  still activate the existing window. `DesktopSearch.qml`'s `terminalCommand`
+  configures the terminal argv (default `["kitty", "--"]`). Native desktop-entry
+  arguments and working directories are preserved without shell string parsing.
+- `Ctrl+1`–`Ctrl+9`, `Ctrl+0`: directly open search results 1–10. The list
+  uses compact single-line rows to fit the first ten results at normal screen sizes
+  and displays these shortcuts; they do nothing on the status view or for missing results.
 - Esc, Super+R again, or click outside: close.
 - Sliders: drag/click or use the wheel. Adjustments keep the panel open.
 - Tray: left click activates; right click opens a themed menu.
@@ -28,9 +47,13 @@ changes also produce a brief independent OSD, including when the panel is closed
 | `DesktopServices.qml` | PipeWire, UPower, MPRIS and brightness controls |
 | `DesktopSearch.qml` | Search, desktop-entry/icon lookup and native activation |
 | `components/LauncherPanel.qml` | Panel lifetime, keyboard input and search results |
-| `components/StatusPage.qml` | Battery and status control layout |
+| `components/StatusPage.qml` | Audio, brightness, appearance, media and workspace layout |
+| `components/EmacsInput.qml` | Readline-style input editing and local kill buffer |
+| `components/WorkspaceSummary.qml` | Used workspace numbers and application icons |
 | `components/MediaCard.qml` | Media artwork, playback and timeline |
 | `components/FilledSlider.qml`, `ChoiceButton.qml` | Shared controls |
+| `components/StatusIcon.qml` | Palette-aware status icons without an icon-font dependency |
+| `components/PanelFooter.qml` | Date/time, icon-based status summary and tray entries |
 | `components/TrayMenuPopup.qml` | Themed DBusMenu entries and submenus |
 | `components/OsdOverlay.qml` | Independent volume/brightness feedback |
 
@@ -85,8 +108,8 @@ palettes and legacy applications are not forced to switch. While Quickshell is
 stopped, the Portal remains available, but live compositor palette updates wait
 for reconnection or a Hyprland reload.
 
-The footer displays OFFLINE when darkman sockets are disconnected, UNSET when
-no mode is known, or ERROR when the compositor update failed. Check logs:
+The footer marks unavailable/error appearance state with `!`, or an unknown
+mode with `?`; hovering shows the status. Check logs:
 
 ```sh
 darkman get

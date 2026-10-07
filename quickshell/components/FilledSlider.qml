@@ -1,8 +1,9 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell.Widgets
 
-Rectangle {
+ClippingRectangle {
     id: slider
     required property var style
     required property real value
@@ -15,12 +16,11 @@ Rectangle {
     radius: style.radiusCard
     color: style.surfaceHover
     opacity: available ? 1 : 0.5
-    clip: true
 
     Rectangle {
         width: slider.width * Math.max(0, Math.min(1, slider.value))
         height: slider.height
-        radius: slider.radius
+        radius: 0
         color: slider.style.surfaceSelected
     }
     Text {

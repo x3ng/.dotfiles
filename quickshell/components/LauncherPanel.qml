@@ -19,27 +19,22 @@ PanelWindow {
     property string query: ""
     property int selectedIndex: 0
     readonly property var sink: services.sink
-    readonly property var battery: services.battery
     readonly property var player: services.player
     readonly property var results: searchModel.results
 
     function handleKey(event) {
         if (!(event.modifiers & Qt.ControlModifier)) return;
+        if (event.key >= Qt.Key_0 && event.key <= Qt.Key_9) {
+            if (!searching) return;
+            const index = event.key === Qt.Key_0 ? 9 : event.key - Qt.Key_1;
+            activate(index);
+            event.accepted = true;
+            return;
+        }
         switch (event.key) {
-        case Qt.Key_N:
-        case Qt.Key_J:
-            panel.moveSelection(1); break;
-        case Qt.Key_P:
-        case Qt.Key_K:
-            panel.moveSelection(-1); break;
-        case Qt.Key_H:
-            search.cursorPosition = Math.max(0, search.cursorPosition - 1); break;
-        case Qt.Key_L:
-            search.cursorPosition = Math.min(search.text.length, search.cursorPosition + 1); break;
-        case Qt.Key_F:
-            search.cursorPosition = Math.min(search.text.length, search.cursorPosition + 1); break;
-        case Qt.Key_B:
-            search.cursorPosition = Math.max(0, search.cursorPosition - 1); break;
+        case Qt.Key_N: panel.moveSelection(1); break;
+        case Qt.Key_P: panel.moveSelection(-1); break;
+        case Qt.Key_G: panel.dismiss(); break;
         default: return;
         }
         event.accepted = true;
@@ -60,10 +55,10 @@ PanelWindow {
         selectedIndex = (selectedIndex + delta + results.length) % results.length;
         resultList.positionViewAtIndex(selectedIndex, ListView.Contain);
     }
-    function activate(index) {
+    function activate(index, forceTerminal = false) {
         const result = results[index];
         if (!searching || !result) return;
-        if (searchModel.activate(index)) dismiss();
+        if (searchModel.activate(index, forceTerminal)) dismiss();
     }
     onQueryChanged: { selectedIndex = 0; resultList.positionViewAtBeginning(); }
     onResultsChanged: selectedIndex = Math.min(selectedIndex, Math.max(0, results.length - 1))
@@ -92,9 +87,14 @@ PanelWindow {
 
     Rectangle {
         id: card
-        anchors.centerIn: parent
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        // Keep the search field stationary as status/search content changes height.
+        anchors.topMargin: Math.max(16, Math.round((parent.height - panel.style.maximumPanelHeight) / 2))
         width: Math.min(680, parent.width - 32)
-        height: Math.min(560, parent.height - 32)
+        height: Math.min(panel.style.maximumPanelHeight, parent.height - anchors.topMargin - 16,
+            (panel.searching ? searchResultsPage.naturalHeight : statusPage.naturalHeight)
+                + panel.style.panelPadding * 2 + panel.style.stripHeight * 2 + panel.style.panelGap * 2)
         radius: panel.style.radiusPanel
         color: panel.style.panelSurface
         border.color: panel.style.outline
@@ -106,34 +106,37 @@ PanelWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 24
-            spacing: 16
+            anchors.margins: panel.style.panelPadding
+            spacing: panel.style.panelGap
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 48
+                Layout.preferredHeight: panel.style.stripHeight
                 radius: panel.style.radiusInput
                 color: panel.style.surfaceRaised
                 border.color: search.activeFocus ? panel.style.accent : panel.style.outline
                 border.width: 1
-                TextInput {
+                EmacsInput {
                     id: search
                     anchors.fill: parent
-                    anchors.margins: 12
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    anchors.topMargin: 8
+                    anchors.bottomMargin: 8
                     verticalAlignment: TextInput.AlignVCenter
                     font.family: panel.style.fontFamily
-                    font.pixelSize: 16
+                    font.pixelSize: 14
                     color: panel.style.textPrimary
                     selectionColor: panel.style.surfaceSelected
                     selectedTextColor: panel.style.textSelected
                     clip: true
                     text: panel.query
-                    onTextEdited: panel.query = text
-                    Keys.onPressed: event => panel.handleKey(event)
+                    onTextChanged: panel.query = text
+                    onShortcut: event => panel.handleKey(event)
                     Keys.onDownPressed: panel.moveSelection(1)
                     Keys.onUpPressed: panel.moveSelection(-1)
-                    Keys.onReturnPressed: panel.activate(panel.selectedIndex)
-                    Keys.onEnterPressed: panel.activate(panel.selectedIndex)
+                    Keys.onReturnPressed: event => panel.activate(panel.selectedIndex, !!(event.modifiers & Qt.ShiftModifier))
+                    Keys.onEnterPressed: event => panel.activate(panel.selectedIndex, !!(event.modifiers & Qt.ShiftModifier))
                     Keys.onEscapePressed: panel.dismiss()
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
@@ -146,14 +149,21 @@ PanelWindow {
             }
 
             StackLayout {
+                Layout.minimumHeight: 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 currentIndex: panel.searching ? 0 : 1
                 ColumnLayout {
+                    id: searchResultsPage
+                    readonly property real naturalHeight: resultHeading.implicitHeight + spacing
+                        + Math.max(80, panel.results.length * 40
+                            + Math.max(0, panel.results.length - 1) * resultList.spacing)
+                    Layout.minimumHeight: 0
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     spacing: 8
                     Text {
+                        id: resultHeading
                         text: panel.query ? "RESULTS · " + panel.results.length : "WINDOWS & APPLICATIONS"
                         color: panel.style.textMuted
                         font.family: panel.style.fontFamily
@@ -161,31 +171,32 @@ PanelWindow {
                     }
                     ListView {
                         id: resultList
+                        Layout.minimumHeight: 0
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
                         model: panel.searching ? panel.results : []
-                        spacing: 4
+                        spacing: 2
                         delegate: Rectangle {
                             id: resultRow
                             required property var modelData
                             required property int index
                             width: resultList.width
-                            height: 58
+                            height: 40
                             radius: panel.style.radiusControl
                             color: index === panel.selectedIndex ? panel.style.surfaceSelected
                                 : rowMouse.containsMouse ? panel.style.surfaceHover : "transparent"
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.margins: 10
+                                anchors.margins: 8
                                 spacing: 10
                                 Item {
-                                    Layout.preferredWidth: 28
-                                    Layout.preferredHeight: 28
+                                    Layout.preferredWidth: 24
+                                    Layout.preferredHeight: 24
                                     IconImage {
                                         id: resultIcon
                                         anchors.fill: parent
-                                        implicitSize: 28
+                                        implicitSize: 24
                                         source: panel.searchModel.desktopIconSource(resultRow.modelData.entry)
                                         visible: source !== "" && status !== Image.Error
                                     }
@@ -197,26 +208,28 @@ PanelWindow {
                                         font.pixelSize: 24
                                     }
                                 }
-                                ColumnLayout {
+                                Text {
                                     Layout.fillWidth: true
-                                    spacing: 3
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: resultRow.modelData.title
-                                        color: resultRow.index === panel.selectedIndex
-                                            ? panel.style.textSelected : panel.style.textPrimary
-                                        elide: Text.ElideRight
-                                        font.family: panel.style.fontFamily
-                                        font.pixelSize: 13
-                                    }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: resultRow.modelData.kind + " · " + resultRow.modelData.detail
-                                        color: panel.style.textSecondary
-                                        elide: Text.ElideRight
-                                        font.family: panel.style.fontFamily
-                                        font.pixelSize: 11
-                                    }
+                                    text: resultRow.modelData.title
+                                    color: resultRow.index === panel.selectedIndex
+                                        ? panel.style.textSelected : panel.style.textPrimary
+                                    elide: Text.ElideRight
+                                    font.family: panel.style.fontFamily
+                                    font.pixelSize: 13
+                                }
+                                Text {
+                                    text: resultRow.modelData.kind
+                                    color: panel.style.textMuted
+                                    font.family: panel.style.fontFamily
+                                    font.pixelSize: 10
+                                }
+                                Text {
+                                    visible: resultRow.index < 10
+                                    text: "Ctrl+" + (resultRow.index === 9 ? "0" : String(resultRow.index + 1))
+                                    color: resultRow.index === panel.selectedIndex
+                                        ? panel.style.textSelected : panel.style.textMuted
+                                    font.family: panel.style.fontFamily
+                                    font.pixelSize: 11
                                 }
                             }
                             MouseArea {
@@ -236,59 +249,30 @@ PanelWindow {
                     }
                 }
                 StatusPage {
+                    id: statusPage
+                    Layout.minimumHeight: 0
                     services: panel.services
+                    searchModel: panel.searchModel
                     style: panel.style
                     appearance: panel.appearance
                     sink: panel.sink
-                    battery: panel.battery
                     player: panel.player
                     panelOpen: panel.open && !panel.searching
                 }
             }
-            RowLayout {
+            PanelFooter {
+                id: footer
                 Layout.fillWidth: true
-                spacing: 8
-                Text {
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                    text: Qt.formatDateTime(clock.date, "yyyy-MM-dd ddd  HH:mm")
-                        + (panel.battery?.isPresent ? "  ·  BAT " + Math.round(panel.battery.percentage * 100) + "%" : "")
-                        + "  ·  VOL " + (panel.sink?.audio?.muted ? "MUTE" : panel.sink?.audio ? Math.round(panel.sink.audio.volume * 100) + "%" : "—")
-                        + (panel.services.brightness >= 0 ? "  ·  BRI " + Math.round(panel.services.brightness * 100) + "%" : "")
-                        + "  ·  " + (!panel.appearance.appearanceAvailable ? "OFFLINE" : !panel.appearance.appearanceKnown ? "UNSET" : panel.appearance.appearanceError ? "ERROR" : panel.appearance.darkMode ? "DARK" : "LIGHT")
-                    color: panel.style.textPrimary
-                    font.family: panel.style.fontFamily
-                    font.pixelSize: 12
-                    font.weight: Font.Medium
-                }
-                Repeater {
-                    model: panel.trayItems
-                    Rectangle {
-                        id: trayItem
-                        required property var modelData
-                        width: 28; height: 28
-                        radius: panel.style.radiusSmall
-                        color: trayMouse.containsMouse ? panel.style.surfaceHover : "transparent"
-                        IconImage {
-                            anchors.centerIn: parent
-                            implicitSize: 20
-                            source: trayItem.modelData.icon
-                        }
-                        MouseArea {
-                            id: trayMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            onClicked: event => {
-                                if (event.button === Qt.RightButton || trayItem.modelData.onlyMenu) {
-                                    const pos = trayItem.mapToItem(panel.contentItem, 0, trayItem.height);
-                                    const showMenu = () => trayMenu.openFor(trayItem.modelData,
-                                        pos.x + trayItem.width, pos.y - trayItem.height);
-                                    if (!showMenu()) Qt.callLater(showMenu);
-                                } else trayItem.modelData.activate();
-                            }
-                        }
-                    }
+                Layout.preferredHeight: implicitHeight
+                style: panel.style
+                services: panel.services
+                appearance: panel.appearance
+                trayItems: panel.trayItems
+                date: clock.date
+                onMenuRequested: (owner, right, top) => {
+                    const pos = footer.mapToItem(panel.contentItem, right, top);
+                    const showMenu = () => trayMenu.openFor(owner, pos.x, pos.y);
+                    if (!showMenu()) Qt.callLater(showMenu);
                 }
             }
         }

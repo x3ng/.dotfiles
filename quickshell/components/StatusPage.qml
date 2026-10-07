@@ -9,55 +9,20 @@ ColumnLayout {
     id: page
     required property var services
     required property var style
+    required property var searchModel
     required property var appearance
     required property var sink
-    required property var battery
     required property var player
     required property bool panelOpen
+    readonly property real naturalHeight: content.implicitHeight + workspaces.implicitHeight + spacing
     spacing: 12
-
-    Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: 64
-        radius: page.style.radiusCard
-        color: page.style.surfaceRaised
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 14
-            spacing: 16
-            Text {
-                text: page.battery?.isPresent
-                    ? Math.round(page.battery.percentage * 100) + "%" : "—"
-                color: page.style.textPrimary
-                font.family: page.style.fontFamily
-                font.pixelSize: 26
-                font.weight: Font.Medium
-            }
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 3
-                Text {
-                    text: "Battery"
-                    color: page.style.textPrimary
-                    font.family: page.style.fontFamily
-                    font.pixelSize: 13
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: page.battery?.isPresent ? page.services.batteryDetail(page.battery) : "Battery unavailable"
-                    color: page.style.textSecondary
-                    font.family: page.style.fontFamily
-                    font.pixelSize: 11
-                    elide: Text.ElideRight
-                }
-            }
-        }
-    }
 
     Flickable {
         id: controls
         Layout.fillWidth: true
         Layout.fillHeight: true
+        Layout.minimumHeight: 0
+        implicitHeight: content.implicitHeight
         contentWidth: width
         contentHeight: content.implicitHeight
         clip: true
@@ -72,101 +37,80 @@ ColumnLayout {
                 columns: controls.width >= 480 ? 2 : 1
                 columnSpacing: 12
                 rowSpacing: 12
-
-                Rectangle {
+                FilledSlider {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 142
-                    radius: page.style.radiusCard
-                    color: page.style.surfaceRaised
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: 10
-                        Text {
-                            text: "Audio"
-                            color: page.style.textMuted
-                            font.family: page.style.fontFamily
-                            font.pixelSize: 11
-                        }
-                        FilledSlider {
+                    Layout.preferredHeight: 48
+                    style: page.style
+                    label: "Volume"
+                    value: page.sink?.audio?.volume ?? 0
+                    available: !!page.sink?.audio
+                    onEdited: value => page.services.setVolume(value)
+                }
+                FilledSlider {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 48
+                    style: page.style
+                    label: "Brightness"
+                    value: Math.max(0, page.services.brightness)
+                    available: page.services.brightness >= 0
+                    onEdited: value => page.services.setBrightness(value)
+                }
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                columns: controls.width >= 480 ? 2 : 1
+                columnSpacing: 20
+                rowSpacing: 12
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        ChoiceButton {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 48
+                            Layout.preferredHeight: 34
                             style: page.style
-                            label: page.sink?.audio?.muted ? "Muted" : "Volume"
-                            value: page.sink?.audio?.volume ?? 0
+                            label: "Mute output"
+                            selected: page.sink?.audio?.muted ?? false
                             available: !!page.sink?.audio
-                            onEdited: value => page.services.setVolume(value)
+                            onTriggered: page.sink.audio.muted = !page.sink.audio.muted
                         }
-                        RowLayout {
+                        ChoiceButton {
                             Layout.fillWidth: true
-                            spacing: 8
-                            ChoiceButton {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 30
-                                style: page.style
-                                label: "MUTE"
-                                selected: page.sink?.audio?.muted ?? false
-                                available: !!page.sink?.audio
-                                onTriggered: page.sink.audio.muted = !page.sink.audio.muted
-                            }
-                            ChoiceButton {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 30
-                                style: page.style
-                                label: "MIC MUTE"
-                                selected: Pipewire.defaultAudioSource?.audio?.muted ?? false
-                                available: !!Pipewire.defaultAudioSource?.audio
-                                onTriggered: page.services.toggleMicMute()
-                            }
+                            Layout.preferredHeight: 34
+                            style: page.style
+                            label: "Mute mic"
+                            selected: Pipewire.defaultAudioSource?.audio?.muted ?? false
+                            available: !!Pipewire.defaultAudioSource?.audio
+                            onTriggered: page.services.toggleMicMute()
                         }
                     }
                 }
-
-                Rectangle {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 142
-                    radius: page.style.radiusCard
-                    color: page.style.surfaceRaised
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: 10
-                        Text {
-                            text: "Display"
-                            color: page.style.textMuted
-                            font.family: page.style.fontFamily
-                            font.pixelSize: 11
-                        }
-                        FilledSlider {
+                    spacing: 6
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        ChoiceButton {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 48
+                            Layout.preferredHeight: 34
                             style: page.style
-                            label: "Brightness"
-                            value: Math.max(0, page.services.brightness)
-                            available: page.services.brightness >= 0
-                            onEdited: value => page.services.setBrightness(value)
+                            label: "Dark"
+                            selected: page.appearance.appearanceKnown && page.appearance.darkMode
+                            available: page.appearance.appearanceAvailable
+                            onTriggered: page.appearance.setTheme(true)
                         }
-                        RowLayout {
+                        ChoiceButton {
                             Layout.fillWidth: true
-                            spacing: 8
-                            ChoiceButton {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 30
-                                style: page.style
-                                label: "DARK"
-                                selected: page.appearance.appearanceKnown && page.appearance.darkMode
-                                available: page.appearance.appearanceAvailable
-                                onTriggered: page.appearance.setTheme(true)
-                            }
-                            ChoiceButton {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 30
-                                style: page.style
-                                label: "LIGHT"
-                                selected: page.appearance.appearanceKnown && !page.appearance.darkMode
-                                available: page.appearance.appearanceAvailable
-                                onTriggered: page.appearance.setTheme(false)
-                            }
+                            Layout.preferredHeight: 34
+                            style: page.style
+                            label: "Light"
+                            selected: page.appearance.appearanceKnown && !page.appearance.darkMode
+                            available: page.appearance.appearanceAvailable
+                            onTriggered: page.appearance.setTheme(false)
                         }
                     }
                 }
@@ -174,7 +118,7 @@ ColumnLayout {
 
             MediaCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 148
+                Layout.preferredHeight: 128
                 radius: page.style.radiusCard
                 border.width: 0
                 style: page.style
@@ -182,5 +126,13 @@ ColumnLayout {
                 panelOpen: page.panelOpen
             }
         }
+    }
+
+    WorkspaceSummary {
+        id: workspaces
+        Layout.fillWidth: true
+        Layout.preferredHeight: implicitHeight
+        style: page.style
+        searchModel: page.searchModel
     }
 }
