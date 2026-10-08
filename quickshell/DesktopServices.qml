@@ -13,14 +13,54 @@ Scope {
     readonly property var battery: UPower.displayDevice
     readonly property var players: Mpris.players.values
     readonly property var player: players.find(p => p.isPlaying) ?? players[0] ?? null
+    readonly property bool keepAwake: idleInhibitor.running
+    readonly property var source: Pipewire.defaultAudioSource
+    property bool controlsVisible: false
+    readonly property var controls: systemControls
+    readonly property var audioOutputs: Pipewire.nodes.values.filter(n => n.audio && !n.isStream && n.isSink)
+    readonly property var audioInputs: Pipewire.nodes.values.filter(n => n.audio && !n.isStream && !n.isSink)
+
+    SystemControls { id: systemControls; active: root.controlsVisible }
+
+    // A systemd idle inhibitor survives closing the panel. Closing stdin
+    // releases it normally; shell shutdown also closes the pipe to cat.
+    Process {
+        id: idleInhibitor
+        command: ["systemd-inhibit", "--what=idle", "--mode=block",
+            "--who=Quickshell", "--why=Keep screen awake", "cat"]
+        stdinEnabled: true
+        stderr: SplitParser {
+            onRead: data => console.warn("Keep awake: " + data.trim())
+        }
+    }
+
+    function toggleKeepAwake() {
+        if (idleInhibitor.running) {
+            idleInhibitor.stdinEnabled = false;
+        } else {
+            idleInhibitor.stdinEnabled = true;
+            idleInhibitor.running = true;
+        }
+    }
 
     PwObjectTracker {
-        objects: [Pipewire.defaultAudioSink, Pipewire.defaultAudioSource]
+        objects: root.audioOutputs.concat(root.audioInputs)
     }
 
     function toggleMicMute() {
         var audio = Pipewire.defaultAudioSource?.audio;
         if (audio) audio.muted = !audio.muted;
+    }
+
+    function toggleOutputMute() {
+        if (sink?.audio) sink.audio.muted = !sink.audio.muted;
+    }
+
+    function selectAudioDevice(node, input) {
+        const devices = input ? audioInputs : audioOutputs;
+        if (!devices.includes(node)) return;
+        if (input) Pipewire.preferredDefaultAudioSource = node;
+        else Pipewire.preferredDefaultAudioSink = node;
     }
 
     function setVolume(value) {

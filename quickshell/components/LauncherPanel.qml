@@ -15,6 +15,7 @@ PanelWindow {
     required property var appearance
     required property var searchModel
     property bool open: false
+    property string controlSection: ""
     readonly property bool searching: query.trim().length > 0
     property string query: ""
     property int selectedIndex: 0
@@ -49,7 +50,11 @@ PanelWindow {
         open = true;
         Qt.callLater(() => search.forceActiveFocus());
     }
-    function dismiss() { trayMenu.dismiss(); open = false; }
+    function dismiss() { trayMenu.dismiss(); controlSection = ""; open = false; }
+    function returnToStatus() {
+        controlSection = "";
+        Qt.callLater(() => search.forceActiveFocus());
+    }
     function moveSelection(delta) {
         if (!searching || !results.length) return;
         selectedIndex = (selectedIndex + delta + results.length) % results.length;
@@ -60,7 +65,7 @@ PanelWindow {
         if (!searching || !result) return;
         if (searchModel.activate(index, forceTerminal)) dismiss();
     }
-    onQueryChanged: { selectedIndex = 0; resultList.positionViewAtBeginning(); }
+    onQueryChanged: { controlSection = ""; selectedIndex = 0; resultList.positionViewAtBeginning(); }
     onResultsChanged: selectedIndex = Math.min(selectedIndex, Math.max(0, results.length - 1))
 
     visible: open
@@ -93,7 +98,8 @@ PanelWindow {
         anchors.topMargin: Math.max(16, Math.round((parent.height - panel.style.maximumPanelHeight) / 2))
         width: Math.min(680, parent.width - 32)
         height: Math.min(panel.style.maximumPanelHeight, parent.height - anchors.topMargin - 16,
-            (panel.searching ? searchResultsPage.naturalHeight : statusPage.naturalHeight)
+            (panel.controlSection !== "" ? panel.style.maximumPanelHeight
+                : panel.searching ? searchResultsPage.naturalHeight : statusPage.naturalHeight)
                 + panel.style.panelPadding * 2 + panel.style.stripHeight * 2 + panel.style.panelGap * 2)
         radius: panel.style.radiusPanel
         color: panel.style.panelSurface
@@ -101,7 +107,10 @@ PanelWindow {
         border.width: 1
         // Stop clicks in blank areas reaching the outside-dismiss handler.
         MouseArea { anchors.fill: parent }
-        Keys.onEscapePressed: panel.dismiss()
+        Keys.onEscapePressed: {
+            if (panel.controlSection !== "") panel.returnToStatus();
+            else panel.dismiss();
+        }
         Keys.onPressed: event => panel.handleKey(event)
 
         ColumnLayout {
@@ -110,6 +119,7 @@ PanelWindow {
             spacing: panel.style.panelGap
 
             Rectangle {
+                visible: panel.controlSection === ""
                 Layout.fillWidth: true
                 Layout.preferredHeight: panel.style.stripHeight
                 radius: panel.style.radiusInput
@@ -152,7 +162,7 @@ PanelWindow {
                 Layout.minimumHeight: 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                currentIndex: panel.searching ? 0 : 1
+                currentIndex: panel.controlSection !== "" ? 2 : panel.searching ? 0 : 1
                 ColumnLayout {
                     id: searchResultsPage
                     readonly property real naturalHeight: resultHeading.implicitHeight + spacing
@@ -257,7 +267,23 @@ PanelWindow {
                     appearance: panel.appearance
                     sink: panel.sink
                     player: panel.player
-                    panelOpen: panel.open && !panel.searching
+                    panelOpen: panel.open && !panel.searching && panel.controlSection === ""
+                    onDetailsRequested: section => {
+                        trayMenu.dismiss();
+                        panel.controlSection = section;
+                        Qt.callLater(() => controlDetails.forceActiveFocus());
+                    }
+                }
+                ControlDetails {
+                    id: controlDetails
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: 0
+                    style: panel.style
+                    services: panel.services
+                    section: panel.controlSection
+                    onDismissRequested: panel.returnToStatus()
+                    Keys.onPressed: event => panel.handleKey(event)
                 }
             }
             PanelFooter {

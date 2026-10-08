@@ -8,7 +8,7 @@ import "components"
 ShellRoot {
     AppearanceState { id: appearance }
     Theme { id: theme; darkMode: appearance.darkMode }
-    DesktopServices { id: desktop }
+    DesktopServices { id: desktop; controlsVisible: launcher.open }
     DesktopSearch { id: desktopSearch; query: launcher.query }
 
     LauncherPanel {

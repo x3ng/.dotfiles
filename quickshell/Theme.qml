@@ -13,12 +13,12 @@ Scope {
     readonly property int radiusInput: 10
     readonly property int radiusPopup: 8
     readonly property int radiusCard: 10
-    readonly property int radiusControl: 4
+    readonly property int radiusControl: 8
     readonly property int radiusSmall: 3
-    // Semantic colours. The panel is 85% opaque; internal cards stay opaque.
+    // Opaque surfaces keep background windows from competing with controls.
     // QML uses #AARRGGBB.
     readonly property color backdrop: darkMode ? "#38000000" : "#18000000"
-    readonly property color panelSurface: darkMode ? "#d91b1d20" : "#d9f0f1f3"
+    readonly property color panelSurface: darkMode ? "#1b1d20" : "#f0f1f3"
     readonly property color surface: darkMode ? "#f21b1d20" : "#faf0f1f3"
     readonly property color surfaceRaised: darkMode ? "#292c30" : "#f8f9fa"
     readonly property color surfaceHover: darkMode ? "#34383d" : "#e2e5e9"

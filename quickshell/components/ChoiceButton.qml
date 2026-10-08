@@ -9,13 +9,14 @@ Rectangle {
     required property string label
     property bool selected: false
     property bool available: true
+    property bool filled: false
     property int textSize: 12
     signal triggered()
 
     height: 34
     radius: style.radiusControl
     color: selected ? style.surfaceSelected
-        : (mouse.containsMouse && available ? style.surfaceHover : "transparent")
+        : (mouse.containsMouse && available ? style.surfaceHover : filled ? style.surfaceRaised : "transparent")
     border.width: selected ? 1 : 0
     border.color: style.accent
     opacity: available ? 1 : 0.45
@@ -23,7 +24,12 @@ Rectangle {
     Behavior on color { ColorAnimation { duration: 120 } }
 
     Text {
-        anchors.centerIn: parent
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: 8
+        horizontalAlignment: Text.AlignHCenter
+        elide: Text.ElideRight
         text: choice.label
         color: choice.selected ? choice.style.textSelected : choice.style.textSecondary
         font.family: choice.style.fontFamily

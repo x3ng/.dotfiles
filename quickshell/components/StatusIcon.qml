@@ -56,6 +56,17 @@ Canvas {
             c.arc(10, 10, 7, level > 0 ? -Math.PI / 2 : Math.PI / 2,
                 level > 0 ? Math.PI / 2 : Math.PI * 1.5);
             c.closePath(); c.fill();
+        } else if (kind === "wifi") {
+            for (let radius of [4, 7, 10]) {
+                c.beginPath(); c.arc(10, 16, radius, -Math.PI * 0.77, -Math.PI * 0.23); c.stroke();
+            }
+            c.beginPath(); c.arc(10, 16, 1, 0, Math.PI * 2); c.fill();
+        } else if (kind === "bluetooth") {
+            c.beginPath(); c.moveTo(10, 2); c.lineTo(15, 6); c.lineTo(5, 14);
+            c.moveTo(5, 6); c.lineTo(15, 14); c.lineTo(10, 18); c.lineTo(10, 2); c.stroke();
+        } else if (kind === "power") {
+            c.beginPath(); c.arc(10, 11, 7, -Math.PI * 0.3, Math.PI * 1.3); c.stroke();
+            c.beginPath(); c.moveTo(10, 2); c.lineTo(10, 10); c.stroke();
         } else if (kind === "calendar") {
             c.strokeRect(3, 4, 14, 13);
             c.beginPath(); c.moveTo(3, 8); c.lineTo(17, 8);

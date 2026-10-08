@@ -3,7 +3,7 @@
 `Super+R` toggles a panel on the focused monitor. It reserves no screen space;
 there is no bar. Both status and search fit their content up to a 620px maximum (or the available
 screen height); excess content scrolls. The search field keeps its position
-between views. Opening it shows audio/display controls, media
+between views. Opening it shows connectivity and audio/display controls, media
 and tray entries. Used workspaces appear below the controls with a number and
 application icons; clicking a workspace switches to it without closing the panel.
 Workspace groups wrap instead of scrolling; the current workspace is included
@@ -30,9 +30,29 @@ over the footer battery icon.
   and displays these shortcuts; they do nothing on the status view or for missing results.
 - Esc, Super+R again, or click outside: close.
 - Sliders: drag/click or use the wheel. Adjustments keep the panel open.
+- Keep awake: toggle to inhibit automatic idle locking and screen power-off
+  through Hypridle. The highlighted button stays active when the panel closes;
+  toggle it off to restore idle timeouts. Quickshell exit/reload releases it.
+  Uses the existing `systemd-inhibit` command; manual locking still works.
 - Tray: left click activates; right click opens a themed menu.
+- Wi-Fi and Bluetooth: click the icon to toggle the radio, or the card text/arrow
+  to open a detail view inside the same panel. Audio devices opens the same
+  view, with output/microphone tabs. Details replace the status content and
+  search field, retaining the footer and giving lists the full content area.
+  The back arrow or Esc returns to status; outside click closes the launcher.
+  Power profiles are selected directly in the main panel.
+  Wi-Fi offers saved networks nearby and opens the existing `nmtui` in
+  kitty for other networks. Bluetooth connects/disconnects paired devices;
+  pairing new devices remains outside this panel. Audio selects the default
+  output/input through PipeWire. Power mode offers the profiles reported by
+  the native PowerProfiles service. Wi-Fi connection failures show inline.
+  Network, Bluetooth and power status follow native D-Bus-backed Quickshell
+  objects and their change signals; there is no CLI text parsing or status
+  polling. Wi-Fi scanning runs only while the panel is open. These controls
+  require the existing Quickshell Networking, Bluetooth and UPower modules.
 
-There are no keyboard modes or pages. Window icons use their appId to resolve
+There are no keyboard modes. The media card appears only when a player exists.
+Window icons use their appId to resolve
 DesktopEntries; unmatched entries receive a generic marker. Volume/brightness
 changes also produce a brief independent OSD, including when the panel is closed.
 While muted, the OSD keeps the MUTED label and shows the stored volume with a
@@ -51,10 +71,13 @@ Initial workspace discovery does not show a popup.
 | `Theme.qml` | Colours, fonts and shared radii |
 | `AppearanceState.qml` | Darkman socket subscription, controls and reconnect |
 | `Appearance.qml` | Apply Hyprland colours through `hyprctl eval` |
-| `DesktopServices.qml` | PipeWire, UPower, MPRIS and brightness controls |
+| `DesktopServices.qml` | Audio devices, UPower, MPRIS, brightness and keep-awake controls |
+| `SystemControls.qml` | Native network, Bluetooth and power objects, signals and actions |
 | `DesktopSearch.qml` | Search, desktop-entry/icon lookup and native activation |
 | `components/LauncherPanel.qml` | Panel lifetime, keyboard input and search results |
 | `components/StatusPage.qml` | Audio, brightness, appearance, media and workspace layout |
+| `components/DesktopControls.qml`, `ControlTile.qml` | Connectivity cards with direct radio toggles |
+| `components/ControlDetails.qml`, `DeviceRow.qml` | In-panel network/Bluetooth/audio detail views and device selection |
 | `components/EmacsInput.qml` | Readline-style input editing and local kill buffer |
 | `components/WorkspaceSummary.qml` | Used workspace numbers and application icons |
 | `components/MediaCard.qml` | Media artwork, playback and timeline |
@@ -66,8 +89,8 @@ Initial workspace discovery does not show a popup.
 
 Brightness reads use brightnessctl's native machine-readable output; kernel
 backlight events trigger updates through udevadm. No custom watcher daemon or
-application index is maintained. Theme colours are semantic; the outer panel is
-85% opaque and internal cards are opaque. The launcher namespace is
+application index is maintained. Theme colours are semantic; panels and internal
+cards are opaque for readability. The launcher namespace is
 `quickshell-launcher`; it does not apply fullscreen background blur. The UI requires Quickshell's desktop-entry,
 Wayland toplevel, layer-shell and Hyprland monitor APIs.
 
