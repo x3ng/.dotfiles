@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
 
 Scope {
@@ -95,18 +94,27 @@ Scope {
         return icon.startsWith("/") ? "file://" + icon : "image://icon/" + icon;
     }
 
+    function launchApplication(entry, forceTerminal = false) {
+        if (!entry.command.length) return false;
+        const inTerminal = forceTerminal || entry.runInTerminal;
+        if (inTerminal && !terminalCommand.length) return false;
+        const argv = inTerminal ? [...terminalCommand, ...entry.command] : [...entry.command];
+        // Detached processes still inherit this service's cgroup. Move the whole
+        // application (including a terminal wrapper) into its own user scope.
+        // Disable systemd's $VAR expansion so desktop-entry arguments stay literal.
+        Quickshell.execDetached({
+            command: ["systemd-run", "--user", "--scope", "--collect", "--quiet",
+                "--slice=app.slice", "--expand-environment=no", "--", ...argv],
+            workingDirectory: entry.workingDirectory
+        });
+        return true;
+    }
+
     function activate(index, forceTerminal = false) {
         const result = results[index];
         if (!result) return false;
         if (result.kind === "WINDOW") result.target.activate();
-        else if (forceTerminal || result.target.runInTerminal) {
-            const entry = result.target;
-            if (!entry.command.length || !terminalCommand.length) return false;
-            Quickshell.execDetached({
-                command: [...terminalCommand, ...entry.command],
-                workingDirectory: entry.workingDirectory
-            });
-        } else result.target.execute();
+        else return launchApplication(result.target, forceTerminal);
         return true;
     }
 }

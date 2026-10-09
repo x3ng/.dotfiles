@@ -32,6 +32,12 @@ over the footer battery icon.
   still activate the existing window. `DesktopSearch.qml`'s `terminalCommand`
   configures the terminal argv (default `["kitty", "--"]`). Native desktop-entry
   arguments and working directories are preserved without shell string parsing.
+  Applications, including the terminal wrapper, run in independent systemd user
+  scopes in `app.slice`; restarting `quickshell.service` does not terminate them.
+  The scope inherits the launcher's environment, and systemd argument expansion
+  is disabled to preserve literal `$` characters. The service retains its default
+  `KillMode=control-group` to clean up shell-owned helpers. Applications already
+  running in the old service cgroup must be exited and relaunched to move scopes.
 - `Ctrl+1`–`Ctrl+9`, `Ctrl+0`: directly open search results 1–10. The list
   uses compact single-line rows to fit the first ten results at normal screen sizes
   and displays these shortcuts; they do nothing on the status view or for missing results.
@@ -90,6 +96,40 @@ panel's workspace layout, wraps within the screen width, and fades in/out with a
 slight vertical motion. It does not accept input.
 Initial workspace discovery does not show a popup.
 
+Each workspace also displays a compact marker for its actual Hyprland tiled
+layout (D = dwindle, M = master, S = scrolling, O = monocle) beside its number,
+in both the panel and workspace OSD. Number and marker form a single 14px
+semibold label, such as `3·S`, with width measured from its text and compact
+spacing between application icons. Hovering a workspace in the panel shows
+the full layout name. The workspace OSD grows with its content up to the screen
+width minus 64 pixels, wrapping only when that available width is exhausted.
+Changing the focused workspace's layout shows the same OSD. Layout state is read
+from `hyprctl -j workspaces`, shared by both views, and refreshed on workspace,
+reload and custom layout events. A three-second reconciliation catches layout
+changes made by external commands; initial discovery stays silent.
+
+Hyprland keeps the existing general bindings and switches only the current
+workspace's layout with `Super+Alt+1/2/3/4`.
+
+`Super+Alt+D/M/S/O` selects the same four layouts as a mnemonic alternative
+for keyboards where the number-row combinations do not register reliably.
+
+Additional bindings:
+
+| Binding | Dwindle | Master | Scrolling | Monocle |
+| --- | --- | --- | --- | --- |
+| `Super+H/K`, `Super+J/L` | Directional focus | Directional focus | Directional focus | Previous / next tiled window |
+| `Super+[` / `Super+]` | Previous / next workspace window | Same | Same | Same |
+| `Super+T` | Toggle split | Rotate master orientation | Center current column | — |
+| `Super+Shift+Return` | — | Swap with master, focus master | Extract focused window into its own column | — |
+| `Super+Ctrl+[` / `Super+Ctrl+]` | — | Remove / add master | Previous / next configured column width | — |
+| `Super+Shift+]` | — | — | Pull first window of next column into current column | — |
+| `Super+Shift+[` | — | — | Expel last window of current column into its own column | — |
+
+Layout-specific structural operations ignore floating windows and unsupported
+layouts. Floating-window directional focus retains its usual behavior.
+`Super+Tab` / `Super+Shift+Tab` still switch tabs within a window group.
+
 ## Structure
 
 | File | Responsibility |
@@ -100,9 +140,10 @@ Initial workspace discovery does not show a popup.
 | `Appearance.qml` | Apply Hyprland colours through `hyprctl eval` |
 | `DesktopServices.qml` | Audio devices, UPower, MPRIS, brightness and keep-awake controls |
 | `SystemControls.qml` | Native network, Bluetooth and power objects, signals and actions |
-| `DesktopSearch.qml` | Search, desktop-entry/icon lookup and native activation |
+| `DesktopSearch.qml` | Search, desktop-entry/icon lookup, window activation and application scopes |
 | `Notifications.qml` | Notification daemon: tracking, popup queue and history |
 | `components/LauncherPanel.qml` | Panel lifetime, keyboard input and search results |
+| `components/WorkspaceLayoutState.qml` | Shared per-workspace layout state and change signals |
 | `components/NotificationBanner.qml` | Top-right notification banners |
 | `components/StatusPage.qml` | Audio, brightness, appearance, media and workspace layout |
 | `components/DesktopControls.qml`, `ControlTile.qml` | Connectivity cards with direct radio toggles |

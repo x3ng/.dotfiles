@@ -11,6 +11,7 @@ ShellRoot {
     DesktopServices { id: desktop; controlsVisible: launcher.open }
     DesktopSearch { id: desktopSearch; query: launcher.query }
     Notifications { id: notifications }
+    WorkspaceLayoutState { id: workspaceLayouts }
 
     LauncherPanel {
         id: launcher
@@ -19,9 +20,10 @@ ShellRoot {
         appearance: appearance
         searchModel: desktopSearch
         notifs: notifications
+        layoutState: workspaceLayouts
     }
     NotificationBanner { notifs: notifications; style: theme }
-    OsdOverlay { shell: desktop; style: theme; searchModel: desktopSearch }
+    OsdOverlay { shell: desktop; style: theme; searchModel: desktopSearch; layoutState: workspaceLayouts }
 
     IpcHandler {
         target: "launcher"

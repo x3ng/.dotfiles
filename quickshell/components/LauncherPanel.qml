@@ -15,6 +15,7 @@ PanelWindow {
     required property Theme style
     required property var appearance
     required property var searchModel
+    required property var layoutState
     required property var notifs
     property bool open: false
     property string controlSection: ""
@@ -276,6 +277,7 @@ PanelWindow {
                     Layout.minimumHeight: 0
                     services: panel.services
                     searchModel: panel.searchModel
+                    layoutState: panel.layoutState
                     style: panel.style
                     appearance: panel.appearance
                     notifs: panel.notifs

@@ -19,6 +19,8 @@ local function setLayout(layout)
     local workspace = hl.get_active_workspace()
     if workspace then
       hl.workspace_rule({ workspace = workspace.config_name, layout = layout })
+      -- Quickshell reads the resulting state rather than trusting the requested layout.
+      hl.dispatch(hl.dsp.event("workspace-layout"))
     end
   end
 end
@@ -26,12 +28,58 @@ hl.bind("SUPER + ALT + 1", setLayout("dwindle"))
 hl.bind("SUPER + ALT + 2", setLayout("master"))
 hl.bind("SUPER + ALT + 3", setLayout("scrolling"))
 hl.bind("SUPER + ALT + 4", setLayout("monocle"))
+-- Mnemonic alternatives also avoid number-row chord limitations on some keyboards.
+hl.bind("SUPER + ALT + D", setLayout("dwindle"))
+hl.bind("SUPER + ALT + M", setLayout("master"))
+hl.bind("SUPER + ALT + S", setLayout("scrolling"))
+hl.bind("SUPER + ALT + O", setLayout("monocle"))
 
 -- Move focus
-hl.bind("SUPER + H", hl.dsp.focus({ direction = "l" }))
-hl.bind("SUPER + L", hl.dsp.focus({ direction = "r" }))
-hl.bind("SUPER + K", hl.dsp.focus({ direction = "u" }))
-hl.bind("SUPER + J", hl.dsp.focus({ direction = "d" }))
+local function layoutAction(actions)
+  return function()
+    local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
+    local window = hl.get_active_window()
+    if not workspace or not window or window.floating then return end
+    local message = actions[workspace.tiled_layout]
+    if message then hl.dispatch(hl.dsp.layout(message)) end
+  end
+end
+
+local function focusDirection(direction, next)
+  return function()
+    local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
+    local window = hl.get_active_window()
+    if workspace and workspace.tiled_layout == "monocle" and window and not window.floating then
+      hl.dispatch(hl.dsp.layout(next and "cyclenext" or "cycleprev"))
+    else
+      hl.dispatch(hl.dsp.focus({ direction = direction }))
+    end
+  end
+end
+hl.bind("SUPER + H", focusDirection("l", false))
+hl.bind("SUPER + L", focusDirection("r", true))
+hl.bind("SUPER + K", focusDirection("u", false))
+hl.bind("SUPER + J", focusDirection("d", true))
+
+-- Workspace window cycling is separate from Super+Tab's group tabs.
+hl.bind("SUPER + bracketright", hl.dsp.window.cycle_next({ next = true }))
+hl.bind("SUPER + bracketleft", hl.dsp.window.cycle_next({ next = false }))
+
+-- Layout-specific actions; unsupported layouts and floating windows are no-ops.
+hl.bind("SUPER + T", layoutAction({
+  dwindle = "togglesplit", master = "orientationnext", scrolling = "center",
+}))
+hl.bind("SUPER + SHIFT + Return", layoutAction({
+  master = "swapwithmaster master", scrolling = "promote",
+}))
+hl.bind("SUPER + CTRL + bracketright", layoutAction({
+  master = "addmaster", scrolling = "colresize +conf",
+}))
+hl.bind("SUPER + CTRL + bracketleft", layoutAction({
+  master = "removemaster", scrolling = "colresize -conf",
+}))
+hl.bind("SUPER + SHIFT + bracketright", layoutAction({ scrolling = "consume" }))
+hl.bind("SUPER + SHIFT + bracketleft", layoutAction({ scrolling = "expel" }))
 
 -- Swap windows
 hl.bind("SUPER + SHIFT + H", hl.dsp.window.swap({ direction = "l" }))

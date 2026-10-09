@@ -11,6 +11,7 @@ ColumnLayout {
     readonly property var system: services.controls
     required property Theme style
     required property var searchModel
+    required property var layoutState
     required property var appearance
     required property var notifs
     required property var sink
@@ -298,5 +299,6 @@ ColumnLayout {
         Layout.preferredHeight: implicitHeight
         style: page.style
         searchModel: page.searchModel
+        layoutState: page.layoutState
     }
 }

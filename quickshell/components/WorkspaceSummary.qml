@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import Quickshell.Hyprland
 import Quickshell.Widgets
 import ".."
@@ -9,11 +10,28 @@ Rectangle {
     id: summary
     required property Theme style
     required property var searchModel
+    required property var layoutState
     property bool interactive: true
     readonly property var workspaces: Hyprland.workspaces.values
         .filter(w => w.id > 0 && (w.toplevels.values.length > 0
             || w.id === Hyprland.focusedWorkspace?.id))
         .sort((a, b) => a.id - b.id)
+
+    function workspaceLabel(workspace) {
+        return workspace.id + "·" + layoutState.marker(workspace.id);
+    }
+
+    function workspaceWidth(workspace) {
+        return Math.ceil(labelMetrics.advanceWidth(workspaceLabel(workspace)))
+            + 12 + workspace.toplevels.values.length * 24;
+    }
+
+    FontMetrics {
+        id: labelMetrics
+        font.family: summary.style.fontFamily
+        font.pixelSize: summary.style.fontSizeControl
+        font.weight: Font.DemiBold
+    }
 
     implicitWidth: workspaceFlow.naturalWidth + 18
     implicitHeight: workspaceFlow.implicitHeight + 18
@@ -30,43 +48,46 @@ Rectangle {
         Flow {
             id: workspaceFlow
             readonly property real naturalWidth: summary.workspaces.reduce(
-                (total, w) => total + 34 + w.toplevels.values.length * 26, 0)
+                (total, w) => total + summary.workspaceWidth(w), 0)
                 + Math.max(0, summary.workspaces.length - 1) * spacing
             width: Math.min(parent.width, naturalWidth)
             anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 6
+            spacing: 4
             Repeater {
                 model: summary.workspaces
                 Rectangle {
                     id: workspace
                     required property var modelData
                     readonly property bool active: modelData.id === Hyprland.focusedWorkspace?.id
-                    width: Math.min(34 + modelData.toplevels.values.length * 26, workspaceFlow.width)
+                    width: Math.min(summary.workspaceWidth(modelData), workspaceFlow.width)
                     height: Math.max(30, icons.implicitHeight)
                     radius: summary.style.radiusControl
                     color: active ? summary.style.surfaceSelected
                         : workspaceMouse.containsMouse ? summary.style.surfaceHover : "transparent"
+                    ToolTip.visible: summary.interactive && workspaceMouse.containsMouse
+                    ToolTip.delay: 500
+                    ToolTip.text: summary.layoutState.label(modelData.id)
                     Behavior on color {
                         ColorAnimation { duration: 140 }
                     }
 
                     Flow {
                         id: icons
-                        width: parent.width - 16
+                        width: parent.width - 12
                         anchors.centerIn: parent
-                        spacing: 6
+                        spacing: 4
                         Text {
-                            width: 18
+                            width: Math.ceil(implicitWidth)
                             height: 30
                             verticalAlignment: Text.AlignVCenter
                             horizontalAlignment: Text.AlignHCenter
-                            text: workspace.modelData.id
-                            color: workspace.active ? summary.style.textSelected : summary.style.textSecondary
+                            text: summary.workspaceLabel(workspace.modelData)
+                            color: workspace.active ? summary.style.textSelected : summary.style.textPrimary
                             Behavior on color {
                                 ColorAnimation { duration: 140 }
                             }
                             font.family: summary.style.fontFamily
-                            font.pixelSize: summary.style.fontSizeBody
+                            font.pixelSize: summary.style.fontSizeControl
                             font.weight: Font.DemiBold
                         }
                         Repeater {

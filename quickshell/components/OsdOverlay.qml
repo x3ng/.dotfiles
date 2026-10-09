@@ -13,6 +13,7 @@ Scope {
     required property var shell
     required property Theme style
     required property var searchModel
+    required property var layoutState
 
     property bool shown: false
     property string monitorName: ""
@@ -57,6 +58,13 @@ Scope {
         // Changing output devices is not a volume key press.
         lastVolume = sinkAudio?.volume ?? -1;
         lastMuted = sinkAudio?.muted ?? false;
+    }
+
+    Connections {
+        target: osd.layoutState
+        function onLayoutChanged(workspaceId) {
+            if (workspaceId === osd.workspace?.id) osd.reveal("workspace");
+        }
     }
 
     Connections {
@@ -108,7 +116,7 @@ Scope {
             anchors { bottom: true }
             margins { bottom: 56 }
             implicitWidth: osd.kind === "workspace"
-                ? Math.min(workspaceSummary.implicitWidth + 26, 586, modelData.width - 32) : 250
+                ? Math.min(workspaceSummary.implicitWidth + 26, Math.max(1, modelData.width - 64)) : 250
             implicitHeight: osd.kind === "workspace" ? workspaceSummary.implicitHeight + 14 : 76
             color: "transparent"
             mask: Region {}
@@ -130,6 +138,7 @@ Scope {
                     visible: osd.kind === "workspace"
                     style: osd.style
                     searchModel: osd.searchModel
+                    layoutState: osd.layoutState
                     interactive: false
                     radius: osd.style.radiusPopup
                     color: osd.style.surface
