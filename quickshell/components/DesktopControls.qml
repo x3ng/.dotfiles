@@ -2,10 +2,11 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import ".."
 
 GridLayout {
     id: controls
-    required property var style
+    required property Theme style
     required property var services
     readonly property var system: services.controls
     signal detailsRequested(string section)
@@ -32,7 +33,9 @@ GridLayout {
         icon: "bluetooth"
         title: "Bluetooth"
         detail: !controls.system.bluetoothEnabled ? "Off"
-            : controls.system.bluetoothConnected.length ? controls.system.bluetoothConnected.length + " connected" : "No devices connected"
+            : controls.system.bluetoothConnected.length
+                ? controls.system.bluetoothConnected.length + " connected"
+                : "No devices connected"
         available: controls.system.bluetoothAvailable
         active: controls.system.bluetoothEnabled
         toggleable: true

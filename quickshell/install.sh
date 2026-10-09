@@ -2,7 +2,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/../deploy/lib.sh"
-QML_FILES=(shell.qml Theme.qml AppearanceState.qml Appearance.qml DesktopServices.qml SystemControls.qml DesktopSearch.qml)
+QML_FILES=(shell.qml Theme.qml AppearanceState.qml Appearance.qml DesktopServices.qml SystemControls.qml DesktopSearch.qml Notifications.qml)
 
 user_systemd_available() {
   command -v systemctl >/dev/null 2>&1 &&

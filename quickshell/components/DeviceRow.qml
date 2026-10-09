@@ -2,10 +2,11 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import ".."
 
 Rectangle {
     id: row
-    required property var style
+    required property Theme style
     required property string title
     property string subtitle: ""
     property bool selected: false
@@ -17,18 +18,18 @@ Rectangle {
     opacity: available ? 1 : 0.5
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 12
+        anchors.margins: row.style.spaceMd
         spacing: 10
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 4
+            spacing: row.style.spaceXs
             Text {
                 Layout.fillWidth: true
                 text: row.title
                 elide: Text.ElideRight
                 color: row.selected ? row.style.textSelected : row.style.textPrimary
                 font.family: row.style.fontFamily
-                font.pixelSize: 13
+                font.pixelSize: row.style.fontSizeBody
                 font.weight: row.selected ? Font.Medium : Font.Normal
             }
             Text {
@@ -38,13 +39,14 @@ Rectangle {
                 elide: Text.ElideRight
                 color: row.style.textMuted
                 font.family: row.style.fontFamily
-                font.pixelSize: 11
+                font.pixelSize: row.style.fontSizeCaption
             }
         }
-        Text {
-            text: row.selected ? "✓" : "›"
-            color: row.selected ? row.style.accent : row.style.textMuted
-            font.pixelSize: 16
+        StatusIcon {
+            kind: row.selected ? "check" : "chevron"
+            width: 16
+            height: 16
+            ink: row.selected ? row.style.accent : row.style.textMuted
         }
     }
     MouseArea {

@@ -1,4 +1,12 @@
 -- Hyprland-only palette adapter. Mode and scheduling belong to darkman.
+-- Palette sync: the shell palette lives in quickshell/Theme.qml. Panel,
+-- selection and text colours are mirrored here (1b1d20/f0f1f3, 263a35/bcded2,
+-- edf0f3/20262d, e4bb80/805313). The window and groupbar borders are tuned for
+-- visibility on top of that palette instead of copied verbatim: the dark
+-- active border (649486) is darker than the dark shell accent (79ad9d), the
+-- light one (67b99a) is lighter than the light accent (1c7057), and the light
+-- inactive border uses 747e8a where Theme's outline uses c9ced5. Change both
+-- files together.
 local M = {}
 
 function M.apply(mode)

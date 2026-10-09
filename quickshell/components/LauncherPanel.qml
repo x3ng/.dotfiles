@@ -7,13 +7,15 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Widgets
 import Quickshell.Services.SystemTray
+import ".."
 
 PanelWindow {
     id: panel
     required property var services
-    required property var style
+    required property Theme style
     required property var appearance
     required property var searchModel
+    required property var notifs
     property bool open: false
     property string controlSection: ""
     readonly property bool searching: query.trim().length > 0
@@ -68,7 +70,7 @@ PanelWindow {
     onQueryChanged: { controlSection = ""; selectedIndex = 0; resultList.positionViewAtBeginning(); }
     onResultsChanged: selectedIndex = Math.min(selectedIndex, Math.max(0, results.length - 1))
 
-    visible: open
+    visible: open || card.opacity > 0
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
     exclusionMode: ExclusionMode.Ignore
@@ -85,22 +87,31 @@ PanelWindow {
     SystemClock { id: clock; precision: SystemClock.Minutes }
 
     Rectangle {
+        id: backdropRect
         anchors.fill: parent
         color: panel.style.backdrop
+        opacity: panel.open ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
         MouseArea { anchors.fill: parent; onClicked: panel.dismiss() }
     }
 
     Rectangle {
         id: card
+        opacity: panel.open ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         // Keep the search field stationary as status/search content changes height.
         anchors.topMargin: Math.max(16, Math.round((parent.height - panel.style.maximumPanelHeight) / 2))
-        width: Math.min(680, parent.width - 32)
+        width: Math.min(panel.style.maximumPanelWidth, parent.width - 32)
         height: Math.min(panel.style.maximumPanelHeight, parent.height - anchors.topMargin - 16,
             (panel.controlSection !== "" ? panel.style.maximumPanelHeight
                 : panel.searching ? searchResultsPage.naturalHeight : statusPage.naturalHeight)
                 + panel.style.panelPadding * 2 + panel.style.stripHeight * 2 + panel.style.panelGap * 2)
+        // Smooth out content-length jumps (search hits, media card, history).
+        Behavior on height {
+            NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+        }
         radius: panel.style.radiusPanel
         color: panel.style.panelSurface
         border.color: panel.style.outline
@@ -129,13 +140,13 @@ PanelWindow {
                 EmacsInput {
                     id: search
                     anchors.fill: parent
-                    anchors.leftMargin: 12
-                    anchors.rightMargin: 12
-                    anchors.topMargin: 8
-                    anchors.bottomMargin: 8
+                    anchors.leftMargin: panel.style.spaceMd
+                    anchors.rightMargin: panel.style.spaceMd
+                    anchors.topMargin: panel.style.spaceSm
+                    anchors.bottomMargin: panel.style.spaceSm
                     verticalAlignment: TextInput.AlignVCenter
                     font.family: panel.style.fontFamily
-                    font.pixelSize: 14
+                    font.pixelSize: panel.style.fontSizeControl
                     color: panel.style.textPrimary
                     selectionColor: panel.style.surfaceSelected
                     selectedTextColor: panel.style.textSelected
@@ -171,13 +182,14 @@ PanelWindow {
                     Layout.minimumHeight: 0
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    spacing: 8
+                    spacing: panel.style.spaceSm
                     Text {
                         id: resultHeading
                         text: panel.query ? "RESULTS · " + panel.results.length : "WINDOWS & APPLICATIONS"
                         color: panel.style.textMuted
                         font.family: panel.style.fontFamily
-                        font.pixelSize: 11
+                        font.pixelSize: panel.style.fontSizeCaption
+                        font.letterSpacing: panel.style.sectionLetterSpacing
                     }
                     ListView {
                         id: resultList
@@ -198,7 +210,7 @@ PanelWindow {
                                 : rowMouse.containsMouse ? panel.style.surfaceHover : "transparent"
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.margins: 8
+                                anchors.margins: panel.style.spaceSm
                                 spacing: 10
                                 Item {
                                     Layout.preferredWidth: 24
@@ -210,12 +222,13 @@ PanelWindow {
                                         source: panel.searchModel.desktopIconSource(resultRow.modelData.entry)
                                         visible: source !== "" && status !== Image.Error
                                     }
-                                    Text {
+                                    StatusIcon {
                                         anchors.centerIn: parent
                                         visible: !resultIcon.visible
-                                        text: resultRow.modelData.kind === "WINDOW" ? "▣" : "◇"
-                                        color: panel.style.textSecondary
-                                        font.pixelSize: 24
+                                        kind: resultRow.modelData.kind === "WINDOW" ? "window" : "app"
+                                        width: 20
+                                        height: 20
+                                        ink: panel.style.textSecondary
                                     }
                                 }
                                 Text {
@@ -225,13 +238,13 @@ PanelWindow {
                                         ? panel.style.textSelected : panel.style.textPrimary
                                     elide: Text.ElideRight
                                     font.family: panel.style.fontFamily
-                                    font.pixelSize: 13
+                                    font.pixelSize: panel.style.fontSizeBody
                                 }
                                 Text {
                                     text: resultRow.modelData.kind
                                     color: panel.style.textMuted
                                     font.family: panel.style.fontFamily
-                                    font.pixelSize: 10
+                                    font.pixelSize: panel.style.fontSizeMicro
                                 }
                                 Text {
                                     visible: resultRow.index < 10
@@ -239,7 +252,7 @@ PanelWindow {
                                     color: resultRow.index === panel.selectedIndex
                                         ? panel.style.textSelected : panel.style.textMuted
                                     font.family: panel.style.fontFamily
-                                    font.pixelSize: 11
+                                    font.pixelSize: panel.style.fontSizeCaption
                                 }
                             }
                             MouseArea {
@@ -254,7 +267,7 @@ PanelWindow {
                             visible: !panel.results.length
                             text: "No matching applications or windows"
                             color: panel.style.textMuted
-                            font.pixelSize: 13
+                            font.pixelSize: panel.style.fontSizeBody
                         }
                     }
                 }
@@ -265,6 +278,7 @@ PanelWindow {
                     searchModel: panel.searchModel
                     style: panel.style
                     appearance: panel.appearance
+                    notifs: panel.notifs
                     sink: panel.sink
                     player: panel.player
                     panelOpen: panel.open && !panel.searching && panel.controlSection === ""
@@ -281,6 +295,7 @@ PanelWindow {
                     Layout.minimumHeight: 0
                     style: panel.style
                     services: panel.services
+                    notifs: panel.notifs
                     section: panel.controlSection
                     onDismissRequested: panel.returnToStatus()
                     Keys.onPressed: event => panel.handleKey(event)

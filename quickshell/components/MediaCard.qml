@@ -2,11 +2,12 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell.Widgets
+import ".."
 
 Rectangle {
     id: card
 
-    required property var style
+    required property Theme style
     required property var player
     required property bool panelOpen
     property int positionTick: 0
@@ -39,9 +40,9 @@ Rectangle {
     ClippingRectangle {
         id: artwork
         anchors.left: parent.left
-        anchors.leftMargin: 12
+        anchors.leftMargin: card.style.spaceMd
         anchors.top: parent.top
-        anchors.topMargin: 12
+        anchors.topMargin: card.style.spaceMd
         width: 56
         height: 56
         radius: card.style.radiusCard
@@ -56,13 +57,13 @@ Rectangle {
             visible: status === Image.Ready
         }
 
-        Text {
+        StatusIcon {
             anchors.centerIn: parent
             visible: !cover.visible
-            text: "♫"
-            color: card.style.accent
-            font.family: card.style.fontFamily
-            font.pixelSize: 24
+            kind: "music"
+            width: 26
+            height: 26
+            ink: card.style.accent
         }
     }
 
@@ -71,12 +72,12 @@ Rectangle {
         anchors.left: artwork.right
         anchors.leftMargin: 10
         anchors.right: parent.right
-        anchors.rightMargin: 12
+        anchors.rightMargin: card.style.spaceMd
         anchors.top: artwork.top
         text: card.player?.trackTitle || card.player?.identity || "No media playing"
         color: card.style.textPrimary
         font.family: card.style.fontFamily
-        font.pixelSize: 13
+        font.pixelSize: card.style.fontSizeBody
         font.weight: Font.DemiBold
         elide: Text.ElideRight
     }
@@ -89,7 +90,7 @@ Rectangle {
         text: card.player?.trackArtist || card.player?.identity || ""
         color: card.style.textSecondary
         font.family: card.style.fontFamily
-        font.pixelSize: 11
+        font.pixelSize: card.style.fontSizeCaption
         elide: Text.ElideRight
     }
 
@@ -97,14 +98,15 @@ Rectangle {
         anchors.horizontalCenter: trackTitle.horizontalCenter
         anchors.top: artwork.bottom
         anchors.topMargin: -9
-        spacing: 8
+        spacing: card.style.spaceSm
 
         ChoiceButton {
             width: 42
             height: 38
             style: card.style
-            label: "‹"
-            textSize: 18
+            label: ""
+            iconKind: "prev"
+            iconSize: 18
             available: card.player?.canGoPrevious ?? false
             onTriggered: card.player?.previous()
         }
@@ -113,8 +115,9 @@ Rectangle {
             width: 46
             height: 38
             style: card.style
-            label: card.player?.isPlaying ? "Ⅱ" : "▶"
-            textSize: 16
+            label: ""
+            iconKind: card.player?.isPlaying ? "pause" : "play"
+            iconSize: 16
             available: card.player?.canTogglePlaying ?? false
             onTriggered: card.player?.togglePlaying()
         }
@@ -123,8 +126,9 @@ Rectangle {
             width: 42
             height: 38
             style: card.style
-            label: "›"
-            textSize: 18
+            label: ""
+            iconKind: "next"
+            iconSize: 18
             available: card.player?.canGoNext ?? false
             onTriggered: card.player?.next()
         }
@@ -134,8 +138,8 @@ Rectangle {
         id: progressTrack
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: 12
-        anchors.rightMargin: 12
+        anchors.leftMargin: card.style.spaceMd
+        anchors.rightMargin: card.style.spaceMd
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 18
         height: 4
@@ -160,7 +164,7 @@ Rectangle {
         text: card.hasTimeline ? card.timeLabel(card.position) : "LIVE / TIME UNAVAILABLE"
         color: card.style.textMuted
         font.family: card.style.fontFamily
-        font.pixelSize: 10
+        font.pixelSize: card.style.fontSizeMicro
     }
 
     Text {
@@ -171,6 +175,6 @@ Rectangle {
         text: card.timeLabel(card.duration)
         color: card.style.textMuted
         font.family: card.style.fontFamily
-        font.pixelSize: 10
+        font.pixelSize: card.style.fontSizeMicro
     }
 }

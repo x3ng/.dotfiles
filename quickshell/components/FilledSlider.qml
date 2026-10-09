@@ -2,15 +2,18 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell.Widgets
+import ".."
 
 ClippingRectangle {
     id: slider
-    required property var style
+    required property Theme style
     required property real value
     required property string label
     property bool available: true
     signal edited(real newValue)
 
+    // Fill rule: bars with text on top (here) use surfaceSelected so the
+    // label stays readable; bare progress bars (OSD, media timeline) use accent.
     implicitWidth: 240
     implicitHeight: 48
     radius: style.radiusCard
@@ -30,7 +33,7 @@ ClippingRectangle {
         text: slider.label
         color: slider.style.textPrimary
         font.family: slider.style.fontFamily
-        font.pixelSize: 14
+        font.pixelSize: slider.style.fontSizeControl
         font.weight: Font.Medium
     }
     Text {
@@ -40,7 +43,7 @@ ClippingRectangle {
         text: slider.available ? Math.round(slider.value * 100) + "%" : "Unavailable"
         color: slider.style.textPrimary
         font.family: slider.style.fontFamily
-        font.pixelSize: 14
+        font.pixelSize: slider.style.fontSizeControl
     }
     MouseArea {
         anchors.fill: parent

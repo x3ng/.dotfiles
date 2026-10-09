@@ -5,12 +5,13 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Services.Pipewire
 import Quickshell.Wayland
+import ".."
 
 Scope {
     id: osd
 
     required property var shell
-    required property var style
+    required property Theme style
     required property var searchModel
 
     property bool shown: false
@@ -148,33 +149,33 @@ Scope {
 
                     Text {
                         anchors.left: parent.left
-                        anchors.leftMargin: 16
+                        anchors.leftMargin: osd.style.spaceLg
                         anchors.top: parent.top
                         anchors.topMargin: 11
                         text: osd.kind === "brightness" ? "BRIGHTNESS"
                             : (osd.muted ? "MUTED" : "VOLUME")
                         color: osd.style.textSecondary
                         font.family: osd.style.fontFamily
-                        font.pixelSize: osd.style.fontSizeSmall
+                        font.pixelSize: osd.style.fontSizeBody
                     }
 
                     Text {
                         anchors.right: parent.right
-                        anchors.rightMargin: 16
+                        anchors.rightMargin: osd.style.spaceLg
                         anchors.top: parent.top
                         anchors.topMargin: 11
                         text: Math.round(Math.max(0, osd.level) * 100) + "%"
                         color: osd.style.textPrimary
                         font.family: osd.style.fontFamily
-                        font.pixelSize: osd.style.fontSizeSmall
+                        font.pixelSize: osd.style.fontSizeBody
                     }
 
                     Rectangle {
                         id: track
                         anchors.left: parent.left
-                        anchors.leftMargin: 16
+                        anchors.leftMargin: osd.style.spaceLg
                         anchors.right: parent.right
-                        anchors.rightMargin: 16
+                        anchors.rightMargin: osd.style.spaceLg
                         anchors.bottom: parent.bottom
                         anchors.bottomMargin: 14
                         height: 5

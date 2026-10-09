@@ -10,6 +10,7 @@ ShellRoot {
     Theme { id: theme; darkMode: appearance.darkMode }
     DesktopServices { id: desktop; controlsVisible: launcher.open }
     DesktopSearch { id: desktopSearch; query: launcher.query }
+    Notifications { id: notifications }
 
     LauncherPanel {
         id: launcher
@@ -17,7 +18,9 @@ ShellRoot {
         style: theme
         appearance: appearance
         searchModel: desktopSearch
+        notifs: notifications
     }
+    NotificationBanner { notifs: notifications; style: theme }
     OsdOverlay { shell: desktop; style: theme; searchModel: desktopSearch }
 
     IpcHandler {

@@ -3,10 +3,11 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Hyprland
 import Quickshell.Widgets
+import ".."
 
 Rectangle {
     id: summary
-    required property var style
+    required property Theme style
     required property var searchModel
     property bool interactive: true
     readonly property var workspaces: Hyprland.workspaces.values
@@ -65,7 +66,7 @@ Rectangle {
                                 ColorAnimation { duration: 140 }
                             }
                             font.family: summary.style.fontFamily
-                            font.pixelSize: 13
+                            font.pixelSize: summary.style.fontSizeBody
                             font.weight: Font.DemiBold
                         }
                         Repeater {
@@ -85,12 +86,13 @@ Rectangle {
                                     source: summary.searchModel.desktopIconSource(app.entry)
                                     visible: source !== "" && status !== Image.Error
                                 }
-                                Text {
+                                StatusIcon {
                                     anchors.centerIn: parent
                                     visible: !icon.visible
-                                    text: "▣"
-                                    color: summary.style.textSecondary
-                                    font.pixelSize: 18
+                                    kind: "window"
+                                    width: 18
+                                    height: 18
+                                    ink: summary.style.textSecondary
                                 }
                             }
                         }

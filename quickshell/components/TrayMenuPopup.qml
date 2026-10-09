@@ -3,11 +3,12 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Widgets
+import ".."
 
 PopupWindow {
     id: popup
 
-    required property var style
+    required property Theme style
     required property var panelWindow
     property bool open: false
     property var owner: null
@@ -117,12 +118,12 @@ PopupWindow {
                         : "transparent"
                 }
 
-                Text {
+                StatusIcon {
                     anchors.centerIn: parent
-                    text: "‹"
-                    color: popup.style.textSecondary
-                    font.pixelSize: 19
-                    font.weight: Font.Medium
+                    kind: "back"
+                    width: 18
+                    height: 18
+                    ink: popup.style.textSecondary
                 }
 
                 MouseArea {
@@ -142,7 +143,7 @@ PopupWindow {
                 text: popup.heading()
                 elide: Text.ElideRight
                 color: popup.style.textMuted
-                font.pixelSize: 9
+                font.pixelSize: popup.style.fontSizeMicro
                 font.weight: Font.DemiBold
             }
 
@@ -162,11 +163,12 @@ PopupWindow {
                         : "transparent"
                 }
 
-                Text {
+                StatusIcon {
                     anchors.centerIn: parent
-                    text: "×"
-                    color: popup.style.textMuted
-                    font.pixelSize: 15
+                    kind: "close"
+                    width: 14
+                    height: 14
+                    ink: popup.style.textMuted
                 }
 
                 MouseArea {
@@ -214,8 +216,8 @@ PopupWindow {
                     visible: entry.modelData.isSeparator
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: 8
+                    anchors.leftMargin: popup.style.spaceSm
+                    anchors.rightMargin: popup.style.spaceSm
                     anchors.verticalCenter: parent.verticalCenter
                     height: 1
                     color: popup.style.separator
@@ -273,15 +275,14 @@ PopupWindow {
                             color: popup.style.accentInk
                         }
 
-                        Text {
+                        StatusIcon {
                             visible: entry.checked
                                 && entry.modelData.buttonType === QsMenuButtonType.CheckBox
                             anchors.centerIn: parent
-                            anchors.verticalCenterOffset: -1
-                            text: entry.modelData.checkState === Qt.PartiallyChecked ? "−" : "✓"
-                            color: popup.style.accentInk
-                            font.pixelSize: 10
-                            font.weight: Font.DemiBold
+                            kind: entry.modelData.checkState === Qt.PartiallyChecked ? "minus" : "check"
+                            width: 12
+                            height: 12
+                            ink: popup.style.accentInk
                         }
                     }
                 }
@@ -291,26 +292,25 @@ PopupWindow {
                     anchors.left: parent.left
                     anchors.leftMargin: 36
                     anchors.right: entryArrow.left
-                    anchors.rightMargin: 8
+                    anchors.rightMargin: popup.style.spaceSm
                     anchors.verticalCenter: parent.verticalCenter
                     text: entry.modelData.text
                     elide: Text.ElideRight
                     color: popup.style.textPrimary
-                    font.pixelSize: 11
+                    font.pixelSize: popup.style.fontSizeCaption
                     font.weight: Font.Medium
                 }
 
-                Text {
+                StatusIcon {
                     id: entryArrow
                     visible: !entry.modelData.isSeparator && entry.modelData.hasChildren
                     width: visible ? 18 : 0
+                    height: 18
                     anchors.right: parent.right
-                    anchors.rightMargin: 8
+                    anchors.rightMargin: popup.style.spaceSm
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "›"
-                    color: popup.style.textMuted
-                    font.pixelSize: 17
-                    horizontalAlignment: Text.AlignHCenter
+                    kind: "chevron"
+                    ink: popup.style.textMuted
                 }
 
                 MouseArea {
@@ -332,7 +332,7 @@ PopupWindow {
                 anchors.centerIn: parent
                 text: "NO ACTIONS"
                 color: popup.style.textMuted
-                font.pixelSize: 9
+                font.pixelSize: popup.style.fontSizeMicro
                 font.weight: Font.Medium
             }
         }

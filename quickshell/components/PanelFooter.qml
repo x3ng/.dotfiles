@@ -5,10 +5,11 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Widgets
+import ".."
 
 Rectangle {
     id: footer
-    required property var style
+    required property Theme style
     required property var services
     required property var appearance
     required property var trayItems
@@ -23,14 +24,14 @@ Rectangle {
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 12
-        anchors.rightMargin: 12
+        anchors.leftMargin: footer.style.spaceMd
+        anchors.rightMargin: footer.style.spaceMd
         anchors.topMargin: 6
         anchors.bottomMargin: 6
         spacing: 14
 
         Row {
-            spacing: 8
+            spacing: footer.style.spaceSm
             StatusIcon {
                 anchors.verticalCenter: parent.verticalCenter
                 kind: "calendar"
@@ -42,7 +43,7 @@ Rectangle {
                 text: Qt.formatDateTime(footer.date, "HH:mm")
                 color: footer.style.textPrimary
                 font.family: footer.style.fontFamily
-                font.pixelSize: 14
+                font.pixelSize: footer.style.fontSizeControl
                 font.weight: Font.Medium
             }
             Text {
@@ -50,7 +51,7 @@ Rectangle {
                 text: Qt.formatDateTime(footer.date, "MM-dd · ddd")
                 color: footer.style.textSecondary
                 font.family: footer.style.fontFamily
-                font.pixelSize: 12
+                font.pixelSize: footer.style.fontSizeSmall
             }
         }
 
@@ -99,7 +100,7 @@ Rectangle {
                         text: indicator.modelData.value
                         color: footer.style.textPrimary
                         font.family: footer.style.fontFamily
-                        font.pixelSize: 12
+                        font.pixelSize: footer.style.fontSizeSmall
                         font.weight: Font.Medium
                     }
                 }
@@ -116,7 +117,7 @@ Rectangle {
             color: footer.style.separator
         }
         Row {
-            spacing: 4
+            spacing: footer.style.spaceXs
             Repeater {
                 model: footer.trayItems
                 Rectangle {
@@ -137,7 +138,7 @@ Rectangle {
                         visible: !trayIcon.visible
                         text: (trayItem.modelData.title || trayItem.modelData.id || "?").slice(0, 1)
                         color: footer.style.textSecondary
-                        font.pixelSize: 13
+                        font.pixelSize: footer.style.fontSizeBody
                     }
                     MouseArea {
                         id: trayMouse

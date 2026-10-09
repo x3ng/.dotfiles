@@ -1,14 +1,21 @@
 # Quickshell desktop panel
 
 `Super+R` toggles a panel on the focused monitor. It reserves no screen space;
-there is no bar. Both status and search fit their content up to a 620px maximum (or the available
-screen height); excess content scrolls. The search field keeps its position
-between views. Opening it shows connectivity and audio/display controls, media
+there is no bar. Both status and search fit their content up to a 700px maximum height (or the available
+screen height); excess content scrolls. The panel width is capped at 680px and fades
+in and out rather than popping. The search field keeps its position
+between views. Opening it shows a quick-settings style grid: Wi-Fi and
+Bluetooth tiles, volume and brightness sliders on the same center split, then
+one toggle button per function (mic/output mute, audio devices, dark mode,
+keep awake, power profiles) in an evenly spaced grid whose center seam lines
+up with the tiles and sliders above, plus media
 and tray entries. Used workspaces appear below the controls with a number and
 application icons; clicking a workspace switches to it without closing the panel.
 Workspace groups wrap instead of scrolling; the current workspace is included
-even when empty. Typing searches desktop applications and open windows;
-clearing the search restores status. The footer keeps the date, time, battery,
+even when empty. Typing searches desktop applications and open windows; results
+are ranked by match quality (prefix, then word start, then substring), and an
+open window only ranks highly when its title matches, so the best hit sits on
+top and Enter does the expected thing. Clearing the search restores status. The footer keeps the date, time, battery,
 volume, brightness and appearance summary visible in both views. Search and
 footer share the same 40px strip height; battery details are available on hover
 over the footer battery icon.
@@ -35,6 +42,24 @@ over the footer battery icon.
   toggle it off to restore idle timeouts. Quickshell exit/reload releases it.
   Uses the existing `systemd-inhibit` command; manual locking still works.
 - Tray: left click activates; right click opens a themed menu.
+- Notifications: quickshell replaces mako as the Freedesktop notification
+  daemon. Pending notifications and saved history are separate lists, as in
+  Noctalia and DankMaterialShell. Banners appear top-center (360px wide, 10px
+  below the top edge), fade in as they arrive, show up to four at a time with
+  older ones evicted, and expire after the app's timeout or five seconds by
+  default; critical notifications stay until clicked. Clicking a banner or
+  letting it time out only hides the toast - the entry stays pending - and
+  action buttons invoke the app's actions and close. The status page always
+  shows a notification card: the newest three pending entries, or an empty
+  state when there are none, so the panel never reflows. Its "Clear" empties
+  the pending list only and never touches history; single rows dismiss
+  individually. The card opens the detail page, which lists the saved history
+  newest first with a per-row dismiss and "Clear all history". Pending is
+  capped at twenty entries and history at fifty; both are written to
+  quickshell's per-shell cache directory, so they survive restarts but not a
+  change of configuration path. Transient notifications are toast-only and
+  never enter either list. Panel height eases between content lengths instead
+  of snapping.
 - Wi-Fi and Bluetooth: click the icon to toggle the radio, or the card text/arrow
   to open a detail view inside the same panel. Audio devices opens the same
   view, with output/microphone tabs. Details replace the status content and
@@ -53,7 +78,9 @@ over the footer battery icon.
 
 There are no keyboard modes. The media card appears only when a player exists.
 Window icons use their appId to resolve
-DesktopEntries; unmatched entries receive a generic marker. Volume/brightness
+DesktopEntries; unmatched entries draw a generic window/app glyph from
+`StatusIcon` (the same line-icon set backs transport, chevron, check and
+close controls — no Unicode glyph fallbacks). Volume/brightness
 changes also produce a brief independent OSD, including when the panel is closed.
 While muted, the OSD keeps the MUTED label and shows the stored volume with a
 neutral progress bar; adjusting volume does not unmute it. Switching the focused
@@ -68,13 +95,15 @@ Initial workspace discovery does not show a popup.
 | File | Responsibility |
 | --- | --- |
 | `shell.qml` | Composition and launcher IPC |
-| `Theme.qml` | Colours, fonts and shared radii |
+| `Theme.qml` | Colours, typography scale, spacing scale and shared radii |
 | `AppearanceState.qml` | Darkman socket subscription, controls and reconnect |
 | `Appearance.qml` | Apply Hyprland colours through `hyprctl eval` |
 | `DesktopServices.qml` | Audio devices, UPower, MPRIS, brightness and keep-awake controls |
 | `SystemControls.qml` | Native network, Bluetooth and power objects, signals and actions |
 | `DesktopSearch.qml` | Search, desktop-entry/icon lookup and native activation |
+| `Notifications.qml` | Notification daemon: tracking, popup queue and history |
 | `components/LauncherPanel.qml` | Panel lifetime, keyboard input and search results |
+| `components/NotificationBanner.qml` | Top-right notification banners |
 | `components/StatusPage.qml` | Audio, brightness, appearance, media and workspace layout |
 | `components/DesktopControls.qml`, `ControlTile.qml` | Connectivity cards with direct radio toggles |
 | `components/ControlDetails.qml`, `DeviceRow.qml` | In-panel network/Bluetooth/audio detail views and device selection |
@@ -89,7 +118,10 @@ Initial workspace discovery does not show a popup.
 
 Brightness reads use brightnessctl's native machine-readable output; kernel
 backlight events trigger updates through udevadm. No custom watcher daemon or
-application index is maintained. Theme colours are semantic; panels and internal
+application index is maintained. Theme colours are semantic; every text size and
+common spacing maps to a `Theme` token (one-off optical adjustments stay
+literal), and the palette is shared with `hypr/appearance.lua` — change both
+together. Panels and internal
 cards are opaque for readability. The launcher namespace is
 `quickshell-launcher`; it does not apply fullscreen background blur. The UI requires Quickshell's desktop-entry,
 Wayland toplevel, layer-shell and Hyprland monitor APIs.

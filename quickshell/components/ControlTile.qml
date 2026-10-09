@@ -3,10 +3,11 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import ".."
 
 Rectangle {
     id: tile
-    required property var style
+    required property Theme style
     required property string icon
     required property string title
     required property string detail
@@ -25,8 +26,8 @@ Rectangle {
     opacity: available ? 1 : 0.5
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 12
+        anchors.margins: tile.style.spaceMd
+        spacing: tile.style.spaceMd
         Rectangle {
             Layout.preferredWidth: 38
             Layout.preferredHeight: 38
@@ -51,13 +52,13 @@ Rectangle {
         }
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 4
+            spacing: tile.style.spaceXs
             Text {
                 Layout.fillWidth: true
                 text: tile.title
                 color: tile.style.textPrimary
                 font.family: tile.style.fontFamily
-                font.pixelSize: 13
+                font.pixelSize: tile.style.fontSizeBody
                 font.weight: Font.Medium
             }
             Text {
@@ -66,13 +67,14 @@ Rectangle {
                 elide: Text.ElideRight
                 color: tile.style.textMuted
                 font.family: tile.style.fontFamily
-                font.pixelSize: 12
+                font.pixelSize: tile.style.fontSizeSmall
             }
         }
-        Text {
-            text: "›"
-            color: tile.style.textMuted
-            font.pixelSize: 18
+        StatusIcon {
+            kind: "chevron"
+            width: 18
+            height: 18
+            ink: tile.style.textMuted
         }
     }
     MouseArea {
