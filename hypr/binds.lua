@@ -16,7 +16,7 @@ hl.bind("SUPER + ALT + P", hl.dsp.window.pin())
 -- Set the tiled algorithm on the current workspace only.
 local function setLayout(layout)
   return function()
-    local workspace = hl.get_active_workspace()
+    local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
     if workspace then
       hl.workspace_rule({ workspace = workspace.config_name, layout = layout })
       -- Quickshell reads the resulting state rather than trusting the requested layout.
@@ -24,11 +24,7 @@ local function setLayout(layout)
     end
   end
 end
-hl.bind("SUPER + ALT + 1", setLayout("dwindle"))
-hl.bind("SUPER + ALT + 2", setLayout("master"))
-hl.bind("SUPER + ALT + 3", setLayout("scrolling"))
-hl.bind("SUPER + ALT + 4", setLayout("monocle"))
--- Mnemonic alternatives also avoid number-row chord limitations on some keyboards.
+-- Letter bindings select layouts; number bindings are reserved for workspaces.
 hl.bind("SUPER + ALT + D", setLayout("dwindle"))
 hl.bind("SUPER + ALT + M", setLayout("master"))
 hl.bind("SUPER + ALT + S", setLayout("scrolling"))
@@ -51,6 +47,9 @@ local function focusDirection(direction, next)
     local window = hl.get_active_window()
     if workspace and workspace.tiled_layout == "monocle" and window and not window.floating then
       hl.dispatch(hl.dsp.layout(next and "cyclenext" or "cycleprev"))
+    elseif workspace and workspace.tiled_layout == "scrolling" and window and not window.floating
+        and (direction == "l" or direction == "r") then
+      hl.dispatch(hl.dsp.layout("focus " .. direction))
     else
       hl.dispatch(hl.dsp.focus({ direction = direction }))
     end
@@ -72,12 +71,6 @@ hl.bind("SUPER + T", layoutAction({
 hl.bind("SUPER + SHIFT + Return", layoutAction({
   master = "swapwithmaster master", scrolling = "promote",
 }))
-hl.bind("SUPER + CTRL + bracketright", layoutAction({
-  master = "addmaster", scrolling = "colresize +conf",
-}))
-hl.bind("SUPER + CTRL + bracketleft", layoutAction({
-  master = "removemaster", scrolling = "colresize -conf",
-}))
 hl.bind("SUPER + SHIFT + bracketright", layoutAction({ scrolling = "consume" }))
 hl.bind("SUPER + SHIFT + bracketleft", layoutAction({ scrolling = "expel" }))
 
@@ -86,6 +79,10 @@ hl.bind("SUPER + SHIFT + H", hl.dsp.window.swap({ direction = "l" }))
 hl.bind("SUPER + SHIFT + L", hl.dsp.window.swap({ direction = "r" }))
 hl.bind("SUPER + SHIFT + K", hl.dsp.window.swap({ direction = "u" }))
 hl.bind("SUPER + SHIFT + J", hl.dsp.window.swap({ direction = "d" }))
+
+-- Swap whole scrolling columns; keep single-window swaps on Super+Shift+HJKL.
+hl.bind("SUPER + CTRL + SHIFT + H", layoutAction({ scrolling = "swapcol l" }))
+hl.bind("SUPER + CTRL + SHIFT + L", layoutAction({ scrolling = "swapcol r" }))
 
 -- Window groups (tabbed windows in one tiled position)
 hl.bind("SUPER + G", hl.dsp.group.toggle())
@@ -105,8 +102,21 @@ hl.bind("SUPER + CTRL + SHIFT + P", hl.dsp.window.move({ monitor = "-1", follow 
 hl.bind("SUPER + CTRL + SHIFT + N", hl.dsp.window.move({ monitor = "+1", follow = false }))
 
 -- Resize (repeat)
-hl.bind("SUPER + CTRL + H", hl.dsp.window.resize({ x = -10, y = 0, relative = true }), { repeating = true })
-hl.bind("SUPER + CTRL + L", hl.dsp.window.resize({ x = 10,  y = 0, relative = true }), { repeating = true })
+local function resizeWidth(direction)
+  return function()
+    local window = hl.get_active_window()
+    if not window then return end
+    local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
+    if not window.floating and workspace and workspace.tiled_layout == "scrolling" then
+      -- Column resizing refits the viewport, so the rightmost column can grow too.
+      hl.dispatch(hl.dsp.layout(direction > 0 and "colresize +0.05" or "colresize -0.05"))
+    else
+      hl.dispatch(hl.dsp.window.resize({ x = direction * 10, y = 0, relative = true }))
+    end
+  end
+end
+hl.bind("SUPER + CTRL + H", resizeWidth(-1), { repeating = true })
+hl.bind("SUPER + CTRL + L", resizeWidth(1), { repeating = true })
 hl.bind("SUPER + CTRL + K", hl.dsp.window.resize({ x = 0,   y = 10, relative = true }), { repeating = true })
 hl.bind("SUPER + CTRL + J", hl.dsp.window.resize({ x = 0,   y = -10,relative = true }), { repeating = true })
 
@@ -175,8 +185,8 @@ hl.bind("SUPER + SHIFT + M", hl.dsp.exec_cmd("hyprshutdown"))
 -- Volume (repeat)
 hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"), { repeating = true })
 hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"), { repeating = true })
-hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { repeating = true })
-hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { repeating = true })
+hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"))
+hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"))
 
 -- Brightness (repeat)
 hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -e3 -n2 set 3%+"), { repeating = true })

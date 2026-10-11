@@ -134,25 +134,29 @@ reload and custom layout events. A three-second reconciliation catches layout
 changes made by external commands; initial discovery stays silent.
 
 Hyprland keeps the existing general bindings and switches only the current
-workspace's layout with `Super+Alt+1/2/3/4`.
-
-`Super+Alt+D/M/S/O` selects the same four layouts as a mnemonic alternative
-for keyboards where the number-row combinations do not register reliably.
+workspace's layout with `Super+Alt+D/M/S/O` for dwindle, master, scrolling,
+and monocle respectively. Number bindings are reserved for workspaces.
+When a special workspace is open, layout selection applies to it instead of
+the regular workspace behind it.
 
 Additional bindings:
 
 | Binding | Dwindle | Master | Scrolling | Monocle |
 | --- | --- | --- | --- | --- |
-| `Super+H/K`, `Super+J/L` | Directional focus | Directional focus | Directional focus | Previous / next tiled window |
+| `Super+H/K`, `Super+J/L` | Directional focus | Directional focus | H/L focus columns with wraparound; J/K directional focus | Previous / next tiled window |
+| `Super+Ctrl+H/L` | Resize width by −/+10 px | Same | Resize column by −/+5% of usable width and refit view | General resize dispatcher |
+| `Super+Ctrl+Shift+H/L` | — | — | Swap whole column left/right, stopping at edges | — |
 | `Super+[` / `Super+]` | Previous / next workspace window | Same | Same | Same |
 | `Super+T` | Toggle split | Rotate master orientation | Center current column | — |
 | `Super+Shift+Return` | — | Swap with master, focus master | Extract focused window into its own column | — |
-| `Super+Ctrl+[` / `Super+Ctrl+]` | — | Remove / add master | Previous / next configured column width | — |
 | `Super+Shift+]` | — | — | Pull first window of next column into current column | — |
 | `Super+Shift+[` | — | — | Expel last window of current column into its own column | — |
 
 Layout-specific structural operations ignore floating windows and unsupported
 layouts. Floating-window directional focus retains its usual behavior.
+`Super+Ctrl+H/L` retains pixel resizing for floating windows. `Super+Ctrl+K/J`
+retains the general resize dispatcher with +10/−10 px height changes. All four
+resize bindings repeat while held.
 `Super+Tab` / `Super+Shift+Tab` still switch tabs within a window group.
 
 ## Structure

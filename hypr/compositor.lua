@@ -52,6 +52,11 @@ hl.config({
     new_status = "master",
   },
 
+  scrolling = {
+    wrap_focus = true,
+    wrap_swapcol = false,
+  },
+
   -- Grouped windows share one tiled slot; the groupbar labels each tab.
   group = {
     groupbar = {
