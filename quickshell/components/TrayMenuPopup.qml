@@ -88,7 +88,10 @@ PopupWindow {
     Rectangle {
         anchors.fill: parent
         focus: true
-        Keys.onEscapePressed: popup.dismiss()
+        Keys.onEscapePressed: {
+            if (popup.menuStack.length > 1) popup.leaveSubmenu();
+            else popup.dismiss();
+        }
         radius: popup.style.radiusPopup
         color: popup.style.surface
         border.width: 1

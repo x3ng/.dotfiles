@@ -20,6 +20,8 @@ PanelWindow {
     property bool open: false
     property string controlSection: ""
     readonly property bool searching: query.trim().length > 0
+    readonly property bool showingDetails: controlSection !== ""
+    readonly property int activePage: showingDetails ? 2 : searching ? 0 : 1
     property string query: ""
     property int selectedIndex: 0
     readonly property var sink: services.sink
@@ -55,8 +57,19 @@ PanelWindow {
     }
     function dismiss() { trayMenu.dismiss(); controlSection = ""; open = false; }
     function returnToStatus() {
+        query = "";
         controlSection = "";
         Qt.callLater(() => search.forceActiveFocus());
+    }
+    function showDetails(section) {
+        trayMenu.dismiss();
+        query = "";
+        controlSection = section;
+        Qt.callLater(() => controlDetails.forceActiveFocus());
+    }
+    function handleEscape() {
+        if (showingDetails || searching) returnToStatus();
+        else dismiss();
     }
     function moveSelection(delta) {
         if (!searching || !results.length) return;
@@ -68,7 +81,12 @@ PanelWindow {
         if (!searching || !result) return;
         if (searchModel.activate(index, forceTerminal)) dismiss();
     }
-    onQueryChanged: { controlSection = ""; selectedIndex = 0; resultList.positionViewAtBeginning(); }
+    onQueryChanged: {
+        trayMenu.dismiss();
+        controlSection = "";
+        selectedIndex = 0;
+        resultList.positionViewAtBeginning();
+    }
     onResultsChanged: selectedIndex = Math.min(selectedIndex, Math.max(0, results.length - 1))
 
     visible: open || card.opacity > 0
@@ -105,24 +123,21 @@ PanelWindow {
         // Keep the search field stationary as status/search content changes height.
         anchors.topMargin: Math.max(16, Math.round((parent.height - panel.style.maximumPanelHeight) / 2))
         width: Math.min(panel.style.maximumPanelWidth, parent.width - 32)
+        readonly property real contentHeight: panel.showingDetails ? controlDetails.naturalHeight
+            : panel.searching ? searchResultsPage.naturalHeight : statusPage.naturalHeight
+        readonly property real chromeHeight: panel.showingDetails ? 0
+            : panel.style.stripHeight + footer.implicitHeight + panel.style.panelGap * 2
+        // Each page sizes to its own content, subject to one shared ceiling.
         height: Math.min(panel.style.maximumPanelHeight, parent.height - anchors.topMargin - 16,
-            (panel.controlSection !== "" ? panel.style.maximumPanelHeight
-                : panel.searching ? searchResultsPage.naturalHeight : statusPage.naturalHeight)
-                + panel.style.panelPadding * 2 + panel.style.stripHeight * 2 + panel.style.panelGap * 2)
-        // Smooth out content-length jumps (search hits, media card, history).
-        Behavior on height {
-            NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
-        }
+            contentHeight + chromeHeight + panel.style.panelPadding * 2)
+        Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
         radius: panel.style.radiusPanel
         color: panel.style.panelSurface
         border.color: panel.style.outline
         border.width: 1
         // Stop clicks in blank areas reaching the outside-dismiss handler.
         MouseArea { anchors.fill: parent }
-        Keys.onEscapePressed: {
-            if (panel.controlSection !== "") panel.returnToStatus();
-            else panel.dismiss();
-        }
+        Keys.onEscapePressed: panel.handleEscape()
         Keys.onPressed: event => panel.handleKey(event)
 
         ColumnLayout {
@@ -131,9 +146,12 @@ PanelWindow {
             spacing: panel.style.panelGap
 
             Rectangle {
-                visible: panel.controlSection === ""
+                id: searchStrip
+                visible: !panel.showingDetails
                 Layout.fillWidth: true
                 Layout.preferredHeight: panel.style.stripHeight
+                Layout.minimumHeight: panel.style.stripHeight
+                Layout.maximumHeight: panel.style.stripHeight
                 radius: panel.style.radiusInput
                 color: panel.style.surfaceRaised
                 border.color: search.activeFocus ? panel.style.accent : panel.style.outline
@@ -159,7 +177,7 @@ PanelWindow {
                     Keys.onUpPressed: panel.moveSelection(-1)
                     Keys.onReturnPressed: event => panel.activate(panel.selectedIndex, !!(event.modifiers & Qt.ShiftModifier))
                     Keys.onEnterPressed: event => panel.activate(panel.selectedIndex, !!(event.modifiers & Qt.ShiftModifier))
-                    Keys.onEscapePressed: panel.dismiss()
+                    Keys.onEscapePressed: panel.handleEscape()
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: !search.text
@@ -171,10 +189,12 @@ PanelWindow {
             }
 
             StackLayout {
+                id: pages
                 Layout.minimumHeight: 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                currentIndex: panel.controlSection !== "" ? 2 : panel.searching ? 0 : 1
+                clip: true
+                currentIndex: panel.activePage
                 ColumnLayout {
                     id: searchResultsPage
                     readonly property real naturalHeight: resultHeading.implicitHeight + spacing
@@ -283,12 +303,8 @@ PanelWindow {
                     notifs: panel.notifs
                     sink: panel.sink
                     player: panel.player
-                    panelOpen: panel.open && !panel.searching && panel.controlSection === ""
-                    onDetailsRequested: section => {
-                        trayMenu.dismiss();
-                        panel.controlSection = section;
-                        Qt.callLater(() => controlDetails.forceActiveFocus());
-                    }
+                    panelOpen: panel.open && panel.activePage === 1
+                    onDetailsRequested: section => panel.showDetails(section)
                 }
                 ControlDetails {
                     id: controlDetails
@@ -305,8 +321,11 @@ PanelWindow {
             }
             PanelFooter {
                 id: footer
+                visible: !panel.showingDetails
                 Layout.fillWidth: true
                 Layout.preferredHeight: implicitHeight
+                Layout.minimumHeight: implicitHeight
+                Layout.maximumHeight: implicitHeight
                 style: panel.style
                 services: panel.services
                 appearance: panel.appearance

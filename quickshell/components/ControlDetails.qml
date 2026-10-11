@@ -2,8 +2,8 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
 import Quickshell
+import Quickshell.Widgets
 import ".."
 
 Rectangle {
@@ -23,16 +23,18 @@ Rectangle {
     readonly property string subtitle: section === "wifi" ? "Saved networks nearby"
         : section === "bluetooth" ? "Paired devices"
         : detail.isNotifs ? (detail.notifs.history.length > 0
-            ? detail.notifs.history.length + " saved · click a row to dismiss"
+            ? detail.notifs.history.length + " saved · expand to read"
             : "Cleared notifications are kept here")
         : "Choose your default device"
+    readonly property bool sectionBusy: section === "wifi" ? system.wifiBusy
+        : section === "bluetooth" ? system.bluetoothBusy : false
     readonly property bool radioEnabled: section === "wifi" ? system.wifiEnabled : system.bluetoothEnabled
     readonly property var rows: section === "wifi" ? (radioEnabled ? system.wifiProfiles : [])
         : section === "bluetooth" ? (radioEnabled ? system.bluetoothDevices : [])
         : (audioInput ? services.audioInputs : services.audioOutputs)
-    onSectionChanged: { audioInput = false; deviceList.positionViewAtBeginning(); notifList.positionViewAtBeginning(); }
+    onSectionChanged: { audioInput = false; viewport.contentY = 0; }
+    readonly property real naturalHeight: detailHeader.implicitHeight + style.spaceLg + content.implicitHeight
     implicitWidth: 380
-    implicitHeight: 520
     color: "transparent"
     focus: visible
     Keys.onEscapePressed: dismissRequested()
@@ -42,13 +44,18 @@ Rectangle {
         anchors.fill: parent
         spacing: detail.style.spaceLg
         Item {
+            id: detailHeader
+            implicitHeight: 54
             Layout.fillWidth: true
-            Layout.preferredHeight: 54
+            Layout.preferredHeight: implicitHeight
+            Layout.minimumHeight: implicitHeight
             Text {
                 id: heading
                 anchors.left: backButton.right
                 anchors.leftMargin: detail.style.spaceMd
                 anchors.top: parent.top
+                anchors.right: parent.right
+                elide: Text.ElideRight
                 text: detail.title
                 color: detail.style.textPrimary
                 font.family: detail.style.fontFamily
@@ -59,6 +66,8 @@ Rectangle {
                 anchors.left: heading.left
                 anchors.top: heading.bottom
                 anchors.topMargin: 5
+                anchors.right: parent.right
+                elide: Text.ElideRight
                 text: detail.subtitle
                 color: detail.style.textMuted
                 font.family: detail.style.fontFamily
@@ -78,173 +87,178 @@ Rectangle {
                 onTriggered: detail.dismissRequested()
             }
         }
-        RowLayout {
-            Layout.fillWidth: true
-            visible: detail.section === "wifi" || detail.section === "bluetooth"
-            Text {
-                Layout.fillWidth: true
-                text: detail.radioEnabled ? "Enabled" : "Disabled"
-                color: detail.style.textSecondary
-                font.family: detail.style.fontFamily
-                font.pixelSize: detail.style.fontSizeBody
-            }
-            ChoiceButton {
-                Layout.preferredWidth: 80
-                style: detail.style
-                label: detail.radioEnabled ? "On" : "Off"
-                filled: true
-                selected: detail.radioEnabled
-                available: !detail.system.busy
-                onTriggered: {
-                    if (detail.section === "wifi")
-                        detail.system.toggleWifi();
-                    else
-                        detail.system.toggleBluetooth();
-                }
-            }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            visible: detail.section === "audio"
-            spacing: detail.style.spaceSm
-            ChoiceButton {
-                Layout.fillWidth: true
-                style: detail.style
-                label: "Output"
-                selected: !detail.audioInput
-                onTriggered: { detail.audioInput = false; deviceList.positionViewAtBeginning(); }
-            }
-            ChoiceButton {
-                Layout.fillWidth: true
-                style: detail.style
-                label: "Microphone"
-                selected: detail.audioInput
-                onTriggered: { detail.audioInput = true; deviceList.positionViewAtBeginning(); }
-            }
-        }
-        Rectangle {
-            Layout.fillWidth: true
-            height: 1
-            color: detail.style.separator
-        }
-        ListView {
-            id: deviceList
+        ClippingRectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.minimumHeight: 0
-            visible: !detail.isNotifs
-            clip: true
-            spacing: detail.style.spaceXs
-            model: detail.rows
-            boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: ScrollBar {
-                id: scrollbar
-                policy: ScrollBar.AsNeeded
-                visible: size < 1
-                contentItem: Rectangle {
-                    implicitWidth: 4
-                    radius: 2
-                    color: detail.style.textMuted
-                    opacity: scrollbar.active ? 0.7 : 0.3
+            implicitHeight: content.implicitHeight
+            radius: detail.style.radiusCard
+            color: "transparent"
+            Flickable {
+                id: viewport
+                anchors.fill: parent
+                contentWidth: width
+                contentHeight: content.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ColumnLayout {
+                    id: content
+                    width: viewport.width
+                    spacing: detail.style.spaceLg
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: detail.section === "wifi" || detail.section === "bluetooth"
+                        Text {
+                            Layout.fillWidth: true
+                            text: detail.radioEnabled ? "Enabled" : "Disabled"
+                            color: detail.style.textSecondary
+                            font.family: detail.style.fontFamily
+                            font.pixelSize: detail.style.fontSizeBody
+                        }
+                        ChoiceButton {
+                            Layout.preferredWidth: 80
+                            style: detail.style
+                            label: detail.radioEnabled ? "On" : "Off"
+                            filled: true
+                            selected: detail.radioEnabled
+                            available: !detail.sectionBusy
+                            onTriggered: {
+                                if (detail.section === "wifi")
+                                    detail.system.toggleWifi();
+                                else
+                                    detail.system.toggleBluetooth();
+                            }
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: detail.section === "audio"
+                        spacing: detail.style.spaceSm
+                        ChoiceButton {
+                            Layout.fillWidth: true
+                            style: detail.style
+                            label: "Output"
+                            selected: !detail.audioInput
+                            onTriggered: { detail.audioInput = false; viewport.contentY = 0; }
+                        }
+                        ChoiceButton {
+                            Layout.fillWidth: true
+                            style: detail.style
+                            label: "Microphone"
+                            selected: detail.audioInput
+                            onTriggered: { detail.audioInput = true; viewport.contentY = 0; }
+                        }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 1
+                        color: detail.style.separator
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        visible: !detail.isNotifs
+                        spacing: detail.style.spaceXs
+                        Repeater {
+                            model: detail.rows
+                            delegate: DeviceRow {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                style: detail.style
+                                title: detail.section === "audio" ? modelData.description || modelData.name : modelData.name
+                                selected: detail.section === "wifi" ? (modelData.connected ?? false)
+                                    : detail.section === "bluetooth" ? detail.system.bluetoothConnected.includes(modelData.address)
+                                    : modelData === (detail.audioInput ? detail.services.source : detail.services.sink)
+                                subtitle: detail.section === "wifi" ? (modelData.stateChanging ? "Connecting…" : selected ? "Connected" : "")
+                                    : detail.section === "bluetooth" ? detail.system.bluetoothDeviceLabel(modelData)
+                                    : selected ? "Current device" : ""
+                                available: detail.section === "wifi" ? !detail.system.wifiBusy
+                                    : detail.section === "bluetooth" ? !detail.system.bluetoothDeviceBusy(modelData) : true
+                                onTriggered: {
+                                    if (detail.section === "wifi") {
+                                        detail.system.connectWifi(modelData);
+                                    } else if (detail.section === "bluetooth") {
+                                        detail.system.toggleBluetoothDevice(modelData);
+                                    } else detail.services.selectAudioDevice(modelData, detail.audioInput);
+                                }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 80
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            visible: detail.rows.length === 0
+                            text: detail.section !== "audio" && !detail.radioEnabled
+                                ? detail.title + " is turned off"
+                                : detail.section === "wifi" ? "No saved networks nearby"
+                                : detail.section === "bluetooth" ? "No paired devices"
+                                : "No devices available"
+                            color: detail.style.textMuted
+                            font.family: detail.style.fontFamily
+                            font.pixelSize: detail.style.fontSizeBody
+                        }
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        visible: detail.isNotifs
+                        spacing: detail.style.spaceXs
+                        Repeater {
+                            model: detail.notifs.history
+                            delegate: NotificationRow {
+                                required property int index
+                                required property var modelData
+                                Layout.fillWidth: true
+                                style: detail.style
+                                entry: modelData
+                                compact: false
+                                onTriggered: detail.notifs.removeHistory(index)
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 80
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            visible: detail.notifs.history.length === 0
+                            text: "No saved notifications"
+                            color: detail.style.textMuted
+                            font.family: detail.style.fontFamily
+                            font.pixelSize: detail.style.fontSizeBody
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: detail.sectionBusy || (detail.section === "wifi" && detail.system.error !== "")
+                        text: detail.sectionBusy ? "Applying…" : detail.system.error
+                        wrapMode: Text.Wrap
+                        color: detail.style.accentWarm
+                        font.family: detail.style.fontFamily
+                        font.pixelSize: detail.style.fontSizeSmall
+                    }
+                    ChoiceButton {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 40
+                        visible: detail.section === "wifi"
+                        style: detail.style
+                        filled: true
+                        label: "Find another network…"
+                        available: detail.services.terminalCommand.length > 0
+                        onTriggered: {
+                            Quickshell.execDetached([...detail.services.terminalCommand, "nmtui", "connect"]);
+                            detail.dismissRequested();
+                        }
+                    }
+                    ChoiceButton {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 40
+                        visible: detail.isNotifs && detail.notifs.history.length > 0
+                        style: detail.style
+                        filled: true
+                        label: "Clear all history"
+                        onTriggered: detail.notifs.clearHistory()
+                    }
                 }
             }
-            delegate: DeviceRow {
-                required property var modelData
-                width: deviceList.width - 8
-                style: detail.style
-                title: detail.section === "audio" ? modelData.description || modelData.name : modelData.name
-                selected: detail.section === "wifi" ? (modelData.connected ?? false)
-                    : detail.section === "bluetooth" ? detail.system.bluetoothConnected.includes(modelData.address)
-                    : modelData === (detail.audioInput ? detail.services.source : detail.services.sink)
-                subtitle: detail.section === "wifi" ? (selected ? "Connected" : "")
-                    : detail.section === "bluetooth" ? (selected ? "Connected · Click to disconnect" : "Click to connect")
-                    : selected ? "Current device" : ""
-                available: !detail.system.busy
-                onTriggered: {
-                    if (detail.section === "wifi") {
-                        detail.system.connectWifi(modelData);
-                    } else if (detail.section === "bluetooth") {
-                        detail.system.toggleBluetoothDevice(modelData);
-                    } else detail.services.selectAudioDevice(modelData, detail.audioInput);
-                }
-            }
-            Text {
-                anchors.centerIn: parent
-                visible: deviceList.count === 0
-                text: detail.section !== "audio" && !detail.radioEnabled
-                    ? detail.title + " is turned off"
-                    : detail.section === "wifi" ? "No saved networks nearby"
-                    : detail.section === "bluetooth" ? "No paired devices"
-                    : "No devices available"
-                color: detail.style.textMuted
-                font.family: detail.style.fontFamily
-                font.pixelSize: detail.style.fontSizeBody
-            }
-        }
-        ListView {
-            id: notifList
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.minimumHeight: 0
-            visible: detail.isNotifs
-            clip: true
-            spacing: detail.style.spaceXs
-            boundsBehavior: Flickable.StopAtBounds
-            model: detail.notifs.history
-            ScrollBar.vertical: ScrollBar {
-                id: notifScrollbar
-                policy: ScrollBar.AsNeeded
-                visible: size < 1
-                contentItem: Rectangle {
-                    implicitWidth: 4
-                    radius: 2
-                    color: detail.style.textMuted
-                    opacity: notifScrollbar.active ? 0.7 : 0.3
-                }
-            }
-            delegate: NotificationRow {
-                required property int index
-                required property var modelData
-                width: notifList.width - 8
-                style: detail.style
-                entry: modelData
-                onTriggered: detail.notifs.removeHistory(index)
-            }
-            Text {
-                anchors.centerIn: parent
-                visible: notifList.count === 0
-                text: "No saved notifications"
-                color: detail.style.textMuted
-                font.family: detail.style.fontFamily
-                font.pixelSize: detail.style.fontSizeBody
-            }
-        }
-        Text {
-            Layout.fillWidth: true
-            visible: detail.system.busy || (detail.section === "wifi" && detail.system.error !== "")
-            text: detail.system.busy ? "Applying…" : detail.system.error
-            wrapMode: Text.Wrap
-            color: detail.style.accentWarm
-            font.family: detail.style.fontFamily
-            font.pixelSize: detail.style.fontSizeSmall
-        }
-        ChoiceButton {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 40
-            visible: detail.section === "wifi"
-            style: detail.style
-            filled: true
-            label: "Find another network…"
-            onTriggered: { Quickshell.execDetached(["kitty", "--", "nmtui", "connect"]); detail.dismissRequested(); }
-        }
-        ChoiceButton {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 40
-            visible: detail.isNotifs && detail.notifs.history.length > 0
-            style: detail.style
-            filled: true
-            label: "Clear all history"
-            onTriggered: detail.notifs.clearHistory()
         }
     }
 }

@@ -4,14 +4,16 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
+// Quickshell owns the choice. System settings only publish it to applications.
 Scope {
     id: theme
-
-    // Darkman owns the mode and sunrise/sunset schedule.
     property bool darkMode: true
     property bool appearanceKnown: false
-    readonly property bool appearanceAvailable: modeWatch.connected && modeControl.connected
-    readonly property alias appearanceError: desktopAppearance.error
+    readonly property bool appearanceAvailable: appearanceKnown
+    readonly property string appearanceError: persistenceError || desktopAppearance.error
+    property string persistenceError: ""
+    readonly property string statePath: (Quickshell.env("XDG_STATE_HOME")
+        || Quickshell.env("HOME") + "/.local/state") + "/quickshell/appearance-mode"
 
     Appearance {
         id: desktopAppearance
@@ -19,48 +21,28 @@ Scope {
     }
 
     function setTheme(dark) {
-        if (!appearanceAvailable) return;
-        modeControl.write("set " + (dark ? "dark" : "light") + "\n");
-        modeControl.flush();
+        if (!appearanceKnown) return;
+        darkMode = dark;
+        savedMode.setText(dark ? "dark\n" : "light\n");
+        // Reapply even when selecting the current mode (e.g. after a failure).
+        Qt.callLater(desktopAppearance.apply);
     }
 
-    Socket {
-        id: modeWatch
-        path: Quickshell.env("XDG_RUNTIME_DIR") + "/darkman/control.sock"
-        connected: true
-        onConnectionStateChanged: {
-            if (connected) {
-                write("watch\n");
-                flush();
-            }
+    FileView {
+        id: savedMode
+        path: theme.statePath
+        printErrors: false
+        onLoaded: {
+            const mode = text().trim();
+            theme.darkMode = mode !== "light";
+            theme.appearanceKnown = true;
         }
-        parser: SplitParser {
-            onRead: data => {
-                const mode = data.trim();
-                theme.appearanceKnown = mode === "dark" || mode === "light";
-                if (theme.appearanceKnown) {
-                    theme.darkMode = mode === "dark";
-                    // Also synchronize after reconnect, even if the mode is unchanged.
-                    Qt.callLater(desktopAppearance.apply);
-                }
-            }
+        onLoadFailed: error => {
+            theme.appearanceKnown = true;
+            if (error === 2) savedMode.setText("dark\n");
+            else theme.persistenceError = "Could not read saved appearance";
         }
+        onSaved: theme.persistenceError = ""
+        onSaveFailed: error => theme.persistenceError = "Could not save appearance"
     }
-
-    Socket {
-        id: modeControl
-        path: modeWatch.path
-        connected: true
-    }
-
-    Timer {
-        interval: 2000
-        repeat: true
-        running: !modeWatch.connected || !modeControl.connected
-        onTriggered: {
-            if (!modeWatch.connected) modeWatch.connected = true;
-            if (!modeControl.connected) modeControl.connected = true;
-        }
-    }
-
 }

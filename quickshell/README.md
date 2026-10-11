@@ -1,16 +1,20 @@
 # Quickshell desktop panel
 
 `Super+R` toggles a panel on the focused monitor. It reserves no screen space;
-there is no bar. Both status and search fit their content up to a 700px maximum height (or the available
-screen height); excess content scrolls. The panel width is capped at 680px and fades
-in and out rather than popping. The search field keeps its position
-between views. Opening it shows a quick-settings style grid: Wi-Fi and
+there is no bar. Each page sizes to its content, with one height ceiling:
+`Theme.maximumPanelHeight` (700px by default), also limited by available screen
+space. Width is capped at 680px. Height changes animate while the top edge
+stays in place, and excess content scrolls without a scrollbar. Status and
+search keep the search field and compact footer; device and notification
+pages replace them with their own return/title header. Opening it shows a quick-settings style grid: Wi-Fi and
 Bluetooth tiles, volume and brightness sliders on the same center split, then
 one toggle button per function (mic/output mute, audio devices, dark mode,
 keep awake, power profiles) in an evenly spaced grid whose center seam lines
 up with the tiles and sliders above, plus media
-and tray entries. Used workspaces appear below the controls with a number and
-application icons; clicking a workspace switches to it without closing the panel.
+and tray entries. Used workspaces appear at the top of the status page,
+first in the scrolling overview, with a number and application icons; clicking a
+workspace switches to it without closing the panel. Search and detail pages
+focus on their own content and do not show workspace navigation.
 Workspace groups wrap instead of scrolling; the current workspace is included
 even when empty. Typing searches desktop applications and open windows; results
 are ranked by match quality (prefix, then word start, then substring), and an
@@ -41,35 +45,56 @@ over the footer battery icon.
 - `Ctrl+1`–`Ctrl+9`, `Ctrl+0`: directly open search results 1–10. The list
   uses compact single-line rows to fit the first ten results at normal screen sizes
   and displays these shortcuts; they do nothing on the status view or for missing results.
-- Esc, Super+R again, or click outside: close.
+- Esc: return from search or details to status; on status, close the panel.
+  Super+R again, Ctrl+G, or clicking outside closes from any page.
 - Sliders: drag/click or use the wheel. Adjustments keep the panel open.
+- Status page: workspace context appears first in its scrolling content. Below it, connectivity,
+  volume/brightness and quick toggles come first,
+  followed by the media card when a player is available, then the notification
+  preview. Notifications show two recent entries with up to two body lines,
+  a pending count, a separate Clear button and a history footer. The page
+  scrolls when needed without showing a scrollbar.
+  Opening or returning to status resets its scroll position for a fresh overview.
 - Keep awake: toggle to inhibit automatic idle locking and screen power-off
   through Hypridle. The highlighted button stays active when the panel closes;
   toggle it off to restore idle timeouts. Quickshell exit/reload releases it.
   Uses the existing `systemd-inhibit` command; manual locking still works.
 - Tray: left click activates; right click opens a themed menu.
 - Notifications: quickshell replaces mako as the Freedesktop notification
-  daemon. Pending notifications and saved history are separate lists, as in
-  Noctalia and DankMaterialShell. Banners appear top-center (360px wide, 10px
-  below the top edge), fade in as they arrive, show up to four at a time with
-  older ones evicted, and expire after the app's timeout or five seconds by
-  default; critical notifications stay until clicked. Clicking a banner or
-  letting it time out only hides the toast - the entry stays pending - and
-  action buttons invoke the app's actions and close. The status page always
-  shows a notification card: the newest three pending entries, or an empty
-  state when there are none, so the panel never reflows. Its "Clear" empties
-  the pending list only and never touches history; single rows dismiss
-  individually. The card opens the detail page, which lists the saved history
-  newest first with a per-row dismiss and "Clear all history". Pending is
-  capped at twenty entries and history at fifty; both are written to
-  quickshell's per-shell cache directory, so they survive restarts but not a
-  change of configuration path. Transient notifications are toast-only and
-  never enter either list. Panel height eases between content lengths instead
-  of snapping.
+  daemon. Banners appear top-center on the focused monitor, at up to 400 logical
+  pixels wide with margins on narrower screens. Up to four cards are visible;
+  overflow evicts the oldest unhovered card. Tall stacks scroll within 75% of
+  the screen height. Normal banners honor the app's timeout, or five seconds
+  by default; critical notifications and a zero timeout stay until closed.
+  Hovering pauses the countdown and leaving resumes the remaining time.
+  Application icons and attached images are separate, with icon fallbacks for
+  missing icons. Titles and bodies wrap, including long URLs and Chinese text.
+  "Show more" expands truncated text or an image; long expanded bodies scroll
+  inside the card. Text is explicitly plain text, matching the advertised
+  capabilities. Action buttons wrap onto additional rows. The default action
+  is invoked by clicking the card's content when it does not need expanding;
+  it is not duplicated as a labeled button. Resident actions leave the card
+  open, and the sender can close it. Use the close button to dismiss a banner.
+  Pending entries and saved history remain after a banner closes or expires.
+  The status page previews the newest two pending entries with up to two body
+  lines each; clicking a preview opens history, and its close button removes
+  only that pending entry.
+  "Clear" clears pending entries only. History uses the same card layout with
+  expandable content, per-entry close buttons and "Clear all history".
+  Pending is capped at twenty entries and history at fifty; both are saved in
+  quickshell's per-shell cache directory and survive restarts. Notifications
+  updated with `replaces_id` update the existing live card and saved entry.
+  Transient notifications are also recorded by default, including fcitx5's
+  Wayland diagnostic tips; set `recordTransient` to `false` in
+  `Notifications.qml` to keep them toast-only. File-backed attached images can
+  be shown in history; in-memory `image://qsimage/` attachments are shown live
+  but omitted from disk because their URLs expire with the notification.
 - Wi-Fi and Bluetooth: click the icon to toggle the radio, or the card text/arrow
   to open a detail view inside the same panel. Audio devices opens the same
-  view, with output/microphone tabs. Details replace the status content and
-  search field, retaining the footer and giving lists the full content area.
+  view, with output/microphone tabs. Details are independent content-sized
+  pages, with a return/title header instead of the main search field and footer.
+  Their lists and controls scroll together once the shared height ceiling is
+  reached; the return header stays visible.
   The back arrow or Esc returns to status; outside click closes the launcher.
   Power profiles are selected directly in the main panel.
   Wi-Fi offers saved networks nearby and opens the existing `nmtui` in
@@ -137,15 +162,17 @@ layouts. Floating-window directional focus retains its usual behavior.
 | `shell.qml` | Composition and launcher IPC |
 | `Theme.qml` | Colours, typography scale, spacing scale and shared radii |
 | `AppearanceState.qml` | Darkman socket subscription, controls and reconnect |
-| `Appearance.qml` | Apply Hyprland colours through `hyprctl eval` |
+| `Appearance.qml` | Publish application colour preference and apply Hyprland colours |
 | `DesktopServices.qml` | Audio devices, UPower, MPRIS, brightness and keep-awake controls |
 | `SystemControls.qml` | Native network, Bluetooth and power objects, signals and actions |
 | `DesktopSearch.qml` | Search, desktop-entry/icon lookup, window activation and application scopes |
 | `Notifications.qml` | Notification daemon: tracking, popup queue and history |
-| `components/LauncherPanel.qml` | Panel lifetime, keyboard input and search results |
+| `components/LauncherPanel.qml` | Content-sized pages, shared height ceiling, navigation and search |
 | `components/WorkspaceLayoutState.qml` | Shared per-workspace layout state and change signals |
-| `components/NotificationBanner.qml` | Top-right notification banners |
-| `components/StatusPage.qml` | Audio, brightness, appearance, media and workspace layout |
+| `components/NotificationBanner.qml` | Screen-aware top-center notification stack |
+| `components/NotificationCard.qml` | Shared popup, preview and history card layout |
+| `components/NotificationUtils.js` | Icon URL normalization and persistent-image filtering |
+| `components/StatusPage.qml` | Scrollable workspace overview, controls, media and notification preview |
 | `components/DesktopControls.qml`, `ControlTile.qml` | Connectivity cards with direct radio toggles |
 | `components/ControlDetails.qml`, `DeviceRow.qml` | In-panel network/Bluetooth/audio detail views and device selection |
 | `components/EmacsInput.qml` | Readline-style input editing and local kill buffer |
@@ -187,37 +214,111 @@ systemctl --user status quickshell.service
 quickshell log --tail 50
 ```
 
+## Portability and dependencies
+
+This is a reusable **Hyprland/Linux** shell configuration, not a compositor-
+independent desktop shell. No username, monitor connector or literal Nix store
+path is embedded in QML. State uses XDG directories; layout sizes, palettes and
+limits are personal defaults that can be adjusted in QML.
+
+- Require Quickshell 0.3.1 APIs and their Qt modules, Hyprland with the Lua
+  configuration/`hyprctl eval` API, and a modern systemd user session supporting
+  `systemd-run --expand-environment=no`. Hyprland's appearance Lua module must
+  be deployed alongside the shell. Another compositor requires an adapter.
+- The dotfiles service searches standard binary directories and Nix profiles;
+  it does not pin Quickshell to a Nix executable path. `ExecSearchPath` requires
+  systemd 250 or later. Optional Nix search directories need not exist on other
+  distributions. Commands launched by the shell must be available in its PATH.
+- Application appearance requires `gsettings`, the desktop-interface schema,
+  a persistent dconf backend and GTK Settings portal selected for this session.
+  Nix packages the tool with this environment; other distributions normally
+  install it in standard data directories. Missing synchronization dependencies
+  are errors, not a substitute for application appearance support.
+- Audio uses PipeWire, networking NetworkManager, Bluetooth BlueZ, battery
+  UPower and power profiles power-profiles-daemon. Hardware-dependent controls
+  can be absent. The current power-profile adapter does not reliably distinguish
+  a missing daemon; provision it when using those buttons.
+- Backlight controls use `brightnessctl` (with user permissions) and `udevadm`.
+  Keep-awake uses `systemd-inhibit` and `cat`; application launches use
+  `systemd-run`. Media uses any MPRIS player; tray applications must implement
+  StatusNotifierItem/DBusMenu.
+- `DesktopSearch.terminalCommand` is the shared terminal argv for terminal
+  applications and the `nmtui` network-management entry. Default is kitty;
+  change it for another terminal (including its execute argument). Install
+  `nmtui` to use that entry. Desktop-services instantiated outside `shell.qml`
+  can supply their own terminal argv.
+- This shell owns `org.freedesktop.Notifications`; do not run a second
+  notification daemon alongside it.
+
+The Nix module also contains personal login/lid/power policy, greeter and theme
+asset choices. Review those before reusing it; they are host policy, not shell
+requirements. GNOME/KDE Settings backends would require a different write adapter.
+
 ## Appearance ownership
 
-Darkman is the only owner of the light/dark mode and sunrise/sunset schedule.
-The separate Nix configuration (`software/hyprland.nix`) configures its native
-service, GeoClue automatic location and Settings portal. Automatic scheduling
-requires a successfully resolved location. Manual selection lasts until the next
-automatic transition; there is no permanent override or separate AUTO policy.
+Quickshell owns manual light/dark selection and saves it in
+`$XDG_STATE_HOME/quickshell/appearance-mode` (default `~/.local/state`).
+Hyprland reads the same file on startup/config reload. There is currently no
+automatic sunrise/sunset schedule.
 
-`AppearanceState.qml` uses darkman's `$XDG_RUNTIME_DIR/darkman/control.sock`:
-`watch` receives mode updates, while a separate connection sends `set dark` or
-`set light`. Connections recover after daemon restart. `Appearance.qml` applies
-Hyprland's palette from `hypr/appearance.lua`; Hyprland also reads darkman's own
-`$XDG_CACHE_HOME/darkman/mode.txt` cache at startup/reload, defaulting to dark if
-no cache exists. These require a darkman version with the native socket/cache
-interfaces and a Hyprland version with Lua configuration and `hyprctl eval`.
-`hyprctl` must be on Quickshell's PATH. Recheck these interfaces on upgrades.
+The shell directly calls `gsettings set org.gnome.desktop.interface color-scheme`
+and updates Hyprland's palette. GTK's Settings portal exposes the standard
+`org.freedesktop.appearance/color-scheme` preference to applications. Application
+styles and fixed GTK/Qt themes are not rewritten.
 
-Applications receive the preference through darkman's Settings portal. This
-integration never rewrites GTK/Qt themes, icons, fonts, cursors or qt6ct/nwg-look
-configuration. Applications must follow the preference themselves; fixed
-palettes and legacy applications are not forced to switch. While Quickshell is
-stopped, the Portal remains available, but live compositor palette updates wait
-for reconnection or a Hyprland reload.
+Nix installs a wrapped **gsettings tool**, providing its desktop schema and dconf
+module paths. QML contains no Nix schema paths, directory discovery or shell
+command strings. Quickshell starts directly from the dotfiles-owned service;
+there is no Nix-defined Quickshell service or additional startup script.
+Other distributions can provide the same standard command through their packages.
 
-The footer marks unavailable/error appearance state with `!`, or an unknown
-mode with `?`; hovering shows the status. Check logs:
+Apply the Nix configuration before relying on application synchronization.
+The footer reports persistence/synchronization errors. Check:
 
 ```sh
-darkman get
-darkman set dark
-darkman set light
-darkman toggle
-journalctl --user -u darkman.service -b
+quickshell ipc call appearance status
+quickshell ipc call appearance setMode dark
+gsettings get org.gnome.desktop.interface color-scheme
+journalctl --user -u quickshell.service -b
 ```
+
+### Notification implementation references
+
+The layout and lifecycle were reviewed against
+[Noctalia's toast implementation](https://github.com/noctalia-dev/noctalia/blob/b2e3ffb/src/shell/notification/notification_toast.cpp)
+and [DMS's shared notification card](https://github.com/AvengeMedia/DankMaterialShell/blob/6d331b8/quickshell/Modules/Notifications/NotificationCard.qml)
+and [notification service](https://github.com/AvengeMedia/DankMaterialShell/blob/6d331b8/quickshell/Services/NotificationService.qml).
+The current Noctalia implementation is native C++; this config follows its
+layout patterns rather than importing its code. The relevant practices here
+are content-sized cards, wrapped actions, a separate close control, expandable
+text, separate app icons and attachments, hover-aware expiry, and updating
+existing notifications. Remote markup, inline replies, app grouping and an
+image-file cache are not implemented or advertised by this shell.
+
+### Widget and detail-menu review
+
+Reviewed against [Noctalia control-center tabs](https://github.com/noctalia-dev/noctalia/tree/b2e3ffb/src/shell/control_center/tabs)
+and [DMS control-center widgets](https://github.com/AvengeMedia/DankMaterialShell/tree/6d331b8/quickshell/Modules/ControlCenter/Widgets).
+Keep this a personal QML configuration; introduce shared infrastructure only
+when repeated behavior actually needs it.
+
+| Area | Current behavior and useful remaining gaps |
+| --- | --- |
+| Wi-Fi | Nearby saved networks, connection feedback and external network-manager entry. New networks, passwords, enterprise authentication, network details and disconnect remain outside this menu. |
+| Bluetooth | Paired devices, connect/disconnect, transition labels and reported battery percentage. Discovery, pairing/passkey agent, trust/remove and codec selection are not implemented. |
+| Audio | Output/input selection, volume and mute. Per-application volume and Bluetooth profile selection are possible later additions. |
+| Media | Playing player preferred, transport buttons and read-only timeline. Explicit player selection and seeking are useful next additions; shuffle/repeat should respect player capabilities. |
+| Power | Profiles and keep-awake toggle. Profile availability/degradation feedback and timed inhibition need further work. |
+| Tray | Native DBusMenu submenus, disabled entries, checkboxes/radio items and scrolling. Escape returns from a submenu before closing. Arrow-key navigation remains a gap. |
+
+Wi-Fi and Bluetooth have separate busy states; audio and power controls are not
+blocked by unrelated connection work. Bluetooth device actions are guarded per
+device. Device lists show transitions rather than presenting an idle clickable
+row during connection. Noctalia's network sorting avoids raw signal-strength
+updates moving click targets; preserve stable sorting here. DMS's pairing flow
+uses a BlueZ agent in its backend: a discovery/pair button alone cannot safely
+replace the missing passkey/confirmation flow.
+
+For this config, prioritize a player chooser/seek interaction and a reliable
+external Bluetooth-manager entry before adding a full authentication stack.
+Do not expose unsupported controls just to match upstream feature counts.

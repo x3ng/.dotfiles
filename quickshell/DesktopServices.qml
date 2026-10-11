@@ -15,6 +15,7 @@ Scope {
     readonly property var player: players.find(p => p.isPlaying) ?? players[0] ?? null
     readonly property bool keepAwake: idleInhibitor.running
     readonly property var source: Pipewire.defaultAudioSource
+    property list<string> terminalCommand: ["kitty", "--"]
     property bool controlsVisible: false
     readonly property var controls: systemControls
     readonly property var audioOutputs: Pipewire.nodes.values.filter(n => n.audio && !n.isStream && n.isSink)

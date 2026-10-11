@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Notifications
+import "components/NotificationUtils.js" as NotificationUtils
 
 // Freedesktop notification daemon (replaces mako). Three lists, matching how
 // Noctalia and DankMaterialShell split the same problem:
@@ -26,17 +27,21 @@ Scope {
     readonly property int maxVisible: 4
     // Active list shown by the status page card, and how much of it is
     // previewed before the "more" line hands the rest to the detail page.
-    readonly property int previewCount: 3
+    readonly property int previewCount: 2
     readonly property int maxCurrent: 20
     // History is re-read on every start, so it has to stay bounded (entry
     // bodies are arbitrary application text).
     readonly property int maxHistory: 50
+    // Keep diagnostic tips (e.g. fcitx5's Wayland warnings) available after
+    // their banners close. Set false to honor toast-only transient hints.
+    property bool recordTransient: true
 
     // Popup lifetime: app-provided timeout when set, else mako's default
     // of 5s. Critical notifications stay until dismissed.
     readonly property int defaultTimeout: 5000
 
     readonly property string historyFile: Quickshell.cacheDir + "/notification_history.json"
+    property int nextRecord: 0
 
     NotificationServer {
         keepOnReload: false
@@ -56,77 +61,130 @@ Scope {
     component NotifWrapper: QtObject {
         id: wrapper
         required property Notification notification
-        // Snapshots so the banner keeps rendering if the app closes the
-        // notification underneath us.
-        required property string appName
-        required property string summary
-        required property string body
-        required property string image
-        required property int urgency
+        required property string recordKey
+        property double time: Date.now()
+        readonly property string appName: notification.appName
+            || DesktopEntries.heuristicLookup(notification.desktopEntry)?.name || "Application"
+        readonly property string summary: notification.summary
+        readonly property string body: notification.body
+        readonly property string appIcon: notification.appIcon
+            || DesktopEntries.heuristicLookup(notification.desktopEntry)?.icon || ""
+        readonly property string contentImage: notification.image
+        readonly property int urgency: notification.urgency
         readonly property bool critical: urgency === NotificationUrgency.Critical
         readonly property var actions: notification.actions
+        property bool hovered: false
+        property bool closing: false
+        property double remaining: timeout
+        property double deadline: 0
         readonly property int timeout: {
             if (wrapper.critical) return 0;
             const t = wrapper.notification.expireTimeout;
             return t >= 0 ? t : root.defaultTimeout;
         }
         readonly property Timer timer: Timer {
-            interval: Math.max(1, wrapper.timeout)
-            running: wrapper.timeout > 0
+            interval: Math.max(1, wrapper.remaining)
             onTriggered: root.expire(wrapper)
+        }
+        function restartTimeout() {
+            timer.stop();
+            remaining = timeout;
+            if (!hovered && timeout > 0) {
+                deadline = Date.now() + remaining;
+                timer.start();
+            }
+        }
+        // Replaces-id updates modify the same Notification object. Coalesce
+        // its property changes so the card and saved record update together.
+        readonly property Timer updateTimer: Timer {
+            interval: 0
+            onTriggered: {
+                if (!wrapper.closing) {
+                    wrapper.time = Date.now();
+                    root.saveRecord(wrapper);
+                    wrapper.restartTimeout();
+                }
+            }
         }
         // Apps may close their own notification (e.g. after a reply);
         // drop the popup so nothing lingers on screen.
         readonly property Connections closedWatch: Connections {
             target: wrapper.notification
-            ignoreUnknownSignals: true
             function onClosed() { root.remove(wrapper); }
+            function onSummaryChanged() { wrapper.updateTimer.restart(); }
+            function onBodyChanged() { wrapper.updateTimer.restart(); }
+            function onAppNameChanged() { wrapper.updateTimer.restart(); }
+            function onAppIconChanged() { wrapper.updateTimer.restart(); }
+            function onImageChanged() { wrapper.updateTimer.restart(); }
+            function onUrgencyChanged() { wrapper.updateTimer.restart(); }
+            function onActionsChanged() { wrapper.updateTimer.restart(); }
+            function onExpireTimeoutChanged() { wrapper.updateTimer.restart(); }
+            function onTransientChanged() { wrapper.updateTimer.restart(); }
         }
     }
 
     function track(notif) {
         notif.tracked = true;
-        const appName = notif.appName || "Application";
-        const image = notif.appIcon || notif.image;
+        const existing = popups.find(w => w.notification === notif);
+        if (existing) { existing.updateTimer.restart(); return; }
         const wrapper = notifWrapperComponent.createObject(root, {
             notification: notif,
-            appName: appName,
-            summary: notif.summary,
-            body: notif.body,
-            image: image,
-            urgency: notif.urgency
+            recordKey: Date.now() + ":" + (++nextRecord)
         });
         if (!wrapper) return;
-        // Transient notifications are toast-only: they never reach the
-        // notification center, matching Noctalia's treatment of them.
-        if (!notif.transient) {
+        saveRecord(wrapper);
+        popups = [...popups, wrapper];
+        wrapper.restartTimeout();
+        // Prefer evicting cards the user is not currently reading.
+        while (popups.length > maxVisible) {
+            const evicted = popups.find(w => !w.hovered) || popups[0];
+            expire(evicted);
+        }
+    }
+
+    function saveRecord(wrapper) {
+        current = current.filter(e => e.recordKey !== wrapper.recordKey);
+        history = history.filter(e => e.recordKey !== wrapper.recordKey);
+        // Some apps mark useful warnings as transient, including fcitx5.
+        if (recordTransient || !wrapper.notification.transient) {
             const record = {
-                appName: appName,
-                summary: notif.summary,
-                body: notif.body,
-                image: image,
-                urgency: notif.urgency,
-                time: Date.now()
+                recordKey: wrapper.recordKey,
+                appName: wrapper.appName,
+                summary: wrapper.summary,
+                body: wrapper.body,
+                appIcon: NotificationUtils.savedImage(wrapper.appIcon),
+                contentImage: NotificationUtils.savedImage(wrapper.contentImage),
+                urgency: wrapper.urgency,
+                time: wrapper.time
             };
             // The same record object backs both lists this session, so the
             // detail page and the card never disagree about an entry.
             current = [record, ...current].slice(0, maxCurrent);
             history = [record, ...history].slice(0, maxHistory);
-            persistHistory();
         }
-        popups = [...popups, wrapper];
-        // Evict from the front; expire() may fire onClosed -> remove()
-        // re-entrantly, so remove() is idempotent and this is a no-op after.
-        while (popups.length > maxVisible) {
-            const evicted = popups[0];
-            try { evicted.notification.expire(); } catch (e) {}
-            remove(evicted);
+        persistHistory();
+    }
+
+    function setHovered(wrapper, hovered) {
+        if (wrapper.closing || wrapper.hovered === hovered) return;
+        wrapper.hovered = hovered;
+        if (hovered) {
+            if (wrapper.timer.running) {
+                wrapper.timer.stop();
+                wrapper.remaining = Math.max(1, wrapper.deadline - Date.now());
+            }
+        } else if (wrapper.timeout > 0) {
+            wrapper.deadline = Date.now() + wrapper.remaining;
+            wrapper.timer.start();
         }
     }
 
     function remove(wrapper) {
         const i = popups.indexOf(wrapper);
         if (i < 0) return;
+        wrapper.closing = true;
+        wrapper.timer.stop();
+        wrapper.updateTimer.stop();
         popups = popups.filter(w => w !== wrapper);
         wrapper.destroy();
     }
@@ -146,8 +204,16 @@ Scope {
     }
 
     function invokeAction(wrapper, action) {
+        if (wrapper.closing) return;
+        const resident = wrapper.notification.resident;
         try { action.invoke(); } catch (e) {}
-        dismiss(wrapper);
+        // invoke() may synchronously emit closed; don't touch a removed card.
+        if (!resident && popups.includes(wrapper)) dismiss(wrapper);
+    }
+
+    function activate(wrapper) {
+        const action = Array.from(wrapper.actions).find(a => a.identifier === "default");
+        if (action) invokeAction(wrapper, action);
     }
 
     // Status-page "Clear": empty the pending list only. History keeps every

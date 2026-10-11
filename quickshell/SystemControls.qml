@@ -28,11 +28,24 @@ Scope {
     readonly property var powerProfiles: ["power-saver", "balanced"].concat(PowerProfiles.hasPerformanceProfile ? ["performance"] : [])
     readonly property bool powerAvailable: powerProfiles.length > 0
     readonly property string powerProfile: profileSlug(PowerProfiles.profile)
-    readonly property bool busy: wifiNetworks.some(network => network.stateChanging)
-        || bluetoothDevices.some(device => device.state === BluetoothDeviceState.Connecting
+    readonly property bool wifiBusy: wifiNetworks.some(network => network.stateChanging)
+    readonly property bool bluetoothBusy: bluetoothDevices.some(device => device.state === BluetoothDeviceState.Connecting
             || device.state === BluetoothDeviceState.Disconnecting)
         || bluetoothAdapter?.state === BluetoothAdapterState.Enabling
         || bluetoothAdapter?.state === BluetoothAdapterState.Disabling
+
+    readonly property bool busy: wifiBusy || bluetoothBusy
+
+    function bluetoothDeviceBusy(device) {
+        return device.state === BluetoothDeviceState.Connecting
+            || device.state === BluetoothDeviceState.Disconnecting;
+    }
+    function bluetoothDeviceLabel(device) {
+        if (device.state === BluetoothDeviceState.Connecting) return "Connecting…";
+        if (device.state === BluetoothDeviceState.Disconnecting) return "Disconnecting…";
+        const state = device.connected ? "Connected · Click to disconnect" : "Click to connect";
+        return state + (device.batteryAvailable ? " · " + Math.round(device.battery * 100) + "%" : "");
+    }
 
     Instantiator {
         model: root.wifiDevices
@@ -55,22 +68,22 @@ Scope {
         }
     }
     function toggleWifi() {
-        if (!wifiAvailable || busy) return;
+        if (!wifiAvailable || wifiBusy) return;
         error = "";
         Networking.wifiEnabled = !Networking.wifiEnabled;
     }
     function toggleBluetooth() {
-        if (!bluetoothAdapter || busy) return;
+        if (!bluetoothAdapter || bluetoothBusy) return;
         error = "";
         bluetoothAdapter.enabled = !bluetoothAdapter.enabled;
     }
     function connectWifi(network) {
-        if (!wifiEnabled || busy || !wifiProfiles.includes(network) || network.connected) return;
+        if (!wifiEnabled || wifiBusy || !wifiProfiles.includes(network) || network.connected) return;
         error = "";
         network.connect();
     }
     function toggleBluetoothDevice(device) {
-        if (!bluetoothEnabled || busy || !bluetoothDevices.includes(device)) return;
+        if (!bluetoothEnabled || bluetoothDeviceBusy(device) || !bluetoothDevices.includes(device)) return;
         error = "";
         device.connected = !device.connected;
     }

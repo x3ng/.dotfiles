@@ -15,5 +15,5 @@ if monitor_file then
   dofile(monitor_config)
 end
 
--- Follow darkman's own cached mode on startup and config reload.
+-- Follow Quickshell's saved mode on startup and config reload.
 require("appearance").apply()
