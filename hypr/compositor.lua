@@ -46,6 +46,9 @@ hl.config({
 
   dwindle = {
     preserve_split = true,
+    use_active_for_splits = true,
+    -- Direction keys preselect only the next split, not all future windows.
+    permanent_direction_override = false,
   },
 
   master = {

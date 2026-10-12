@@ -109,13 +109,13 @@ Scope {
             id: window
             required property ShellScreen modelData
             screen: modelData
-            readonly property bool active: osd.shown && osd.monitorName === modelData.name
+            readonly property bool active: modelData !== null && osd.shown && osd.monitorName === modelData.name
             visible: active || content.opacity > 0
             WlrLayershell.exclusionMode: ExclusionMode.Ignore
             WlrLayershell.namespace: "quickshell:osd"
             anchors { bottom: true }
             margins { bottom: 56 }
-            implicitWidth: osd.kind === "workspace"
+            implicitWidth: osd.kind === "workspace" && modelData !== null
                 ? Math.min(workspaceSummary.implicitWidth + 26, Math.max(1, modelData.width - 64)) : 250
             implicitHeight: osd.kind === "workspace" ? workspaceSummary.implicitHeight + 14 : 76
             color: "transparent"

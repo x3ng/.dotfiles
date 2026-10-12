@@ -19,12 +19,12 @@ hl.window_rule({
 
 -- "Smart gaps" / "No gaps when only" — uncomment to enable
 -- hl.workspace_rule({
---   match = { workspace = "w[tv1]" },
+--   workspace = "w[tv1]",
 --   gaps_out = 0,
 --   gaps_in = 0,
 -- })
 -- hl.workspace_rule({
---   match = { workspace = "f[1]" },
+--   workspace = "f[1]",
 --   gaps_out = 0,
 --   gaps_in = 0,
 -- })

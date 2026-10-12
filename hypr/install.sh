@@ -33,7 +33,12 @@ case "${1:-install}" in
   uninstall)
     remove_legacy_settings
     for f in "${FILES[@]}"; do
-      dot_unlink "$HOME/.config/hypr/$f"
+      target="$HOME/.config/hypr/$f"
+      if [[ -L "$target" && "$(readlink "$target")" == "$SCRIPT_DIR/$f" ]]; then
+        dot_unlink "$target"
+      else
+        log_info "skip (not owned by this package): $target"
+      fi
     done
     ;;
   *)

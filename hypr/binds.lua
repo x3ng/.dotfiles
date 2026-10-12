@@ -9,7 +9,8 @@ hl.bind("SUPER + Q", hl.dsp.exec_cmd(terminal))
 hl.bind("SUPER + C", hl.dsp.window.close())
 hl.bind("SUPER + Space", hl.dsp.window.float({ action = "toggle" }))
 hl.bind("SUPER + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
-hl.bind("SUPER + P", hl.dsp.window.pseudo({ action = "toggle" }))
+hl.bind("SUPER + SHIFT + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
+hl.bind("SUPER + SHIFT + Space", hl.dsp.window.pseudo({ action = "toggle" }))
 -- Pin toggles visibility across workspaces on this monitor; the window must be floating.
 hl.bind("SUPER + ALT + P", hl.dsp.window.pin())
 
@@ -24,12 +25,6 @@ local function setLayout(layout)
     end
   end
 end
--- Letter bindings select layouts; number bindings are reserved for workspaces.
-hl.bind("SUPER + ALT + D", setLayout("dwindle"))
-hl.bind("SUPER + ALT + M", setLayout("master"))
-hl.bind("SUPER + ALT + S", setLayout("scrolling"))
-hl.bind("SUPER + ALT + O", setLayout("monocle"))
-
 -- Move focus
 local function layoutAction(actions)
   return function()
@@ -61,45 +56,79 @@ hl.bind("SUPER + K", focusDirection("u", false))
 hl.bind("SUPER + J", focusDirection("d", true))
 
 -- Workspace window cycling is separate from Super+Tab's group tabs.
-hl.bind("SUPER + bracketright", hl.dsp.window.cycle_next({ next = true }))
-hl.bind("SUPER + bracketleft", hl.dsp.window.cycle_next({ next = false }))
+local function cycleWindow(next)
+  return function()
+    local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
+    local window = hl.get_active_window()
+    if workspace and workspace.tiled_layout == "monocle" and window and not window.floating then
+      hl.dispatch(hl.dsp.layout(next and "cyclenext" or "cycleprev"))
+    else
+      hl.dispatch(hl.dsp.window.cycle_next({ next = next }))
+    end
+  end
+end
+hl.bind("SUPER + N", cycleWindow(true))
+hl.bind("SUPER + P", cycleWindow(false))
 
--- Layout-specific actions; unsupported layouts and floating windows are no-ops.
-hl.bind("SUPER + T", layoutAction({
-  dwindle = "togglesplit", master = "orientationnext", scrolling = "center",
-}))
-hl.bind("SUPER + SHIFT + Return", layoutAction({
-  master = "swapwithmaster master", scrolling = "promote",
-}))
-hl.bind("SUPER + SHIFT + bracketright", layoutAction({ scrolling = "consume" }))
-hl.bind("SUPER + SHIFT + bracketleft", layoutAction({ scrolling = "expel" }))
+-- T changes orientation; Enter focuses the master, Shift+Enter promotes to master.
+hl.bind("SUPER + T", layoutAction({ dwindle = "togglesplit", master = "orientationnext" }))
+hl.bind("SUPER + Return", layoutAction({ master = "focusmaster previous" }))
+hl.bind("SUPER + SHIFT + Return", layoutAction({ master = "swapwithmaster master" }))
+-- W = width preset; Shift reverses the cycle. Only scrolling has column presets.
+hl.bind("SUPER + W", layoutAction({ scrolling = "colresize +conf" }))
+hl.bind("SUPER + SHIFT + W", layoutAction({ scrolling = "colresize -conf" }))
 
--- Swap windows
-hl.bind("SUPER + SHIFT + H", hl.dsp.window.swap({ direction = "l" }))
-hl.bind("SUPER + SHIFT + L", hl.dsp.window.swap({ direction = "r" }))
-hl.bind("SUPER + SHIFT + K", hl.dsp.window.swap({ direction = "u" }))
-hl.bind("SUPER + SHIFT + J", hl.dsp.window.swap({ direction = "d" }))
+-- Direct layout selection.
+hl.bind("SUPER + ALT + D", setLayout("dwindle"))
+hl.bind("SUPER + ALT + M", setLayout("master"))
+hl.bind("SUPER + ALT + S", setLayout("scrolling"))
+hl.bind("SUPER + ALT + O", setLayout("monocle"))
 
--- Swap whole scrolling columns; keep single-window swaps on Super+Shift+HJKL.
-hl.bind("SUPER + CTRL + SHIFT + H", layoutAction({ scrolling = "swapcol l" }))
-hl.bind("SUPER + CTRL + SHIFT + L", layoutAction({ scrolling = "swapcol r" }))
+-- D = Down, E = East; Shift reverses the next dwindle split direction.
+hl.bind("SUPER + D", layoutAction({ dwindle = "preselect d" }))
+hl.bind("SUPER + SHIFT + D", layoutAction({ dwindle = "preselect u" }))
+hl.bind("SUPER + E", layoutAction({ dwindle = "preselect r" }))
+hl.bind("SUPER + SHIFT + E", layoutAction({ dwindle = "preselect l" }))
+hl.bind("SUPER + ALT + Space", layoutAction({ dwindle = "preselect none" }))
 
--- Window groups (tabbed windows in one tiled position)
+-- Scrolling columns: brackets move columns, X combines/separates, O extracts/centers.
+-- 0.56.2 consume pulls the next column's FIRST window; expel extracts THIS column's
+-- LAST window. promote extracts the FOCUSED window.
+hl.bind("SUPER + bracketleft", layoutAction({ scrolling = "swapcol l" }))
+hl.bind("SUPER + bracketright", layoutAction({ scrolling = "swapcol r" }))
+hl.bind("SUPER + X", layoutAction({ scrolling = "consume" }))
+hl.bind("SUPER + SHIFT + X", layoutAction({ scrolling = "expel" }))
+hl.bind("SUPER + O", layoutAction({ scrolling = "promote" }))
+hl.bind("SUPER + SHIFT + O", layoutAction({ scrolling = "center" }))
+
+-- Shift+directions changes position: tiled swap, or 20px floating movement.
+-- Monocle has no spatial neighbors: do not accidentally swap across monitors.
+local function moveDirection(direction, x, y)
+  return function()
+    local window = hl.get_active_window()
+    if not window then return end
+    if window.floating then
+      hl.dispatch(hl.dsp.window.move({ x = x, y = y, relative = true }))
+    else
+      local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
+      if workspace and workspace.tiled_layout == "monocle" then return end
+      hl.dispatch(hl.dsp.window.swap({ direction = direction }))
+    end
+  end
+end
+hl.bind("SUPER + SHIFT + H", moveDirection("l", -20, 0))
+hl.bind("SUPER + SHIFT + L", moveDirection("r", 20, 0))
+hl.bind("SUPER + SHIFT + K", moveDirection("u", 0, -20))
+hl.bind("SUPER + SHIFT + J", moveDirection("d", 0, 20))
+
+-- Groups: G toggles the whole group; Alt+G takes only the current tab out.
 hl.bind("SUPER + G", hl.dsp.group.toggle())
+hl.bind("SUPER + ALT + G", hl.dsp.window.move({ out_of_group = "right" }))
 hl.bind("SUPER + TAB", hl.dsp.group.next())
 hl.bind("SUPER + SHIFT + TAB", hl.dsp.group.prev())
-hl.bind("SUPER + ALT + H", hl.dsp.window.move({ into_group = "left" }))
-hl.bind("SUPER + ALT + L", hl.dsp.window.move({ into_group = "right" }))
-hl.bind("SUPER + ALT + K", hl.dsp.window.move({ into_group = "up" }))
-hl.bind("SUPER + ALT + J", hl.dsp.window.move({ into_group = "down" }))
-hl.bind("SUPER + ALT + SHIFT + H", hl.dsp.window.move({ out_of_group = "left" }))
-hl.bind("SUPER + ALT + SHIFT + L", hl.dsp.window.move({ out_of_group = "right" }))
-hl.bind("SUPER + ALT + SHIFT + K", hl.dsp.window.move({ out_of_group = "up" }))
-hl.bind("SUPER + ALT + SHIFT + J", hl.dsp.window.move({ out_of_group = "down" }))
-
--- Move window between monitors (silent)
-hl.bind("SUPER + CTRL + SHIFT + P", hl.dsp.window.move({ monitor = "-1", follow = false }))
-hl.bind("SUPER + CTRL + SHIFT + N", hl.dsp.window.move({ monitor = "+1", follow = false }))
+for _, direction in ipairs({ { "H", "left" }, { "J", "down" }, { "K", "up" }, { "L", "right" } }) do
+  hl.bind("SUPER + ALT + " .. direction[1], hl.dsp.window.move({ into_group = direction[2] }))
+end
 
 -- Resize (repeat)
 local function resizeWidth(direction)
@@ -120,29 +149,17 @@ hl.bind("SUPER + CTRL + L", resizeWidth(1), { repeating = true })
 hl.bind("SUPER + CTRL + K", hl.dsp.window.resize({ x = 0,   y = 10, relative = true }), { repeating = true })
 hl.bind("SUPER + CTRL + J", hl.dsp.window.resize({ x = 0,   y = -10,relative = true }), { repeating = true })
 
--- Workspaces
-hl.bind("SUPER + 1",  hl.dsp.focus({ workspace = 1 }))
-hl.bind("SUPER + 2",  hl.dsp.focus({ workspace = 2 }))
-hl.bind("SUPER + 3",  hl.dsp.focus({ workspace = 3 }))
-hl.bind("SUPER + 4",  hl.dsp.focus({ workspace = 4 }))
-hl.bind("SUPER + 5",  hl.dsp.focus({ workspace = 5 }))
-hl.bind("SUPER + 6",  hl.dsp.focus({ workspace = 6 }))
-hl.bind("SUPER + 7",  hl.dsp.focus({ workspace = 7 }))
-hl.bind("SUPER + 8",  hl.dsp.focus({ workspace = 8 }))
-hl.bind("SUPER + 9",  hl.dsp.focus({ workspace = 9 }))
-hl.bind("SUPER + 0",  hl.dsp.focus({ workspace = 10 }))
-
--- Move to workspace (follow)
-hl.bind("SUPER + SHIFT + 1", hl.dsp.window.move({ workspace = 1, follow = true }))
-hl.bind("SUPER + SHIFT + 2", hl.dsp.window.move({ workspace = 2, follow = true }))
-hl.bind("SUPER + SHIFT + 3", hl.dsp.window.move({ workspace = 3, follow = true }))
-hl.bind("SUPER + SHIFT + 4", hl.dsp.window.move({ workspace = 4, follow = true }))
-hl.bind("SUPER + SHIFT + 5", hl.dsp.window.move({ workspace = 5, follow = true }))
-hl.bind("SUPER + SHIFT + 6", hl.dsp.window.move({ workspace = 6, follow = true }))
-hl.bind("SUPER + SHIFT + 7", hl.dsp.window.move({ workspace = 7, follow = true }))
-hl.bind("SUPER + SHIFT + 8", hl.dsp.window.move({ workspace = 8, follow = true }))
-hl.bind("SUPER + SHIFT + 9", hl.dsp.window.move({ workspace = 9, follow = true }))
-hl.bind("SUPER + SHIFT + 0", hl.dsp.window.move({ workspace = 10, follow = true }))
+-- Numbers: focus; Shift = bring the window with you; Ctrl = send it and stay.
+for workspace = 1, 10 do
+  local key = tostring(workspace % 10)
+  hl.bind("SUPER + " .. key, hl.dsp.focus({ workspace = workspace }))
+  hl.bind("SUPER + SHIFT + " .. key, hl.dsp.window.move({ workspace = workspace, follow = true }))
+  hl.bind("SUPER + CTRL + " .. key, hl.dsp.window.move({ workspace = workspace, follow = false }))
+end
+-- B = back to the last visited workspace; U/I are adjacent previous/next keys.
+hl.bind("SUPER + B", hl.dsp.focus({ workspace = "previous" }))
+hl.bind("SUPER + U", hl.dsp.focus({ workspace = "e-1" }))
+hl.bind("SUPER + I", hl.dsp.focus({ workspace = "e+1" }))
 
 -- Special workspace (scratchpad)
 hl.bind("SUPER + S", hl.dsp.workspace.toggle_special("magic"))
@@ -156,9 +173,13 @@ hl.bind("SUPER + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
 hl.bind("SUPER + mouse:272", hl.dsp.window.drag(), { mouse = true })
 hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
--- Move workspace between monitors
-hl.bind("SUPER + CTRL + P", hl.dsp.workspace.move({ monitor = "-1" }))
-hl.bind("SUPER + CTRL + N", hl.dsp.workspace.move({ monitor = "+1" }))
+-- Monitors by index: focus; Shift sends the window; Ctrl carries the workspace.
+for _, monitor in ipairs({ { "comma", "-1" }, { "period", "+1" } }) do
+  local key, target = monitor[1], monitor[2]
+  hl.bind("SUPER + " .. key, hl.dsp.focus({ monitor = target }))
+  hl.bind("SUPER + SHIFT + " .. key, hl.dsp.window.move({ monitor = target, follow = false }))
+  hl.bind("SUPER + CTRL + " .. key, hl.dsp.workspace.move({ monitor = target }))
+end
 
 -- ══════════════════════════════════════════════════════════════
 -- 外部程序命令（启动器 / 工具）
@@ -168,11 +189,16 @@ hl.bind("SUPER + CTRL + N", hl.dsp.workspace.move({ monitor = "+1" }))
 hl.bind("SUPER + R", hl.dsp.exec_cmd("quickshell ipc call launcher toggle"))
 
 -- Screenshot (region select → annotate with satty → copy)
-hl.bind("SUPER + PRINT",      hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | satty -f - --copy-command wl-copy'"))
-hl.bind("SUPER + SHIFT + PRINT", hl.dsp.exec_cmd("sh -c 'grim - | wl-copy'"))
+local screenshotArea = "sh -c 'geometry=$(slurp) || exit 0; [ -n \"$geometry\" ] || exit 0; grim -g \"$geometry\" - | satty -f - --copy-command wl-copy'"
+local screenshotAll = "sh -c 'grim - | wl-copy'"
+-- A = area; Shift+A = all. Keep Print aliases for external keyboards.
+hl.bind("SUPER + A", hl.dsp.exec_cmd(screenshotArea))
+hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd(screenshotAll))
+hl.bind("SUPER + PRINT", hl.dsp.exec_cmd(screenshotArea))
+hl.bind("SUPER + SHIFT + PRINT", hl.dsp.exec_cmd(screenshotAll))
 
 -- Clipboard history
-hl.bind("SUPER + V", hl.dsp.exec_cmd("clipse"))
+hl.bind("SUPER + V", hl.dsp.exec_cmd(terminal .. " --class clipse -e clipse"))
 
 -- Lock & exit
 hl.bind("SUPER + M",        hl.dsp.exec_cmd("hyprlock"))
