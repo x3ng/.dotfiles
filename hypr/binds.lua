@@ -6,7 +6,7 @@ local terminal = "kitty"
 
 -- Launch & window controls
 hl.bind("SUPER + Q", hl.dsp.exec_cmd(terminal))
-hl.bind("SUPER + C", hl.dsp.window.close())
+hl.bind("SUPER + SHIFT + C", hl.dsp.window.close())
 hl.bind("SUPER + Space", hl.dsp.window.float({ action = "toggle" }))
 hl.bind("SUPER + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
 hl.bind("SUPER + SHIFT + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
@@ -191,11 +191,9 @@ hl.bind("SUPER + R", hl.dsp.exec_cmd("quickshell ipc call launcher toggle"))
 -- Screenshot (region select → annotate with satty → copy)
 local screenshotArea = "sh -c 'geometry=$(slurp) || exit 0; [ -n \"$geometry\" ] || exit 0; grim -g \"$geometry\" - | satty -f - --copy-command wl-copy'"
 local screenshotAll = "sh -c 'grim - | wl-copy'"
--- A = area; Shift+A = all. Keep Print aliases for external keyboards.
+-- A = area; Shift+A = all.
 hl.bind("SUPER + A", hl.dsp.exec_cmd(screenshotArea))
 hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd(screenshotAll))
-hl.bind("SUPER + PRINT", hl.dsp.exec_cmd(screenshotArea))
-hl.bind("SUPER + SHIFT + PRINT", hl.dsp.exec_cmd(screenshotAll))
 
 -- Clipboard history
 hl.bind("SUPER + V", hl.dsp.exec_cmd(terminal .. " --class clipse -e clipse"))
