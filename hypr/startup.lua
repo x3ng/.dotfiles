@@ -7,5 +7,6 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("clipse -listen")
   hl.exec_cmd("udiskie")
   hl.exec_cmd("hyprpaper")
-  hl.exec_cmd("fcitx5 -d --replace")
+  -- Fcitx5 starts through XDG Autostart (handled by UWSM in this session).
+  -- Do not also launch it here: --replace races with the session's instance.
 end)
