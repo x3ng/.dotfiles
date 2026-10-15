@@ -5,8 +5,8 @@ local terminal = "kitty"
 -- ══════════════════════════════════════════════════════════════
 
 -- Launch & window controls
--- Terminal on R: the ring finger reaches it without stretching the pinky (Q needs a pinky stretch).
-hl.bind("SUPER + R", hl.dsp.exec_cmd(terminal))
+-- T = terminal.
+hl.bind("SUPER + T", hl.dsp.exec_cmd(terminal))
 -- Close mirrors SUPER + Q (the launcher): same key with Shift, like SUPER + F / SUPER + SHIFT + F.
 -- The C key was avoided on purpose: SUPER + CTRL/SHIFT + C collide with Ctrl+C and Ctrl+Shift+C.
 hl.bind("SUPER + SHIFT + Q", hl.dsp.window.close())
@@ -73,8 +73,8 @@ end
 hl.bind("SUPER + N", cycleWindow(true))
 hl.bind("SUPER + P", cycleWindow(false))
 
--- T changes orientation; Enter focuses the master, Shift+Enter promotes to master.
-hl.bind("SUPER + T", layoutAction({ dwindle = "togglesplit", master = "orientationnext" }))
+-- R = reshape: change orientation; Enter focuses the master, Shift+Enter promotes to master.
+hl.bind("SUPER + R", layoutAction({ dwindle = "togglesplit", master = "orientationnext" }))
 hl.bind("SUPER + Return", layoutAction({ master = "focusmaster previous" }))
 hl.bind("SUPER + SHIFT + Return", layoutAction({ master = "swapwithmaster master" }))
 -- W = width preset; Shift reverses the cycle. Only scrolling has column presets.
