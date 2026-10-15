@@ -3,3 +3,6 @@
 
 # pi project-local auto-generated config (not a dotfile)
 .pi/
+
+# fcitx5 runtime cache, never managed (see fcitx5/install.sh)
+fcitx5/conf/cached_layouts
