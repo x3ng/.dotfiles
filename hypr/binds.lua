@@ -5,8 +5,11 @@ local terminal = "kitty"
 -- ══════════════════════════════════════════════════════════════
 
 -- Launch & window controls
-hl.bind("SUPER + Q", hl.dsp.exec_cmd(terminal))
-hl.bind("SUPER + SHIFT + C", hl.dsp.window.close())
+-- Terminal on R: the ring finger reaches it without stretching the pinky (Q needs a pinky stretch).
+hl.bind("SUPER + R", hl.dsp.exec_cmd(terminal))
+-- Close mirrors SUPER + Q (the launcher): same key with Shift, like SUPER + F / SUPER + SHIFT + F.
+-- The C key was avoided on purpose: SUPER + CTRL/SHIFT + C collide with Ctrl+C and Ctrl+Shift+C.
+hl.bind("SUPER + SHIFT + Q", hl.dsp.window.close())
 hl.bind("SUPER + Space", hl.dsp.window.float({ action = "toggle" }))
 hl.bind("SUPER + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
 hl.bind("SUPER + SHIFT + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
@@ -185,8 +188,8 @@ end
 -- 外部程序命令（启动器 / 工具）
 -- ══════════════════════════════════════════════════════════════
 
--- Application launcher
-hl.bind("SUPER + R", hl.dsp.exec_cmd("quickshell ipc call launcher toggle"))
+-- Application launcher (Q; the reflex terminal action moved to the easier R key)
+hl.bind("SUPER + Q", hl.dsp.exec_cmd("quickshell ipc call launcher toggle"))
 
 -- Screenshot (region select → annotate with satty → copy)
 local screenshotArea = "sh -c 'geometry=$(slurp) || exit 0; [ -n \"$geometry\" ] || exit 0; grim -g \"$geometry\" - | satty -f - --copy-command wl-copy'"
