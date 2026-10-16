@@ -1,4 +1,4 @@
--- Hyprland-only palette adapter. Mode belongs to Quickshell.
+-- Hyprland-only palette adapter. Quickshell saves the last observed Darkman mode.
 -- Palette sync: the shell palette lives in quickshell/Theme.qml. Panel,
 -- selection and text colours are mirrored here (1b1d20/f0f1f3, 263a35/bcded2,
 -- edf0f3/20262d, e4bb80/805313). The window and groupbar borders are tuned for

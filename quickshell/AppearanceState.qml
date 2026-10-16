@@ -4,12 +4,13 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Quickshell owns the choice. System settings only publish it to applications.
+// Darkman owns scheduling; this file keeps the last applied mode for startup.
 Scope {
     id: theme
     property bool darkMode: true
     property bool appearanceKnown: false
     readonly property bool appearanceAvailable: appearanceKnown
+        && modeWatch.connected && modeControl.connected
     readonly property string appearanceError: persistenceError || desktopAppearance.error
     property string persistenceError: ""
     readonly property string statePath: (Quickshell.env("XDG_STATE_HOME")
@@ -21,11 +22,49 @@ Scope {
     }
 
     function setTheme(dark) {
-        if (!appearanceKnown) return;
-        darkMode = dark;
-        savedMode.setText(dark ? "dark\n" : "light\n");
-        // Reapply even when selecting the current mode (e.g. after a failure).
+        if (!appearanceAvailable) return;
+        modeControl.write("set " + (dark ? "dark" : "light") + "\n");
+        modeControl.flush();
+    }
+
+    function observeMode(mode) {
+        if (mode !== "dark" && mode !== "light") return;
+        darkMode = mode === "dark";
+        appearanceKnown = true;
+        savedMode.setText(mode + "\n");
         Qt.callLater(desktopAppearance.apply);
+    }
+
+    Socket {
+        id: modeWatch
+        path: Quickshell.env("XDG_RUNTIME_DIR") + "/darkman/control.sock"
+        // Load the snapshot first so a late file read cannot overwrite live state.
+        connected: theme.appearanceKnown
+        onConnectionStateChanged: {
+            if (connected) {
+                write("watch\n");
+                flush();
+            }
+        }
+        parser: SplitParser {
+            onRead: data => theme.observeMode(data.trim())
+        }
+    }
+
+    Socket {
+        id: modeControl
+        path: modeWatch.path
+        connected: theme.appearanceKnown
+    }
+
+    Timer {
+        interval: 2000
+        repeat: true
+        running: theme.appearanceKnown && (!modeWatch.connected || !modeControl.connected)
+        onTriggered: {
+            if (!modeWatch.connected) modeWatch.connected = true;
+            if (!modeControl.connected) modeControl.connected = true;
+        }
     }
 
     FileView {

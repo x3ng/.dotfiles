@@ -34,7 +34,8 @@ ShellRoot {
         }
         function status(): string {
             return JSON.stringify({mode: appearance.darkMode ? "dark" : "light",
-                ready: appearance.appearanceKnown, error: appearance.appearanceError});
+                ready: appearance.appearanceKnown, available: appearance.appearanceAvailable,
+                error: appearance.appearanceError});
         }
     }
 

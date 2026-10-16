@@ -256,34 +256,50 @@ limits are personal defaults that can be adjusted in QML.
 
 The Nix module also contains personal login/lid/power policy, greeter and theme
 asset choices. Review those before reusing it; they are host policy, not shell
-requirements. GNOME/KDE Settings backends would require a different write adapter.
+requirements. Other desktops may need different portal routing.
 
 ## Appearance ownership
 
-Quickshell owns manual light/dark selection and saves it in
-`$XDG_STATE_HOME/quickshell/appearance-mode` (default `~/.local/state`).
-Hyprland reads the same file on startup/config reload. There is currently no
-automatic sunrise/sunset schedule.
+Darkman is a runtime dependency: it schedules sunrise/sunset transitions and
+publishes the standard `org.freedesktop.appearance/color-scheme` Settings portal
+preference. GeoClue updates its location; Darkman recalculates transition times
+as the date and location change. No fixed daily timetable is needed.
 
-The shell directly calls `gsettings set org.gnome.desktop.interface color-scheme`
-and updates Hyprland's palette. GTK's Settings portal exposes the standard
-`org.freedesktop.appearance/color-scheme` preference to applications. Application
-styles and fixed GTK/Qt themes are not rewritten.
+Quickshell watches `$XDG_RUNTIME_DIR/darkman/control.sock` and sends manual
+choices through its `set` command. Manual choices do not disable the scheduler:
+the next scheduled transition (or location update) can change the mode again.
+There is one Darkman service for the session, not one process per shell instance.
 
-Nix installs a wrapped **gsettings tool**, providing its desktop schema and dconf
-module paths. QML contains no Nix schema paths, directory discovery or shell
-command strings. Quickshell starts directly from the dotfiles-owned service;
-there is no Nix-defined Quickshell service or additional startup script.
-Other distributions can provide the same standard command through their packages.
+The shell applies observed modes to its own palette and Hyprland, and saves a
+snapshot in `$XDG_STATE_HOME/quickshell/appearance-mode` (default `~/.local/state`).
+Hyprland reads that snapshot on startup/config reload. Quickshell restores it
+before connecting, then accepts Darkman's live mode; it never sends the old
+snapshot back to Darkman. While Darkman is unavailable, the last palette remains
+visible, manual controls are disabled, and the shell retries the connection.
 
-Apply the Nix configuration before relying on application synchronization.
-The footer reports persistence/synchronization errors. Check:
+Application preferences come directly from Darkman's Settings portal; Quickshell
+does not write `gsettings`. Fixed GTK/Qt themes and application styles are not
+rewritten. Applications must support and follow the portal preference.
+
+The Nix module installs Darkman, routes the Settings portal to it, and enables
+GeoClue with a location agent. Apply the NixOS configuration and start a fresh
+graphical session after changing portal providers. A user-local
+`~/.config/darkman/config.yaml` overrides the system configuration. Without a
+known location, automatic transitions cannot run; check the Darkman logs for
+location errors and the next sunrise/sundown times.
+
+Quickshell starts from the dotfiles-owned service, which wants Darkman but can
+retain its last palette if the dependency fails. Check:
 
 ```sh
+darkman get
 quickshell ipc call appearance status
 quickshell ipc call appearance setMode dark
-gsettings get org.gnome.desktop.interface color-scheme
-journalctl --user -u quickshell.service -b
+journalctl --user -u darkman.service -u quickshell.service -b
+gdbus call --session --dest org.freedesktop.portal.Desktop \
+  --object-path /org/freedesktop/portal/desktop \
+  --method org.freedesktop.portal.Settings.ReadOne \
+  org.freedesktop.appearance color-scheme
 ```
 
 ### Notification implementation references
