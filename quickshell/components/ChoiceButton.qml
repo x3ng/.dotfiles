@@ -39,6 +39,7 @@ Rectangle {
         horizontalAlignment: Text.AlignHCenter
         elide: Text.ElideRight
         text: choice.label
+        textFormat: Text.PlainText
         color: choice.selected ? choice.style.textSelected : choice.style.textSecondary
         font.family: choice.style.fontFamily
         font.pixelSize: choice.textSize
@@ -48,17 +49,24 @@ Rectangle {
 
     RowLayout {
         anchors.centerIn: parent
+        width: Math.min(implicitWidth, Math.max(0, choice.width - 2 * choice.style.spaceSm))
         spacing: choice.style.spaceXs
         visible: choice.iconKind !== "" && choice.label !== ""
 
         StatusIcon {
             kind: choice.iconKind
-            width: choice.iconSize
-            height: choice.iconSize
+            Layout.preferredWidth: choice.iconSize
+            Layout.preferredHeight: choice.iconSize
+            Layout.minimumWidth: choice.iconSize
+            Layout.maximumWidth: choice.iconSize
             ink: choice.selected ? choice.style.textSelected : choice.style.textSecondary
         }
         Text {
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
             text: choice.label
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
             color: choice.selected ? choice.style.textSelected : choice.style.textSecondary
             font.family: choice.style.fontFamily
             font.pixelSize: choice.textSize

@@ -7,17 +7,15 @@ import ".."
 
 ColumnLayout {
     id: page
+    required property var actions
     required property var services
     readonly property var system: services.controls
     required property Theme style
-    required property var searchModel
-    required property var layoutState
     required property var appearance
     required property var notifs
     required property var sink
     required property var player
     required property bool panelOpen
-    signal detailsRequested(string section)
     readonly property real naturalHeight: content.implicitHeight
     onPanelOpenChanged: { if (panelOpen) viewport.contentY = 0; }
     spacing: page.style.spaceLg
@@ -42,15 +40,11 @@ ColumnLayout {
                 width: viewport.width
                 spacing: page.style.spaceLg
 
-                // Workspace context belongs to the status overview, first in its content.
-                WorkspaceSummary {
-                    id: workspaces
+                StatusNotices {
+                    actions: page.actions
                     Layout.fillWidth: true
-                    Layout.preferredHeight: implicitHeight
                     style: page.style
-                    searchModel: page.searchModel
-                    layoutState: page.layoutState
-                    interactive: page.panelOpen
+                    services: page.services
                 }
 
                 // Quick-settings style: one shared column grid, everything
@@ -58,10 +52,10 @@ ColumnLayout {
                 // so vertical edges stay in one straight line. No section
                 // titles, no category cards — one button per function.
                 DesktopControls {
+                    actions: page.actions
                     Layout.fillWidth: true
                     style: page.style
                     services: page.services
-                    onDetailsRequested: section => page.detailsRequested(section)
                 }
 
                 // Sliders sit on the same center split as the tiles (12px gap
@@ -97,7 +91,7 @@ ColumnLayout {
                                 label: ""
                                 iconKind: "headphones"
                                 iconSize: 20
-                                onTriggered: page.detailsRequested("audio")
+                                onTriggered: page.actions.execute("audio")
                             }
                         }
                     }
@@ -138,8 +132,8 @@ ColumnLayout {
                             label: "Mute output"
                             iconKind: "volume"
                             selected: page.sink?.audio?.muted ?? false
-                            available: !!page.sink?.audio
-                            onTriggered: page.services.toggleOutputMute()
+                            available: page.actions.available("output-mute")
+                            onTriggered: page.actions.execute("output-mute")
                         }
                         ChoiceButton {
                             Layout.fillWidth: true
@@ -150,8 +144,8 @@ ColumnLayout {
                             label: "Mute mic"
                             iconKind: "mic"
                             selected: page.services.source?.audio?.muted ?? false
-                            available: !!page.services.source?.audio
-                            onTriggered: page.services.toggleMicMute()
+                            available: page.actions.available("mic-mute")
+                            onTriggered: page.actions.execute("mic-mute")
                         }
                         ChoiceButton {
                             Layout.fillWidth: true
@@ -162,8 +156,8 @@ ColumnLayout {
                             label: "Light"
                             iconKind: "brightness"
                             selected: page.appearance.appearanceKnown && !page.appearance.darkMode
-                            available: page.appearance.appearanceAvailable && page.appearance.appearanceKnown
-                            onTriggered: page.appearance.setTheme(false)
+                            available: page.actions.available("light")
+                            onTriggered: page.actions.execute("light")
                         }
                         ChoiceButton {
                             Layout.fillWidth: true
@@ -174,8 +168,8 @@ ColumnLayout {
                             label: "Dark"
                             iconKind: "moon"
                             selected: page.appearance.appearanceKnown && page.appearance.darkMode
-                            available: page.appearance.appearanceAvailable && page.appearance.appearanceKnown
-                            onTriggered: page.appearance.setTheme(true)
+                            available: page.actions.available("dark")
+                            onTriggered: page.actions.execute("dark")
                         }
 
                         ChoiceButton {
@@ -187,7 +181,8 @@ ColumnLayout {
                             label: "Keep awake"
                             iconKind: "eye"
                             selected: page.services.keepAwake
-                            onTriggered: page.services.toggleKeepAwake()
+                            available: page.actions.available("keep-awake")
+                            onTriggered: page.actions.execute("keep-awake")
                         }
                         Repeater {
                             model: page.system.powerProfiles
@@ -205,8 +200,8 @@ ColumnLayout {
                                     : modelData === "performance" ? "gauge"
                                     : "balance"
                                 selected: page.system.powerProfile === modelData
-                                available: page.system.powerAvailable
-                                onTriggered: page.system.setPowerProfile(modelData)
+                                available: page.actions.available("power:" + modelData)
+                                onTriggered: page.actions.execute("power:" + modelData)
                             }
                         }
                     }
@@ -214,6 +209,7 @@ ColumnLayout {
                         Layout.fillWidth: true
                         visible: page.system.busy || page.system.error !== ""
                         text: page.system.busy ? "Applying…" : page.system.error
+                        textFormat: Text.PlainText
                         wrapMode: Text.Wrap
                         color: page.style.accentWarm
                         font.family: page.style.fontFamily
@@ -238,7 +234,7 @@ ColumnLayout {
                 GroupCard {
                     Layout.fillWidth: true
                     style: page.style
-                    onActivated: page.detailsRequested("notifications")
+                    onActivated: page.actions.execute("notifications")
                     contentSpacing: page.style.spaceMd
 
                     RowLayout {
@@ -277,7 +273,7 @@ ColumnLayout {
                             Layout.fillWidth: true
                             style: page.style
                             entry: page.notifs.current[index]
-                            onActivated: page.detailsRequested("notifications")
+                            onActivated: page.actions.execute("notifications")
                             onTriggered: page.notifs.removeCurrent(index)
                         }
                     }

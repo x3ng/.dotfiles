@@ -16,6 +16,7 @@ Scope {
     readonly property bool keepAwake: idleInhibitor.running
     readonly property var source: Pipewire.defaultAudioSource
     property list<string> terminalCommand: ["kitty", "--"]
+    signal feedback(string key, string summary, string body, bool critical)
     property bool controlsVisible: false
     readonly property var controls: systemControls
     readonly property var audioOutputs: Pipewire.nodes.values.filter(n => n.audio && !n.isStream && n.isSink)
@@ -30,8 +31,25 @@ Scope {
         command: ["systemd-inhibit", "--what=idle", "--mode=block",
             "--who=Quickshell", "--why=Keep screen awake", "cat"]
         stdinEnabled: true
-        stderr: SplitParser {
-            onRead: data => console.warn("Keep awake: " + data.trim())
+        property string failure: ""
+        property bool awaitingStart: false
+        property bool startFailed: false
+        onStarted: awaitingStart = false
+        onRunningChanged: {
+            // FailedToStart emits runningChanged but no exited signal. The
+            // explicit attempt guard keeps initial construction silent.
+            if (!running && awaitingStart) {
+                awaitingStart = false;
+                startFailed = true;
+                root.feedback("keep-awake", "Could not keep the desktop awake",
+                    "Could not start systemd-inhibit. Check that it is installed and executable.", false);
+            }
+        }
+        stderr: StdioCollector { onStreamFinished: idleInhibitor.failure = text.trim() }
+        onExited: (code, status) => {
+            if (!startFailed && (code !== 0 || status !== 0))
+                root.feedback("keep-awake", "Could not keep the desktop awake",
+                    failure || "The idle inhibitor stopped unexpectedly.", false);
         }
     }
 
@@ -40,8 +58,20 @@ Scope {
             idleInhibitor.stdinEnabled = false;
         } else {
             idleInhibitor.stdinEnabled = true;
+            idleInhibitor.failure = "";
+            idleInhibitor.startFailed = false;
+            idleInhibitor.awaitingStart = true;
             idleInhibitor.running = true;
         }
+        return true;
+    }
+
+    function openNetworkEditor() {
+        if (!terminalCommand.length) return false;
+        // Like application launches, the editor survives a shell reload.
+        Quickshell.execDetached(["systemd-run", "--user", "--scope", "--collect", "--quiet",
+            "--slice=app.slice", "--expand-environment=no", "--", ...terminalCommand, "nmtui", "connect"]);
+        return true;
     }
 
     PwObjectTracker {
@@ -50,23 +80,30 @@ Scope {
 
     function toggleMicMute() {
         var audio = Pipewire.defaultAudioSource?.audio;
-        if (audio) audio.muted = !audio.muted;
+        if (!audio) return false;
+        audio.muted = !audio.muted;
+        return true;
     }
 
     function toggleOutputMute() {
-        if (sink?.audio) sink.audio.muted = !sink.audio.muted;
+        if (!sink?.audio) return false;
+        sink.audio.muted = !sink.audio.muted;
+        return true;
     }
 
     function selectAudioDevice(node, input) {
         const devices = input ? audioInputs : audioOutputs;
-        if (!devices.includes(node)) return;
+        if (!devices.includes(node)) return false;
         if (input) Pipewire.preferredDefaultAudioSource = node;
         else Pipewire.preferredDefaultAudioSink = node;
+        return true;
     }
 
     function setVolume(value) {
         var audio = Pipewire.defaultAudioSink?.audio;
-        if (audio) audio.volume = Math.max(0, Math.min(1, value));
+        if (!audio || !Number.isFinite(value)) return false;
+        audio.volume = Math.max(0, Math.min(1, value));
+        return true;
     }
 
     function durationLabel(seconds) {
@@ -93,10 +130,13 @@ Scope {
 
     // ── Brightness — event-driven via kernel uevent ─────────────────
     property real brightness: -1   // 0.0~1.0, -1 = not initialized
-    property bool brightnessSetting: false
+    readonly property bool brightnessSetting: brightnessWriteProc.running || pendingBrightness >= 0
+    property int pendingBrightness: -1
+    property int brightnessRevision: 0
 
     Process {
         id: brightnessReadProc
+        property int revision: 0
         command: ["brightnessctl", "--class", "backlight", "--machine-readable"]
         running: true
         stdout: SplitParser {
@@ -105,7 +145,9 @@ Scope {
                 const fields = data.trim().split(",");
                 const current = Number(fields[2]);
                 const maximum = Number(fields[4]);
-                if (fields.length >= 5 && Number.isFinite(current) && maximum > 0)
+                if (!root.brightnessSetting && brightnessReadProc.revision === root.brightnessRevision
+                        && fields.length >= 5
+                        && Number.isFinite(current) && Number.isFinite(maximum) && maximum > 0)
                     root.brightness = Math.max(0, Math.min(1, current / maximum));
             }
         }
@@ -120,12 +162,8 @@ Scope {
                 if (!root.brightnessSetting) brightnessDebounce.restart();
             }
         }
-        onExited: (code, status) => {
-            // Restart if it exits unexpectedly (e.g. udev restart)
-            if (code !== 0) {
-                watcherRestart.restart();
-            }
-        }
+        // Also recover from a clean unexpected exit or failure to start.
+        onRunningChanged: { if (!running) watcherRestart.restart(); }
     }
     Timer {
         id: watcherRestart
@@ -136,25 +174,61 @@ Scope {
     Timer {
         id: brightnessDebounce
         interval: 50
-        onTriggered: brightnessReadProc.running = true
+        onTriggered: {
+            if (root.brightnessSetting || brightnessReadProc.running) restart();
+            else {
+                brightnessReadProc.revision = root.brightnessRevision;
+                brightnessReadProc.running = true;
+            }
+        }
     }
 
     function setBrightness(value) {
+        if (!Number.isFinite(value) || brightness < 0) return false;
+        brightnessRevision++;
         value = Math.max(0, Math.min(1, value));
-        var pct = Math.max(1, Math.round(value * 100));
-        root.brightnessSetting = true;
-        root.brightness = value;
-        Quickshell.execDetached(["brightnessctl", "--class", "backlight", "s", pct + "%", "--quiet"]);
-        // Clear guard after a short delay (no Process reuse needed)
-        brightnessGuardReset.restart();
+        pendingBrightness = Math.max(1, Math.round(value * 100));
+        root.brightness = pendingBrightness / 100;
+        Qt.callLater(flushBrightness);
+        return true;
     }
 
-    Timer {
-        id: brightnessGuardReset
-        interval: 200
-        onTriggered: {
-            root.brightnessSetting = false;
-            brightnessReadProc.running = true;
+    function flushBrightness() {
+        if (brightnessWriteProc.running || pendingBrightness < 0) return;
+        brightnessWriteProc.command = ["brightnessctl", "--class", "backlight",
+            "set", pendingBrightness + "%", "--quiet"];
+        pendingBrightness = -1;
+        brightnessWriteProc.failure = "";
+        brightnessWriteProc.startFailed = false;
+        brightnessWriteProc.awaitingStart = true;
+        brightnessWriteProc.running = true;
+    }
+
+    // Serialize writes and retain only the latest slider target. Read back the
+    // hardware value after completion, including rejected/failed writes.
+    Process {
+        id: brightnessWriteProc
+        property string failure: ""
+        property bool awaitingStart: false
+        property bool startFailed: false
+        onStarted: awaitingStart = false
+        stderr: StdioCollector { onStreamFinished: brightnessWriteProc.failure = text.trim() }
+        onExited: (code, status) => {
+            if (!startFailed && (code !== 0 || status !== 0))
+                root.feedback("brightness", "Could not change brightness",
+                    failure || "The display rejected the brightness change.", false);
+        }
+        onRunningChanged: {
+            if (!running) {
+                if (awaitingStart) {
+                    awaitingStart = false;
+                    startFailed = true;
+                    root.feedback("brightness", "Could not change brightness",
+                        "Could not start brightnessctl. Check that it is installed and executable.", false);
+                }
+                Qt.callLater(root.flushBrightness);
+                brightnessDebounce.restart();
+            }
         }
     }
 

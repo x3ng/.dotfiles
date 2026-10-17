@@ -11,7 +11,7 @@ Rectangle {
     id: card
     required property Theme style
     default property alias content: inner.data
-    readonly property int pad: card.style.spaceMd
+    property int pad: card.style.spaceMd
     property real contentSpacing: style.spaceSm
     // Emitted when the card body is tapped; per-control MouseAreas
     // declared inside take precedence over this.

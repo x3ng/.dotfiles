@@ -40,8 +40,21 @@ Scope {
     // of 5s. Critical notifications stay until dismissed.
     readonly property int defaultTimeout: 5000
 
-    readonly property string historyFile: Quickshell.cacheDir + "/notification_history.json"
+    readonly property string historyFile: (Quickshell.env("XDG_STATE_HOME")
+        || Quickshell.env("HOME") + "/.local/state") + "/quickshell/notifications.json"
+    readonly property string legacyHistoryFile: Quickshell.cacheDir + "/notification_history.json"
     property int nextRecord: 0
+    property bool historyLoaded: false
+    property var closedLocalKeys: []
+    property bool legacyRequested: false
+    property bool persistenceAllowed: false
+    property string persistenceError: ""
+    property bool historyDirty: false
+    property int historyRevision: 0
+    property int writingRevision: 0
+    property bool writeInFlight: false
+    property var persistedContents: null
+    property string writingContents: ""
 
     NotificationServer {
         keepOnReload: false
@@ -60,7 +73,9 @@ Scope {
 
     component NotifWrapper: QtObject {
         id: wrapper
-        required property Notification notification
+        // Local alerts use the same card lifecycle with an immutable JS payload.
+        required property var notification
+        property string localKey: ""
         required property string recordKey
         property double time: Date.now()
         readonly property string appName: notification.appName
@@ -109,7 +124,7 @@ Scope {
         // Apps may close their own notification (e.g. after a reply);
         // drop the popup so nothing lingers on screen.
         readonly property Connections closedWatch: Connections {
-            target: wrapper.notification
+            target: wrapper.localKey ? null : wrapper.notification
             function onClosed() { root.remove(wrapper); }
             function onSummaryChanged() { wrapper.updateTimer.restart(); }
             function onBodyChanged() { wrapper.updateTimer.restart(); }
@@ -139,6 +154,50 @@ Scope {
         while (popups.length > maxVisible) {
             const evicted = popups.find(w => !w.hovered) || popups[0];
             expire(evicted);
+        }
+    }
+
+    // Stable local keys replace one record instead of growing duplicate alerts.
+    // Local payloads deliberately have no application actions or D-Bus lifetime.
+    function notifyLocal(key, details) {
+        if (!key || !details || !details.summary) return false;
+        closedLocalKeys = closedLocalKeys.filter(k => k !== key);
+        const payload = {
+            appName: details.appName || "System", desktopEntry: "",
+            summary: details.summary, body: details.body || "",
+            appIcon: details.appIcon || "", image: "", actions: [],
+            urgency: details.critical ? NotificationUrgency.Critical : NotificationUrgency.Normal,
+            expireTimeout: -1, transient: false, resident: false
+        };
+        let wrapper = popups.find(w => w.localKey === key);
+        if (wrapper) {
+            wrapper.notification = payload;
+            wrapper.time = Date.now();
+        } else {
+            wrapper = notifWrapperComponent.createObject(root, {
+                notification: payload, localKey: key, recordKey: "local:" + key
+            });
+            if (!wrapper) return false;
+            popups = [...popups, wrapper];
+        }
+        saveRecord(wrapper);
+        wrapper.restartTimeout();
+        while (popups.length > maxVisible)
+            expire(popups.find(w => !w.hovered) || popups[0]);
+        return true;
+    }
+
+    function closeLocal(key) {
+        if (!historyLoaded && !closedLocalKeys.includes(key)) {
+            closedLocalKeys = [...closedLocalKeys, key];
+            persistHistory();
+        }
+        const wrapper = popups.find(w => w.localKey === key);
+        if (wrapper) remove(wrapper);
+        const remaining = current.filter(e => e.recordKey !== "local:" + key);
+        if (remaining.length !== current.length) {
+            current = remaining;
+            persistHistory();
         }
     }
 
@@ -192,14 +251,18 @@ Scope {
     // Banner timer elapsed: hide the popup, close the notification. The
     // entry stays pending in `current`.
     function expire(wrapper) {
-        try { wrapper.notification.expire(); } catch (e) {}
+        if (!wrapper.localKey) {
+            try { wrapper.notification.expire(); } catch (e) {}
+        }
         remove(wrapper);
     }
 
     // User clicked the banner: dismiss instead of expire. Like Noctalia,
     // dismissing a toast only hides it - it still shows up in the card.
     function dismiss(wrapper) {
-        try { wrapper.notification.dismiss(); } catch (e) {}
+        if (!wrapper.localKey) {
+            try { wrapper.notification.dismiss(); } catch (e) {}
+        }
         remove(wrapper);
     }
 
@@ -243,45 +306,131 @@ Scope {
     // Disk-backed state: like mako's max-history, but it survives quickshell
     // restarts. Writes are debounced to avoid churn.
     function persistHistory() {
+        historyDirty = true;
+        historyRevision++;
         saveTimer.restart();
     }
 
-    function loadHistory() {
-        const loadedHistory = (historyAdapter.notifications || [])
-            .filter(e => e && typeof e.time === "number");
-        const loadedCurrent = (historyAdapter.current || [])
-            .filter(e => e && typeof e.time === "number");
+    function loadHistory(data) {
+        const loadedHistory = data.notifications
+            .filter(e => e && Number.isFinite(e.time));
+        const loadedCurrent = (data.current || [])
+            .filter(e => e && Number.isFinite(e.time)
+                && !closedLocalKeys.some(key => e.recordKey === "local:" + key));
         // Anything that arrived before the async load sits in front.
-        history = [...history, ...loadedHistory].slice(0, maxHistory);
-        current = [...current, ...loadedCurrent].slice(0, maxCurrent);
+        const historyKeys = new Set(history.map(e => e.recordKey));
+        const currentKeys = new Set(current.map(e => e.recordKey));
+        history = [...history, ...loadedHistory.filter(e => !historyKeys.has(e.recordKey))].slice(0, maxHistory);
+        current = [...current, ...loadedCurrent.filter(e => !currentKeys.has(e.recordKey))].slice(0, maxCurrent);
+        closedLocalKeys = [];
+    }
+
+    function finishLoad(writable, message) {
+        if (historyLoaded) return;
+        persistenceAllowed = writable;
+        persistenceError = message;
+        historyLoaded = true;
+        if (message) console.warn("Notification history:", message);
+        if (historyDirty) saveTimer.restart();
+    }
+
+    function applyLoaded(contents, legacy) {
+        if (historyLoaded || legacy !== legacyRequested) return;
+        let data;
+        try {
+            data = JSON.parse(contents);
+        } catch (_) {
+            finishLoad(false, "Invalid JSON; preserving the original history file.");
+            return;
+        }
+        if (!data || !Array.isArray(data.notifications)
+                || (data.current !== undefined && !Array.isArray(data.current))
+                || (data.version !== undefined && data.version !== 1)) {
+            finishLoad(false, "Unsupported history format; preserving the original file.");
+            return;
+        }
+        loadHistory(data);
+        if (!legacy) persistedContents = contents;
+        if (legacy) persistHistory();
+        finishLoad(true, "");
+    }
+
+    function loadFailed(error, legacy) {
+        if (historyLoaded || legacy !== legacyRequested) return;
+        if (error !== FileViewError.FileNotFound) {
+            finishLoad(false, "Could not read history; preserving the original file.");
+        } else if (!legacy) {
+            // Only absence permits migration. Existing empty/corrupt state is
+            // never replaced by stale cache contents.
+            legacyRequested = true;
+        } else {
+            persistHistory();
+            finishLoad(true, "");
+        }
+    }
+
+    function flushHistory() {
+        if (!historyLoaded || !persistenceAllowed || !historyDirty || writeInFlight) return;
+        const contents = JSON.stringify({version: 1, notifications: history, current: current}) + "\n";
+        // FileView skips same-content writes without emitting saved.
+        if (contents === persistedContents) {
+            historyDirty = false;
+            return;
+        }
+        writingRevision = historyRevision;
+        writingContents = contents;
+        writeInFlight = true;
+        historyFileView.setText(contents);
+    }
+
+    function historySaved() {
+        if (!writeInFlight) return;
+        writeInFlight = false;
+        persistedContents = writingContents;
+        persistenceError = "";
+        historyDirty = historyRevision !== writingRevision;
+        if (historyDirty) saveTimer.restart();
+    }
+
+    function historySaveFailed() {
+        writeInFlight = false;
+        persistenceAllowed = false;
+        persistenceError = "Could not save notification history; further changes remain in memory this session.";
+        console.warn(persistenceError);
+        // FileView caches failed text too, so a same-content retry would never
+        // emit saved. Preserve disk data and retry loading on the next startup.
     }
 
     Timer {
         id: saveTimer
         interval: 200
-        onTriggered: {
-            historyAdapter.notifications = root.history;
-            historyAdapter.current = root.current;
-            historyFileView.writeAdapter();
-        }
+        onTriggered: root.flushHistory()
     }
 
     FileView {
         id: historyFileView
         path: root.historyFile
+        preload: true
+        blockLoading: false
+        blockWrites: false
+        atomicWrites: true
+        watchChanges: false
         printErrors: false
-        onLoaded: root.loadHistory()
-        onLoadFailed: error => {
-            // Missing file on first run: create it so later saves succeed.
-            if (error === 2)
-                historyFileView.writeAdapter();
-        }
+        onLoaded: root.applyLoaded(text(), false)
+        onLoadFailed: error => root.loadFailed(error, false)
+        onSaved: root.historySaved()
+        onSaveFailed: root.historySaveFailed()
+    }
 
-        JsonAdapter {
-            id: historyAdapter
-            property var notifications: []
-            property var current: []
-        }
+    FileView {
+        id: legacyFileView
+        path: root.legacyRequested ? root.legacyHistoryFile : ""
+        preload: root.legacyRequested
+        blockLoading: false
+        watchChanges: false
+        printErrors: false
+        onLoaded: { if (root.legacyRequested) root.applyLoaded(text(), true); }
+        onLoadFailed: error => { if (root.legacyRequested) root.loadFailed(error, true); }
     }
 
     Component {

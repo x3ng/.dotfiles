@@ -1,5 +1,27 @@
 # Hyprland session
 
+These Lua configs target Hyprland 0.56.2. Validate changes without starting a
+second compositor with `Hyprland --verify-config -c "$PWD/hypr/hyprland.lua"`
+from the repository root.
+
+Hyprland owns window management and key bindings. Quickshell owns launcher,
+notifications and OSD presentation; `Super+Q` calls its launcher IPC endpoint.
+`startup.lua` starts the Quickshell user service, so systemd owns its lifetime
+and restart policy. Do not also run a separate `quickshell` startup command.
+
+`Super+Alt+D/M/S/O` selects dwindle/master/scrolling/monocle for the active
+workspace, with a visible special workspace taking precedence. The binding
+applies a workspace rule and emits the custom `workspace-layout` event.
+Quickshell then reads the actual compositor state to update workspace labels
+and show the layout OSD. These rules last for the current configuration;
+they are not saved as per-workspace layout preferences across a reload.
+
+Darkman owns the appearance mode. Quickshell applies its observed mode through
+`appearance.lua` and saves a snapshot for compositor startup/config reload.
+Missing or invalid saved state falls back to the dark palette. The adapter's
+explicit `apply("dark")` / `apply("light")` interface is shared with Quickshell;
+keep the palettes in sync with `quickshell/Theme.qml`.
+
 Run `hyprmoncfg` to arrange displays and save profiles. `startup.lua` starts
 `hyprmoncfgd.service` to switch saved profiles automatically. Before a
 profile is applied, displays use their preferred mode with automatic

@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
 import Quickshell.Widgets
 import ".."
 
@@ -10,6 +9,7 @@ Rectangle {
     id: detail
     required property Theme style
     required property var services
+    required property var actions
     required property var notifs
     readonly property var system: services.controls
     required property string section
@@ -121,13 +121,8 @@ Rectangle {
                             label: detail.radioEnabled ? "On" : "Off"
                             filled: true
                             selected: detail.radioEnabled
-                            available: !detail.sectionBusy
-                            onTriggered: {
-                                if (detail.section === "wifi")
-                                    detail.system.toggleWifi();
-                                else
-                                    detail.system.toggleBluetooth();
-                            }
+                            available: detail.actions.available(detail.section + "-toggle")
+                            onTriggered: detail.actions.execute(detail.section + "-toggle")
                         }
                     }
                     RowLayout {
@@ -230,6 +225,7 @@ Rectangle {
                         Layout.fillWidth: true
                         visible: detail.sectionBusy || (detail.section === "wifi" && detail.system.error !== "")
                         text: detail.sectionBusy ? "Applying…" : detail.system.error
+                        textFormat: Text.PlainText
                         wrapMode: Text.Wrap
                         color: detail.style.accentWarm
                         font.family: detail.style.fontFamily
@@ -244,8 +240,7 @@ Rectangle {
                         label: "Find another network…"
                         available: detail.services.terminalCommand.length > 0
                         onTriggered: {
-                            Quickshell.execDetached([...detail.services.terminalCommand, "nmtui", "connect"]);
-                            detail.dismissRequested();
+                            if (detail.services.openNetworkEditor()) detail.dismissRequested();
                         }
                     }
                     ChoiceButton {

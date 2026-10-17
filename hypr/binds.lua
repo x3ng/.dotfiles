@@ -1,5 +1,10 @@
 local terminal = "kitty"
 
+-- A visible special workspace takes precedence over the monitor's regular workspace.
+local function activeWorkspace()
+  return hl.get_active_special_workspace() or hl.get_active_workspace()
+end
+
 -- ══════════════════════════════════════════════════════════════
 -- Hyprland 原生快捷键（窗口/工作区/布局管理）
 -- ══════════════════════════════════════════════════════════════
@@ -20,7 +25,7 @@ hl.bind("SUPER + ALT + P", hl.dsp.window.pin())
 -- Set the tiled algorithm on the current workspace only.
 local function setLayout(layout)
   return function()
-    local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
+    local workspace = activeWorkspace()
     if workspace then
       hl.workspace_rule({ workspace = workspace.config_name, layout = layout })
       -- Quickshell reads the resulting state rather than trusting the requested layout.
@@ -31,7 +36,7 @@ end
 -- Move focus
 local function layoutAction(actions)
   return function()
-    local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
+    local workspace = activeWorkspace()
     local window = hl.get_active_window()
     if not workspace or not window or window.floating then return end
     local message = actions[workspace.tiled_layout]
@@ -41,7 +46,7 @@ end
 
 local function focusDirection(direction, next)
   return function()
-    local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
+    local workspace = activeWorkspace()
     local window = hl.get_active_window()
     if workspace and workspace.tiled_layout == "monocle" and window and not window.floating then
       hl.dispatch(hl.dsp.layout(next and "cyclenext" or "cycleprev"))
@@ -61,7 +66,7 @@ hl.bind("SUPER + J", focusDirection("d", true))
 -- Workspace window cycling is separate from Super+Tab's group tabs.
 local function cycleWindow(next)
   return function()
-    local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
+    local workspace = activeWorkspace()
     local window = hl.get_active_window()
     if workspace and workspace.tiled_layout == "monocle" and window and not window.floating then
       hl.dispatch(hl.dsp.layout(next and "cyclenext" or "cycleprev"))
@@ -113,7 +118,7 @@ local function moveDirection(direction, x, y)
     if window.floating then
       hl.dispatch(hl.dsp.window.move({ x = x, y = y, relative = true }))
     else
-      local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
+      local workspace = activeWorkspace()
       if workspace and workspace.tiled_layout == "monocle" then return end
       hl.dispatch(hl.dsp.window.swap({ direction = direction }))
     end
@@ -138,7 +143,7 @@ local function resizeWidth(direction)
   return function()
     local window = hl.get_active_window()
     if not window then return end
-    local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
+    local workspace = activeWorkspace()
     if not window.floating and workspace and workspace.tiled_layout == "scrolling" then
       -- Column resizing refits the viewport, so the rightmost column can grow too.
       hl.dispatch(hl.dsp.layout(direction > 0 and "colresize +0.05" or "colresize -0.05"))
@@ -150,7 +155,7 @@ end
 hl.bind("SUPER + CTRL + H", resizeWidth(-1), { repeating = true })
 hl.bind("SUPER + CTRL + L", resizeWidth(1), { repeating = true })
 hl.bind("SUPER + CTRL + K", hl.dsp.window.resize({ x = 0,   y = 10, relative = true }), { repeating = true })
-hl.bind("SUPER + CTRL + J", hl.dsp.window.resize({ x = 0,   y = -10,relative = true }), { repeating = true })
+hl.bind("SUPER + CTRL + J", hl.dsp.window.resize({ x = 0,   y = -10, relative = true }), { repeating = true })
 
 -- Numbers: focus; Shift = bring the window with you; Ctrl = send it and stay.
 for workspace = 1, 10 do
@@ -188,7 +193,7 @@ end
 -- 外部程序命令（启动器 / 工具）
 -- ══════════════════════════════════════════════════════════════
 
--- Application launcher (Q; the reflex terminal action moved to the easier R key)
+-- Application launcher (Q); Super+T launches the terminal.
 hl.bind("SUPER + Q", hl.dsp.exec_cmd("quickshell ipc call launcher toggle"))
 
 -- Screenshot (region select → annotate with satty → copy)

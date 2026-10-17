@@ -23,8 +23,24 @@ Scope {
     property bool lastMuted: false
     property bool workspaceReady: false
     property var lastWorkspaceId: null
+    property string layoutLabel: ""
+    property string layoutWorkspaceLabel: ""
+    property bool lastMicMuted: false
+    property bool microphoneMuted: false
+    property string lastOutputKey: ""
+    property string outputLabel: ""
     readonly property var workspace: Hyprland.focusedWorkspace
-    readonly property var sinkAudio: Pipewire.defaultAudioSink?.audio ?? null
+    readonly property int layoutWorkspaceId: Hyprland.focusedMonitor?.lastIpcObject.specialWorkspace?.id
+        || workspace?.id || 0
+    readonly property var sink: Pipewire.defaultAudioSink
+    readonly property var source: Pipewire.defaultAudioSource
+    readonly property var sinkAudio: sink?.ready ? sink.audio : null
+    readonly property var sourceAudio: source?.ready ? source.audio : null
+    readonly property string outputKey: sink?.ready ? (sink.name || String(sink.id)) : ""
+    readonly property string feedbackTitle: kind === "layout" ? layoutWorkspaceLabel
+        : kind === "microphone" ? "MICROPHONE" : "AUDIO OUTPUT"
+    readonly property string feedbackValue: kind === "layout" ? layoutLabel
+        : kind === "microphone" ? (microphoneMuted ? "MUTED" : "UNMUTED") : outputLabel
     readonly property real level: kind === "brightness"
         ? shell.brightness : (sinkAudio?.volume ?? 0)
     readonly property bool muted: kind === "volume" && (sinkAudio?.muted ?? false)
@@ -60,10 +76,52 @@ Scope {
         lastMuted = sinkAudio?.muted ?? false;
     }
 
+    onSourceAudioChanged: lastMicMuted = sourceAudio?.muted ?? false
+
+    onOutputKeyChanged: {
+        // Retain the last stable identity across temporary nulls and node rebuilds.
+        if (outputKey) outputDelay.restart();
+        else outputDelay.stop();
+    }
+
+    function reconcileOutput() {
+        if (!outputKey) return;
+        const changed = lastOutputKey !== "" && lastOutputKey !== outputKey;
+        lastOutputKey = outputKey;
+        if (changed) {
+            outputLabel = sink.description || sink.nickname || sink.name || "Audio output";
+            reveal("output");
+        }
+    }
+
+    Timer {
+        id: outputDelay
+        interval: 180
+        onTriggered: osd.reconcileOutput()
+    }
+
+    Connections {
+        target: osd.sourceAudio
+        function onMutedChanged() {
+            if (!osd.sourceAudio) return;
+            const muted = osd.sourceAudio.muted;
+            if (muted !== osd.lastMicMuted) {
+                osd.microphoneMuted = muted;
+                osd.reveal("microphone");
+            }
+            osd.lastMicMuted = muted;
+        }
+    }
+
     Connections {
         target: osd.layoutState
         function onLayoutChanged(workspaceId) {
-            if (workspaceId === osd.workspace?.id) osd.reveal("workspace");
+            if (workspaceId !== osd.layoutWorkspaceId) return;
+            const workspace = Hyprland.workspaces.values.find(w => w.id === workspaceId);
+            osd.layoutLabel = osd.layoutState.label(workspaceId);
+            osd.layoutWorkspaceLabel = workspaceId < 0
+                ? (workspace?.name ?? "SPECIAL WORKSPACE") : "WORKSPACE " + (workspace?.name ?? workspaceId);
+            osd.reveal("layout");
         }
     }
 
@@ -111,13 +169,16 @@ Scope {
             screen: modelData
             readonly property bool active: modelData !== null && osd.shown && osd.monitorName === modelData.name
             visible: active || content.opacity > 0
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             WlrLayershell.exclusionMode: ExclusionMode.Ignore
             WlrLayershell.namespace: "quickshell:osd"
             anchors { bottom: true }
             margins { bottom: 56 }
-            implicitWidth: osd.kind === "workspace" && modelData !== null
-                ? Math.min(workspaceSummary.implicitWidth + 26, Math.max(1, modelData.width - 64)) : 250
-            implicitHeight: osd.kind === "workspace" ? workspaceSummary.implicitHeight + 14 : 76
+            implicitWidth: Math.min((osd.kind === "workspace"
+                ? Math.max(card.implicitWidth, workspaceSummary.implicitWidth + 2 * osd.style.spaceLg)
+                : card.implicitWidth) + 26, Math.max(1, (modelData?.width ?? 1920) - 64))
+            implicitHeight: card.implicitHeight + 14
             color: "transparent"
             mask: Region {}
 
@@ -130,80 +191,34 @@ Scope {
                     NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
                 }
 
-                WorkspaceSummary {
-                    id: workspaceSummary
+                OsdCard {
+                    id: card
                     anchors.centerIn: parent
                     width: window.width - 26
                     height: implicitHeight
-                    visible: osd.kind === "workspace"
                     style: osd.style
-                    searchModel: osd.searchModel
-                    layoutState: osd.layoutState
-                    interactive: false
-                    radius: osd.style.radiusPopup
-                    color: osd.style.surface
-                    border.color: osd.style.outline
-                    border.width: 1
-                }
+                    label: osd.kind === "workspace" ? "WORKSPACES"
+                        : osd.kind === "volume" ? "VOLUME"
+                        : osd.kind === "brightness" ? "BRIGHTNESS" : osd.feedbackTitle
+                    value: showProgress
+                        ? (osd.muted ? "MUTED · " : "") + Math.round(Math.max(0, osd.level) * 100) + "%"
+                        : osd.feedbackValue
+                    caution: osd.muted || (osd.kind === "microphone" && osd.microphoneMuted)
+                    showProgress: osd.kind === "volume" || osd.kind === "brightness"
+                    progress: osd.level
+                    customContent: osd.kind === "workspace"
 
-                Rectangle {
-                    visible: osd.kind !== "workspace"
-                    anchors.centerIn: parent
-                    width: 224
-                    height: 62
-                    radius: osd.style.radiusPopup
-                    color: osd.style.surface
-                    border.color: osd.style.outline
-                    border.width: 1
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.leftMargin: osd.style.spaceLg
-                        anchors.top: parent.top
-                        anchors.topMargin: 11
-                        text: osd.kind === "brightness" ? "BRIGHTNESS"
-                            : (osd.muted ? "MUTED" : "VOLUME")
-                        color: osd.style.textSecondary
-                        font.family: osd.style.fontFamily
-                        font.pixelSize: osd.style.fontSizeBody
+                    WorkspaceSummary {
+                        id: workspaceSummary
+                        width: parent.width
+                        height: implicitHeight
+                        style: osd.style
+                        searchModel: osd.searchModel
+                        layoutState: osd.layoutState
+                        interactive: false
+                        padding: 0
+                        color: "transparent"
                     }
-
-                    Text {
-                        anchors.right: parent.right
-                        anchors.rightMargin: osd.style.spaceLg
-                        anchors.top: parent.top
-                        anchors.topMargin: 11
-                        text: Math.round(Math.max(0, osd.level) * 100) + "%"
-                        color: osd.style.textPrimary
-                        font.family: osd.style.fontFamily
-                        font.pixelSize: osd.style.fontSizeBody
-                    }
-
-                    Rectangle {
-                        id: track
-                        anchors.left: parent.left
-                        anchors.leftMargin: osd.style.spaceLg
-                        anchors.right: parent.right
-                        anchors.rightMargin: osd.style.spaceLg
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: 14
-                        height: 5
-                        radius: 3
-                        color: osd.style.separator
-
-                        Rectangle {
-                            width: track.width * Math.max(0, Math.min(1, osd.level))
-                            height: parent.height
-                            radius: parent.radius
-                            color: osd.kind === "brightness" ? osd.style.accentWarm
-                                : osd.muted ? osd.style.textSecondary : osd.style.accent
-
-                            Behavior on width {
-                                NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
-                            }
-                        }
-                    }
-
                 }
             }
         }

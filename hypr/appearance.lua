@@ -11,14 +11,15 @@ local M = {}
 
 function M.apply(mode)
   if not mode then
-    local state = os.getenv("XDG_STATE_HOME") or (os.getenv("HOME") .. "/.local/state")
+    local state = os.getenv("XDG_STATE_HOME")
+    if not state or state == "" then state = os.getenv("HOME") .. "/.local/state" end
     local file = io.open(state .. "/quickshell/appearance-mode", "r")
     if file then
       mode = file:read("*a"):match("^%s*(.-)%s*$")
       file:close()
-    else
-      mode = "dark"
     end
+    -- A missing, empty or damaged saved snapshot must still apply a complete palette.
+    if mode ~= "dark" and mode ~= "light" then mode = "dark" end
   end
   if mode ~= "dark" and mode ~= "light" then return end
 

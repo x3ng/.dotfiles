@@ -45,6 +45,13 @@ Canvas {
                 c.arc(8, 10, 10, -0.7, 0.7);
             }
             c.stroke();
+        } else if (kind === "keyboard") {
+            c.strokeRect(1.5, 4, 17, 12);
+            for (let row = 0; row < 2; row++) {
+                for (let column = 0; column < 5; column++)
+                    c.fillRect(4 + column * 2.5, 7 + row * 3, 1.2, 1.2);
+            }
+            c.beginPath(); c.moveTo(6, 14); c.lineTo(14, 14); c.stroke();
         } else if (kind === "brightness") {
             c.beginPath(); c.arc(10, 10, 3.5, 0, Math.PI * 2); c.stroke();
             for (let i = 0; i < 8; i++) {

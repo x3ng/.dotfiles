@@ -75,6 +75,7 @@ Rectangle {
         anchors.rightMargin: card.style.spaceMd
         anchors.top: artwork.top
         text: card.player?.trackTitle || card.player?.identity || "No media playing"
+        textFormat: Text.PlainText
         color: card.style.textPrimary
         font.family: card.style.fontFamily
         font.pixelSize: card.style.fontSizeBody
@@ -88,6 +89,7 @@ Rectangle {
         anchors.top: trackTitle.bottom
         anchors.topMargin: 3
         text: card.player?.trackArtist || card.player?.identity || ""
+        textFormat: Text.PlainText
         color: card.style.textSecondary
         font.family: card.style.fontFamily
         font.pixelSize: card.style.fontSizeCaption

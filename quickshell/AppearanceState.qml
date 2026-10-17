@@ -22,9 +22,10 @@ Scope {
     }
 
     function setTheme(dark) {
-        if (!appearanceAvailable) return;
+        if (!appearanceAvailable) return false;
         modeControl.write("set " + (dark ? "dark" : "light") + "\n");
         modeControl.flush();
+        return true;
     }
 
     function observeMode(mode) {

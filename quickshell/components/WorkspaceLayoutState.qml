@@ -28,16 +28,25 @@ Scope {
         read.running = true;
     }
 
+    function scheduleRefresh() {
+        // A queued IPC read may already describe the state before this event.
+        if (read.running) pending = true;
+        refreshDelay.restart();
+    }
+
     Component.onCompleted: refresh()
 
     Connections {
         target: Hyprland
         function onRawEvent(event) {
+            // Quickshell 0.3 does not refresh monitor.specialWorkspace on this
+            // event; its focusedWorkspace continues to name the regular one.
+            if (event.name === "activespecialv2") Hyprland.refreshMonitors();
             if (event.name === "configreloaded" || event.name === "workspacev2"
                 || event.name === "activespecialv2" || event.name === "createworkspacev2"
                 || event.name === "destroyworkspacev2" || event.name === "renameworkspace"
                 || (event.name === "custom" && event.data === "workspace-layout"))
-                refreshDelay.restart();
+                state.scheduleRefresh();
         }
     }
 
@@ -56,9 +65,10 @@ Scope {
         property string output: ""
         stdout: StdioCollector { onStreamFinished: read.output = text }
         onExited: (code, status) => {
-            if (code === 0 && status === 0) {
+            if (code === 0 && status === 0 && !state.pending) {
                 try {
                     const rows = JSON.parse(output);
+                    if (!Array.isArray(rows)) throw new Error("Expected workspace array");
                     const next = {};
                     const changed = [];
                     for (const workspace of rows) {

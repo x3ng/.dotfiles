@@ -12,6 +12,7 @@ Rectangle {
     required property var searchModel
     required property var layoutState
     property bool interactive: true
+    property int padding: 9
     readonly property var workspaces: Hyprland.workspaces.values
         .filter(w => w.id > 0 && (w.toplevels.values.length > 0
             || w.id === Hyprland.focusedWorkspace?.id))
@@ -33,8 +34,8 @@ Rectangle {
         font.weight: Font.DemiBold
     }
 
-    implicitWidth: workspaceFlow.naturalWidth + 18
-    implicitHeight: workspaceFlow.implicitHeight + 18
+    implicitWidth: workspaceFlow.naturalWidth + 2 * padding
+    implicitHeight: workspaceFlow.implicitHeight + 2 * padding
     radius: style.radiusCard
     color: style.surfaceRaised
 
@@ -42,7 +43,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 9
+        anchors.margins: summary.padding
         height: workspaceFlow.implicitHeight
 
         Flow {
@@ -82,6 +83,7 @@ Rectangle {
                             verticalAlignment: Text.AlignVCenter
                             horizontalAlignment: Text.AlignHCenter
                             text: summary.workspaceLabel(workspace.modelData)
+                            textFormat: Text.PlainText
                             color: workspace.active ? summary.style.textSelected : summary.style.textPrimary
                             Behavior on color {
                                 ColorAnimation { duration: 140 }

@@ -7,9 +7,9 @@ import ".."
 GridLayout {
     id: controls
     required property Theme style
+    required property var actions
     required property var services
     readonly property var system: services.controls
-    signal detailsRequested(string section)
     columns: width >= 480 ? 2 : 1
     columnSpacing: 12
     rowSpacing: 12
@@ -23,9 +23,9 @@ GridLayout {
         available: controls.system.wifiAvailable
         active: controls.system.wifiEnabled
         toggleable: true
-        toggleAvailable: !controls.system.busy
-        onTriggered: controls.detailsRequested("wifi")
-        onToggled: controls.system.toggleWifi()
+        toggleAvailable: controls.actions.available("wifi-toggle")
+        onTriggered: controls.actions.execute("wifi")
+        onToggled: controls.actions.execute("wifi-toggle")
     }
     ControlTile {
         Layout.fillWidth: true
@@ -39,8 +39,8 @@ GridLayout {
         available: controls.system.bluetoothAvailable
         active: controls.system.bluetoothEnabled
         toggleable: true
-        toggleAvailable: !controls.system.busy
-        onTriggered: controls.detailsRequested("bluetooth")
-        onToggled: controls.system.toggleBluetooth()
+        toggleAvailable: controls.actions.available("bluetooth-toggle")
+        onTriggered: controls.actions.execute("bluetooth")
+        onToggled: controls.actions.execute("bluetooth-toggle")
     }
 }

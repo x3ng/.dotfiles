@@ -7,6 +7,7 @@ import Quickshell.Wayland
 Scope {
     id: searchModel
     required property string query
+    property var actions: null
     // Terminal executable and its argument separator; argv stays an array.
     property list<string> terminalCommand: ["kitty", "--"]
     readonly property var results: {
@@ -31,7 +32,9 @@ Scope {
             return Math.min(...terms.map(term => oneScore(t, term)));
         };
         const windows = ToplevelManager.toplevels.values.map((w, i) => ({
-            kind: "WINDOW", title: w.title || w.appId, detail: w.appId,
+            // This Wayland API has no persistent window ID. Its live QObject
+            // identity stays stable across title changes and model reordering.
+            key: w, kind: "WINDOW", title: w.title || w.appId, detail: w.appId,
             entry: desktopEntryFor(w), target: w, order: i
         })).filter(r => matches(r.title + " " + r.detail))
             .map(r => {
@@ -53,18 +56,29 @@ Scope {
                 // as "browser" cannot outrank a real name match.
                 const nameScore = Math.min(score(a.name), score(a.genericName || a.name));
                 const metaScore = Math.min(score(a.comment || ""), score(a.id));
-                return { kind: "APP", title: a.name,
+                return { key: "app:" + a.id, kind: "APP", title: a.name,
                     detail: a.genericName || a.comment || a.id,
                     entry: a, target: a,
                     score: Math.min(nameScore, Math.min(NONE, metaScore + 1)) };
             })
             .sort((a, b) => a.title.localeCompare(b.title))
             .map((a, i) => { a.order = i; return a; });
-        // Strongest match first; windows win ties so Enter keeps focusing the
-        // existing window instead of launching a duplicate.
-        return windows.concat(apps).sort((a, b) => a.score - b.score
-            || (a.kind === b.kind ? a.order - b.order
-                : a.kind === "WINDOW" ? -1 : 1));
+        const commands = (actions?.entries ?? []).map((action, order) => {
+            const keywords = Array.isArray(action.keywords)
+                ? action.keywords.join(" ") : action.keywords || "";
+            return {key: "action:" + action.id, kind: "ACTION", title: action.title, detail: keywords,
+                icon: action.icon || "app", enabled: action.enabled !== false,
+                target: action, order: order};
+        }).filter(r => matches(r.title + " " + r.detail)).map(r => {
+            const nameScore = score(r.title);
+            r.score = nameScore < NONE ? nameScore : Math.min(NONE, score(r.detail) + 1);
+            return r;
+        });
+        // Strongest match first; ties prefer an existing window, then an app,
+        // then a shell action. Preserve each source's deterministic ordering.
+        const kindOrder = {WINDOW: 0, APP: 1, ACTION: 2};
+        return windows.concat(apps, commands).sort((a, b) => a.score - b.score
+            || kindOrder[a.kind] - kindOrder[b.kind] || a.order - b.order);
     }
 
     function normalizedDesktopId(value) {
@@ -111,10 +125,27 @@ Scope {
     }
 
     function activate(index, forceTerminal = false) {
-        const result = results[index];
-        if (!result) return false;
-        if (result.kind === "WINDOW") result.target.activate();
-        else return launchApplication(result.target, forceTerminal);
-        return true;
+        return activateResult(results[index], forceTerminal);
+    }
+
+    // Returns {accepted, closePanel}. Accepted means the request was dispatched,
+    // not that an asynchronous app launch or compositor focus has completed.
+    // Capture the row before clearing a query can reorder the model.
+    function activateResult(result, forceTerminal = false) {
+        if (!result || result.enabled === false) return {accepted: false, closePanel: false};
+        if (result.kind === "ACTION") {
+            return {accepted: actions?.execute(result.target.id) === true, closePanel: false};
+        }
+        if (result.kind === "WINDOW") {
+            if (!ToplevelManager.toplevels.values.includes(result.target))
+                return {accepted: false, closePanel: false};
+            result.target.activate();
+            return {accepted: true, closePanel: true};
+        }
+        if (result.kind === "APP") {
+            const accepted = launchApplication(result.target, forceTerminal);
+            return {accepted: accepted, closePanel: accepted};
+        }
+        return {accepted: false, closePanel: false};
     }
 }

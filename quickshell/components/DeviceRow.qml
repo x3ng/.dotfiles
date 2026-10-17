@@ -26,6 +26,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: row.title
+                textFormat: Text.PlainText
                 elide: Text.ElideRight
                 color: row.selected ? row.style.textSelected : row.style.textPrimary
                 font.family: row.style.fontFamily
@@ -36,6 +37,7 @@ Rectangle {
                 Layout.fillWidth: true
                 visible: row.subtitle !== ""
                 text: row.subtitle
+                textFormat: Text.PlainText
                 elide: Text.ElideRight
                 color: row.style.textMuted
                 font.family: row.style.fontFamily
