@@ -7,10 +7,12 @@ case "${1:-install}" in
   install)
     dot_link "$SCRIPT_DIR/yazi.toml" "$HOME/.config/yazi/yazi.toml"
     dot_link "$SCRIPT_DIR/keymap.toml" "$HOME/.config/yazi/keymap.toml"
+    dot_link "$SCRIPT_DIR/init.lua" "$HOME/.config/yazi/init.lua"
     ;;
   uninstall)
     dot_unlink "$HOME/.config/yazi/yazi.toml"
     dot_unlink "$HOME/.config/yazi/keymap.toml"
+    dot_unlink "$HOME/.config/yazi/init.lua"
     ;;
   *)
     echo "usage: $0 {install|uninstall}" >&2; exit 1

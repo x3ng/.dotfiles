@@ -1,0 +1,24 @@
+# Managed by dotfiles/grub. Appearance only; NixOS owns the boot entries.
+# Paths are relative to GRUB's prefix, not the running Linux root directory.
+set dotfiles_theme_dir="$prefix/themes/@THEME@"
+set dotfiles_theme_ready=1
+for dotfiles_theme_file in theme.txt font16.pf2 font20.pf2 font32.pf2; do
+  if [ ! -f "$dotfiles_theme_dir/$dotfiles_theme_file" ]; then
+    set dotfiles_theme_ready=0
+  fi
+done
+if [ "$dotfiles_theme_ready" = 1 ]; then
+  if insmod gfxmenu; then
+    if loadfont "$dotfiles_theme_dir/font16.pf2"; then
+      if loadfont "$dotfiles_theme_dir/font20.pf2"; then
+        if loadfont "$dotfiles_theme_dir/font32.pf2"; then
+          set theme="$dotfiles_theme_dir/theme.txt"
+          export theme
+        fi
+      fi
+    fi
+  fi
+fi
+unset dotfiles_theme_dir
+unset dotfiles_theme_ready
+unset dotfiles_theme_file

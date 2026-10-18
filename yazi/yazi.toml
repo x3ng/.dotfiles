@@ -1,3 +1,5 @@
+#:schema https://yazi-rs.github.io/schemas/yazi.json
+
 [mgr]
 ratio = [ 2, 4, 4 ]
 sort_by = "natural"
@@ -18,10 +20,28 @@ edit = [
   { run = '${EDITOR:-vi} %s', block = true, desc = "Editor ($EDITOR)", for = "unix" },
 ]
 open = [
-  { run = 'xdg-open %s', orphan = true, desc = "Open (xdg-open)", for = "linux" },
+  { run = 'xdg-open %s1', orphan = true, desc = "Open (xdg-open)", for = "linux" },
 ]
 
 [open]
-rules = [
-  { url = "*", use = [ "edit", "open" ] },
+# Extend the defaults instead of sending images, PDFs and archives to $EDITOR.
+# Preserve built-in extraction, media, trash and remote-file actions.
+prepend_rules = [
+  { mime = "text/*", use = [ "edit", "open", "reveal" ] },
+  { mime = "application/{json,ndjson,javascript,toml,yaml,x-yaml,xml}", use = [ "edit", "open", "reveal" ] },
 ]
+
+[[plugin.prepend_fetchers]]
+url = "*"
+run = "git"
+group = "git"
+
+[[plugin.prepend_fetchers]]
+url = "*/"
+run = "git"
+group = "git"
+
+# Keep native image/PDF/video/archive previews; render only local Markdown.
+[[plugin.prepend_previewers]]
+url = "local://*.{md,markdown,mdown,mkd}"
+run = 'piper -- CLICOLOR_FORCE=1 glow -w="$w" -s="$([ "$t" = light ] && echo light || echo dark)" "$1"'

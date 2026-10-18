@@ -1,0 +1,36 @@
+title-text: ""
+desktop-color: "#000000"
+terminal-font: "DejaVu Sans Regular 20"
++ boot_menu {
+ left = 18%
+ top = 30%
+ width = 64%
+ height = 52%
+ item_font = "DejaVu Sans Regular 20"
+ item_color = "#888888"
+ selected_item_color = "#FFFFFF"
+ item_height = 40
+ item_padding = 10
+ item_spacing = 6
+ icon_width = 0
+ icon_height = 0
+}
++ label {
+ left = 18%
+ top = 88%
+ width = 64%
+ height = 26
+ text = "Up / Down  Select     Enter  Boot     E  Edit     C  Console"
+ font = "DejaVu Sans Regular 16"
+ color = "#666666"
+}
++ label {
+ id = "__timeout__"
+ left = 18%
+ top = 83%
+ width = 64%
+ height = 26
+ text = "Booting in %d seconds"
+ font = "DejaVu Sans Regular 16"
+ color = "#888888"
+}

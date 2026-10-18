@@ -75,4 +75,8 @@ Interactive packages refuse batch execution and guide the user:
 ./deploy/deploy mihomo                          # prompts for SUB_URL
 sudo MIHOMO_SUB_URL=<url> ./deploy/deploy mihomo
 sudo XREMAP_SKIP_REVIEW=1 ./deploy/deploy xremap
+sudo ./deploy/deploy grub                     # optional GRUB appearance
 ```
+
+GRUB appearance is opt-in and requires a bootloader configuration hook. See
+[grub/README.md](grub/README.md) for deployment, missing-file fallback, and recovery.

@@ -1,6 +1,15 @@
+#:schema https://yazi-rs.github.io/schemas/keymap.json
+
 [mgr]
 prepend_keymap = [
+  # Keep the standard gh/gc/gd jumps.
   { on = [ "g", "h" ], run = "cd ~", desc = "Go home" },
   { on = [ "g", "c" ], run = "cd ~/.config", desc = "Go config" },
   { on = [ "g", "d" ], run = "cd ~/Downloads", desc = "Go downloads" },
+
+  { on = "e", run = 'shell "${EDITOR:-vi} %s" --block', desc = "Edit selected files" },
+  { on = [ "g", "o" ], run = 'shell "xdg-open %d1" --orphan', desc = "Open current directory in GUI" },
+  { on = "T", run = "plugin toggle-pane max-preview", desc = "Maximize or restore preview" },
+  { on = [ "g", "p" ], run = "plugin toggle-pane min-preview", desc = "Show or hide preview" },
+  { on = [ "c", "m" ], run = "plugin chmod", desc = "Change selected file permissions" },
 ]
