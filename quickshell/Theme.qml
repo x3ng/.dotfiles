@@ -8,7 +8,7 @@ Scope {
     // Palette sync: the values below are mirrored in hypr/appearance.lua
     // (borders, groupbar). Keep both files in step when changing a colour;
     // accent is intentionally darker in Hyprland borders than in the shell.
-    readonly property int panelPadding: 24
+    readonly property int panelPadding: 18
     readonly property int panelGap: 10
     // Shared spacing scale; one-off optical adjustments stay literal.
     readonly property int spaceXs: 4
@@ -16,7 +16,8 @@ Scope {
     readonly property int spaceMd: 12
     readonly property int spaceLg: 16
     readonly property int maximumPanelHeight: 700
-    readonly property int maximumPanelWidth: 680
+    // One stable frame for tabs, search and details; only height follows content.
+    readonly property int maximumPanelWidth: 600
     readonly property int stripHeight: 40
     readonly property int radiusPanel: 16
     readonly property int radiusInput: 10

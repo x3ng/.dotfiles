@@ -1,7 +1,7 @@
 # Quickshell desktop panel
 
 For module ownership and extension rules, see [ARCHITECTURE.md](ARCHITECTURE.md).
-Regression checks are documented in [tests/README.md](tests/README.md).
+Regression checks are documented in [tests/quickshell/README.md](../tests/quickshell/README.md).
 
 `Super+Q` toggles a panel on the focused monitor. Alternatively, rest the mouse
 in the top-left or top-right corner of any screen for 400 ms to open the full
@@ -18,7 +18,9 @@ Startup with the pointer already in a corner also stays silent. Adjust
 `PanelHotCorners.qml`'s `dwellTime`/`cornerSize`, or set its `enabled` to false in
 `shell.qml`, to tune or disable this entry. There is no bar. Each page sizes to its content, with one height ceiling:
 `Theme.maximumPanelHeight` (700px by default), also limited by available screen
-space. Width is capped at 680px. Height changes animate while the top edge
+space. All tabs, search and details share one stable 600px maximum width. The
+panel uses 18px outer padding and adapts to narrower screens; changing pages
+never changes its width. Height changes animate while the top edge
 stays in place, and excess content scrolls without a scrollbar. Opening the panel
 restores the last main tab (Desktop or System controls), including across shell
 reloads and restarts. With no saved choice it starts on Desktop. System controls contains connectivity, audio,
@@ -91,13 +93,14 @@ battery details are available on hover.
   on either main tab, close the panel.
   Super+Q again, Ctrl+G, or clicking outside closes from any page.
 - Sliders: drag/click or use the wheel. Adjustments keep the panel open.
-- System controls: persistent status notices, connectivity,
-  volume/brightness and quick toggles come first,
-  followed by the media card when a player is available, then the notification
-  preview. Notifications show two recent entries with up to two body lines,
-  a pending count, a separate Clear button and a history footer. The page
-  scrolls when needed without showing a scrollbar.
-  Opening or returning to System controls resets its scroll position for a fresh overview.
+- System controls: compact connectivity tiles lead into two labelled groups:
+  Sound & display (volume, microphone mute, audio devices and brightness), and
+  Modes (appearance, keep-awake and a separate power-profile selector).
+  Each group shares one surface rather than nesting a card around each control.
+  Connected/enabled tiles use the accent surface; buttons and device rows have
+  hover and keyboard-focus feedback. Notifications collapse to a history row
+  when empty; media and unread previews appear only when relevant. The page
+  scrolls when necessary and resets its position when opened.
 - Keep awake: toggle to inhibit automatic idle locking and screen power-off
   through Hypridle. The highlighted button stays active when the panel closes;
   toggle it off to restore idle timeouts. Quickshell exit/reload releases it.
@@ -147,15 +150,30 @@ battery details are available on hover.
   reached; the return header stays visible.
   The back arrow or Esc returns to status; outside click closes the launcher.
   Power profiles are selected directly in the main panel.
-  Wi-Fi offers saved networks nearby and opens the existing `nmtui` in
-  kitty for other networks. Bluetooth connects/disconnects paired devices;
-  pairing new devices remains outside this panel. Audio selects the default
-  output/input through PipeWire. Power mode offers the profiles reported by
-  the native PowerProfiles service. Wi-Fi connection failures show inline.
-  Network, Bluetooth and power status follow native D-Bus-backed Quickshell
-  objects and their change signals; there is no CLI text parsing or status
-  polling. Wi-Fi scanning runs only while the panel is open. These controls
-  require the existing Quickshell Networking, Bluetooth and UPower modules.
+  Wi-Fi lists nearby networks, with connected and saved networks first, stable
+  name order, security and signal percentage. Select a row to connect, enter or
+  replace a WPA/WPA2/WPA3 personal password, disconnect, or forget its saved
+  profile (with a second confirmation). Open/OWE networks can connect directly;
+  saved credentials are reused when the password field stays empty. Passwords
+  are cleared on submit, page/radio changes and panel close. They go directly to
+  the native NetworkManager API, never into command arguments or a shell file.
+  Unknown enterprise/legacy authentication and hidden networks use the explicit
+  Advanced network settings entry (`nmtui` in the configured terminal).
+  Bluetooth lists paired and discovered devices. Search devices runs discovery
+  for up to twenty seconds and stops on page close or pairing. Select a device
+  to pair/connect, disconnect or forget (with confirmation). Pairing supports
+  PIN/passkey entry, numeric comparison, service authorization, code display
+  for keyboards and cancellation. Only a successful requested pairing trusts
+  the device and requests connection. Closing the page cancels pending pairing.
+  BlueZ's own `bluetoothctl --agent KeyboardDisplay` is bridged by a short-lived
+  Python standard-library helper because Quickshell 0.3.2 has no Agent1 API.
+  It handles fixed English agent prompts, has a ninety-second deadline, and
+  never registers itself as the default agent. Ordinary device state, discovery
+  and connect/disconnect/forget remain native D-Bus-backed Quickshell objects;
+  there is no CLI status polling. Failures appear in the corresponding detail
+  page and connection outcomes use the existing notification service.
+  Audio selects the default output/input through PipeWire. Power mode offers
+  the profiles reported by the native PowerProfiles service.
 
 There are no keyboard modes. The media card appears only when a player exists.
 Window icons use their appId to resolve
@@ -292,7 +310,8 @@ resize bindings repeat while held.
 | `components/ConnectionFeedback.js` | Connection intent, settling and deduplicated outcomes |
 | `components/StatusPage.qml` | Scrollable system controls, media and notification preview |
 | `components/DesktopControls.qml`, `ControlTile.qml` | Connectivity cards with direct radio toggles |
-| `components/ControlDetails.qml`, `DeviceRow.qml` | In-panel network/Bluetooth/audio detail views and device selection |
+| `components/ControlDetails.qml`, `ConnectivityPane.qml`, `ConnectionField.qml`, `DeviceRow.qml` | In-panel connection/authentication and audio device selection |
+| `components/bluetooth_pair.py` | On-demand bridge to the BlueZ pairing agent, JSON lines over stdin/stdout |
 | `components/EmacsInput.qml` | Readline-style input editing and local kill buffer |
 | `components/WorkspaceSummary.qml` | Used workspace numbers and application icons |
 | `components/MediaCard.qml` | Media artwork, playback and timeline |
@@ -342,7 +361,7 @@ independent desktop shell. No username, monitor connector or literal Nix store
 path is embedded in QML. State uses XDG directories; layout sizes, palettes and
 limits are personal defaults that can be adjusted in QML.
 
-- Require Quickshell 0.3.1 APIs and their Qt modules, Hyprland with the Lua
+- Require Quickshell 0.3.2 APIs and their Qt modules, Hyprland with the Lua
   configuration/`hyprctl eval` API, and a modern systemd user session supporting
   `systemd-run --expand-environment=no`. Hyprland's appearance Lua module must
   be deployed alongside the shell. Another compositor requires an adapter.
@@ -355,8 +374,9 @@ limits are personal defaults that can be adjusted in QML.
   applications obtain it from the portal.
 - Audio uses PipeWire, networking NetworkManager, Bluetooth BlueZ, battery
   UPower and power profiles power-profiles-daemon. Hardware-dependent controls
-  can be absent. The current power-profile adapter does not reliably distinguish
-  a missing daemon; provision it when using those buttons.
+  can be absent. Power-profile availability is probed at startup and panel opening.
+  Bluetooth pairing additionally needs `python3`, `bluetoothctl` and `busctl` in
+  the shell service PATH; no third-party Python package is needed.
 - The optional screen keyboard uses `wvkbd-mobintl` from `wvkbd` and Hyprland's
   virtual-keyboard/layer-shell protocols. It is installed by the Nix Hyprland module.
 - Backlight controls use `brightnessctl` (with user permissions) and `udevadm`.
@@ -441,8 +461,8 @@ when repeated behavior actually needs it.
 
 | Area | Current behavior and useful remaining gaps |
 | --- | --- |
-| Wi-Fi | Nearby saved networks, connection feedback and external network-manager entry. New networks, passwords, enterprise authentication, network details and disconnect remain outside this menu. |
-| Bluetooth | Paired devices, connect/disconnect, transition labels and reported battery percentage. Discovery, pairing/passkey agent, trust/remove and codec selection are not implemented. |
+| Wi-Fi | Nearby network list, personal password entry/replacement, connection, disconnect, confirmed forget and feedback. Unknown enterprise/legacy authentication and hidden networks use advanced settings. IP/DNS editing is not provided. |
+| Bluetooth | Limited discovery, PIN/passkey/numeric-confirmation pairing, connect/disconnect, confirmed forget, battery and feedback. Successful requested pairing trusts the device. Codec/profile and manual trust policy editing are not provided. |
 | Audio | Output/input selection, volume and mute. Per-application volume and Bluetooth profile selection are possible later additions. |
 | Media | Playing player preferred, transport buttons and read-only timeline. Explicit player selection and seeking are useful next additions; shuffle/repeat should respect player capabilities. |
 | Power | Profiles and keep-awake toggle. Profile availability/degradation feedback and timed inhibition need further work. |
@@ -451,11 +471,16 @@ when repeated behavior actually needs it.
 Wi-Fi and Bluetooth have separate busy states; audio and power controls are not
 blocked by unrelated connection work. Bluetooth device actions are guarded per
 device. Device lists show transitions rather than presenting an idle clickable
-row during connection. Noctalia's network sorting avoids raw signal-strength
-updates moving click targets; preserve stable sorting here. DMS's pairing flow
-uses a BlueZ agent in its backend: a discovery/pair button alone cannot safely
-replace the missing passkey/confirmation flow.
+row during connection. Network lists keep a stable name order within connection
+and saved-state groups rather than moving rows on every signal-strength update.
 
-For this config, prioritize a player chooser/seek interaction and a reliable
-external Bluetooth-manager entry before adding a full authentication stack.
-Do not expose unsupported controls just to match upstream feature counts.
+The connection flows and compact grouping were reviewed against
+[Noctalia's network tab](https://github.com/noctalia-dev/noctalia/blob/4f84e9980989b534d93f32c2f18f4297344aa62d/src/shell/control_center/tabs/network_tab.cpp),
+[home organization](https://github.com/noctalia-dev/noctalia/blob/4f84e9980989b534d93f32c2f18f4297344aa62d/src/shell/control_center/tabs/home_tab.cpp),
+[DMS's Wi-Fi credential dialog](https://github.com/AvengeMedia/DankMaterialShell/blob/203b1369b3b157c8270822e8cc84f5a3849f4b81/quickshell/Modals/WifiPasswordModal.qml)
+and [pairing dialog](https://github.com/AvengeMedia/DankMaterialShell/blob/203b1369b3b157c8270822e8cc84f5a3849f4b81/quickshell/Modals/BluetoothPairingModal.qml).
+These inform the interaction hierarchy, credential cleanup, separate confirmation
+steps and stable selection. This config uses the installed native Quickshell
+services plus BlueZ's agent; it does not import either upstream backend or claim
+all their features. The agent prompt bridge is matched to BlueZ 5.87's
+[`client/agent.c`](https://github.com/bluez/bluez/blob/5.87/client/agent.c).

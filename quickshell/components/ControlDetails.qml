@@ -14,24 +14,21 @@ Rectangle {
     readonly property var system: services.controls
     required property string section
     property bool audioInput: false
+    property bool panelOpen: visible
     signal dismissRequested()
     readonly property bool isNotifs: section === "notifications"
     readonly property string title: section === "wifi" ? "Wi-Fi"
         : section === "bluetooth" ? "Bluetooth"
         : detail.isNotifs ? "Notifications"
         : "Audio devices"
-    readonly property string subtitle: section === "wifi" ? "Saved networks nearby"
-        : section === "bluetooth" ? "Paired devices"
+    readonly property string subtitle: section === "wifi" ? "Nearby networks · connect & manage"
+        : section === "bluetooth" ? "Devices · discover, pair & connect"
         : detail.isNotifs ? (detail.notifs.history.length > 0
             ? detail.notifs.history.length + " saved · expand to read"
             : "Cleared notifications are kept here")
         : "Choose your default device"
-    readonly property bool sectionBusy: section === "wifi" ? system.wifiBusy
-        : section === "bluetooth" ? system.bluetoothBusy : false
     readonly property bool radioEnabled: section === "wifi" ? system.wifiEnabled : system.bluetoothEnabled
-    readonly property var rows: section === "wifi" ? (radioEnabled ? system.wifiProfiles : [])
-        : section === "bluetooth" ? (radioEnabled ? system.bluetoothDevices : [])
-        : (audioInput ? services.audioInputs : services.audioOutputs)
+    readonly property var rows: audioInput ? services.audioInputs : services.audioOutputs
     onSectionChanged: { audioInput = false; viewport.contentY = 0; }
     readonly property real naturalHeight: detailHeader.implicitHeight + style.spaceLg + content.implicitHeight
     implicitWidth: 380
@@ -45,7 +42,7 @@ Rectangle {
         spacing: detail.style.spaceLg
         Item {
             id: detailHeader
-            implicitHeight: 54
+            implicitHeight: 48
             Layout.fillWidth: true
             Layout.preferredHeight: implicitHeight
             Layout.minimumHeight: implicitHeight
@@ -151,7 +148,7 @@ Rectangle {
                     }
                     ColumnLayout {
                         Layout.fillWidth: true
-                        visible: !detail.isNotifs
+                        visible: detail.section === "audio"
                         spacing: detail.style.spaceXs
                         Repeater {
                             model: detail.rows
@@ -159,22 +156,10 @@ Rectangle {
                                 required property var modelData
                                 Layout.fillWidth: true
                                 style: detail.style
-                                title: detail.section === "audio" ? modelData.description || modelData.name : modelData.name
-                                selected: detail.section === "wifi" ? (modelData.connected ?? false)
-                                    : detail.section === "bluetooth" ? detail.system.bluetoothConnected.includes(modelData.address)
-                                    : modelData === (detail.audioInput ? detail.services.source : detail.services.sink)
-                                subtitle: detail.section === "wifi" ? (modelData.stateChanging ? "Connecting…" : selected ? "Connected" : "")
-                                    : detail.section === "bluetooth" ? detail.system.bluetoothDeviceLabel(modelData)
-                                    : selected ? "Current device" : ""
-                                available: detail.section === "wifi" ? !detail.system.wifiBusy
-                                    : detail.section === "bluetooth" ? !detail.system.bluetoothDeviceBusy(modelData) : true
-                                onTriggered: {
-                                    if (detail.section === "wifi") {
-                                        detail.system.connectWifi(modelData);
-                                    } else if (detail.section === "bluetooth") {
-                                        detail.system.toggleBluetoothDevice(modelData);
-                                    } else detail.services.selectAudioDevice(modelData, detail.audioInput);
-                                }
+                                title: modelData.description || modelData.name
+                                selected: modelData === (detail.audioInput ? detail.services.source : detail.services.sink)
+                                subtitle: selected ? "Current device" : ""
+                                onTriggered: detail.services.selectAudioDevice(modelData, detail.audioInput)
                             }
                         }
                         Text {
@@ -183,15 +168,20 @@ Rectangle {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             visible: detail.rows.length === 0
-                            text: detail.section !== "audio" && !detail.radioEnabled
-                                ? detail.title + " is turned off"
-                                : detail.section === "wifi" ? "No saved networks nearby"
-                                : detail.section === "bluetooth" ? "No paired devices"
-                                : "No devices available"
+                            text: "No audio devices available"
                             color: detail.style.textMuted
                             font.family: detail.style.fontFamily
                             font.pixelSize: detail.style.fontSizeBody
                         }
+                    }
+                    ConnectivityPane {
+                        Layout.fillWidth: true
+                        visible: detail.section === "wifi" || detail.section === "bluetooth"
+                        active: detail.panelOpen && visible
+                        section: detail.section
+                        style: detail.style
+                        services: detail.services
+                        onRevealRequested: viewport.contentY = 0
                     }
                     ColumnLayout {
                         Layout.fillWidth: true
@@ -219,28 +209,6 @@ Rectangle {
                             color: detail.style.textMuted
                             font.family: detail.style.fontFamily
                             font.pixelSize: detail.style.fontSizeBody
-                        }
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        visible: detail.sectionBusy || (detail.section === "wifi" && detail.system.error !== "")
-                        text: detail.sectionBusy ? "Applying…" : detail.system.error
-                        textFormat: Text.PlainText
-                        wrapMode: Text.Wrap
-                        color: detail.style.accentWarm
-                        font.family: detail.style.fontFamily
-                        font.pixelSize: detail.style.fontSizeSmall
-                    }
-                    ChoiceButton {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 40
-                        visible: detail.section === "wifi"
-                        style: detail.style
-                        filled: true
-                        label: "Find another network…"
-                        available: detail.services.terminalCommand.length > 0
-                        onTriggered: {
-                            if (detail.services.openNetworkEditor()) detail.dismissRequested();
                         }
                     }
                     ChoiceButton {

@@ -9,20 +9,28 @@ import Quickshell.Bluetooth
 import Quickshell.Services.UPower
 import "components/ConnectionFeedback.js" as ConnectionFeedback
 
-// Native service objects own D-Bus calls and signal subscriptions. Views use
-// this adapter for display state and actions, without commands or text parsing.
+// Native service objects own device state and ordinary actions. Pairing alone
+// uses an on-demand BlueZ agent bridge because this version has no Agent1 API.
 Scope {
     id: root
     property bool active: false
     property string error: ""
+    property string wifiError: ""
+    property string bluetoothError: ""
+    property bool bluetoothScanRequested: false
+    property var pairingDevice: null
+    property string pairingPrompt: ""
+    property string pairingCode: ""
     signal feedback(string key, string summary, string body, bool critical)
     property var connectionTracker: ConnectionFeedback.create()
 
-    function wifiKey(network) { return "wifi:" + network.device.name + ":" + network.name; }
-    function bluetoothKey(device) { return "bluetooth:" + device.address; }
+    function wifiKey(network) {
+        return network?.device ? "wifi:" + network.device.name + ":" + network.name + ":" + (network.security ?? "") : "";
+    }
+    function bluetoothKey(device) { return device ? "bluetooth:" + device.address : ""; }
 
     function observeConnections() {
-        const rows = wifiEnabled ? wifiNetworks.map(network => ({
+        const rows = wifiEnabled ? wifiNetworks.filter(network => !!network?.device).map(network => ({
             key: wifiKey(network), name: network.name, kind: "wifi", device: network.device.name, connected: network.connected,
             connecting: network.state === ConnectionState.Connecting
         })) : [];
@@ -38,7 +46,11 @@ Scope {
             const summary = kind + (event.result === "connected" ? " connected"
                 : event.result === "failed" ? " connection failed" : " disconnected");
             const body = event.name + (event.reason ? ": " + event.reason : "");
-            if (event.result === "failed") error = body;
+            if (event.result === "failed") {
+                error = body;
+                if (event.kind === "wifi") wifiError = body;
+                else bluetoothError = body;
+            }
             feedback(event.key, summary, body, false);
         }
         connectionDeadline.running = connectionTracker.pending;
@@ -51,14 +63,21 @@ Scope {
         scheduleConnectionObservation();
     }
     onBluetoothEnabledChanged: {
-        if (!bluetoothEnabled) ConnectionFeedback.silence(connectionTracker, "bluetooth:");
+        if (!bluetoothEnabled) {
+            ConnectionFeedback.silence(connectionTracker, "bluetooth:");
+            bluetoothScanRequested = false;
+            cancelBluetoothPairing();
+        }
         scheduleConnectionObservation();
     }
     Component.onCompleted: {
         scheduleConnectionObservation();
         refreshPowerAvailability();
     }
-    onActiveChanged: { if (active) refreshPowerAvailability(); }
+    onActiveChanged: {
+        if (active) refreshPowerAvailability();
+        else { bluetoothScanRequested = false; cancelBluetoothPairing(); }
+    }
 
     // Quickshell 0.3.2 exposes no PowerProfiles availability/ready property.
     // Probe its actual D-Bus endpoint at startup and when opening the panel.
@@ -104,15 +123,18 @@ Scope {
     }
     readonly property var wifiDevices: Networking.devices.values.filter(device => device.type === DeviceType.Wifi)
     readonly property var wifiNetworks: wifiDevices.reduce((networks, device) => networks.concat(device.networks.values), [])
-    readonly property var wifiProfiles: wifiNetworks.filter(network => network.known)
-        .sort((a, b) => Number(b.connected) - Number(a.connected) || a.name.localeCompare(b.name))
+    readonly property var wifiNearbyNetworks: wifiNetworks.filter(network => network.name !== "")
+        .sort((a, b) => Number(b.connected) - Number(a.connected) || Number(b.known) - Number(a.known)
+            || a.name.localeCompare(b.name) || a.device.name.localeCompare(b.device.name) || a.security - b.security)
     readonly property bool wifiAvailable: wifiDevices.length > 0
     readonly property bool wifiEnabled: Networking.wifiEnabled
     readonly property string wifiConnection: wifiNetworks.find(network => network.connected)?.name ?? "Not connected"
     readonly property var bluetoothAdapter: Bluetooth.defaultAdapter
     readonly property bool bluetoothAvailable: bluetoothAdapter !== null
     readonly property bool bluetoothEnabled: bluetoothAdapter?.enabled ?? false
-    readonly property var bluetoothDevices: bluetoothAdapter?.devices.values.filter(device => device.paired) ?? []
+    readonly property var bluetoothDevices: (bluetoothAdapter?.devices.values ?? []).slice()
+        .sort((a, b) => Number(b.connected) - Number(a.connected)
+            || Number(b.paired) - Number(a.paired) || (a.name || a.address).localeCompare(b.name || b.address))
     readonly property var bluetoothConnected: bluetoothDevices.filter(device => device.connected).map(device => device.address)
     readonly property var powerProfiles: powerAvailable
         ? ["power-saver", "balanced"].concat(PowerProfiles.hasPerformanceProfile ? ["performance"] : []) : []
@@ -127,14 +149,158 @@ Scope {
     readonly property bool busy: wifiBusy || bluetoothBusy
 
     function bluetoothDeviceBusy(device) {
-        return device.state === BluetoothDeviceState.Connecting
+        return device === pairingDevice || device.pairing || device.state === BluetoothDeviceState.Connecting
             || device.state === BluetoothDeviceState.Disconnecting;
     }
     function bluetoothDeviceLabel(device) {
+        if (device === pairingDevice || device.pairing) return "Pairing…";
         if (device.state === BluetoothDeviceState.Connecting) return "Connecting…";
         if (device.state === BluetoothDeviceState.Disconnecting) return "Disconnecting…";
-        const state = device.connected ? "Connected · Click to disconnect" : "Click to connect";
+        const state = device.connected ? "Connected" : device.paired ? "Paired" : "Available to pair";
         return state + (device.batteryAvailable ? " · " + Math.round(device.battery * 100) + "%" : "");
+    }
+
+    function wifiSecurityLabel(network) { return WifiSecurityType.toString(network.security); }
+    function wifiUsesPassword(network) {
+        return [WifiSecurityType.WpaPsk, WifiSecurityType.Wpa2Psk, WifiSecurityType.Sae].includes(network.security);
+    }
+    function wifiCanJoin(network) {
+        return network.known || wifiUsesPassword(network)
+            || network.security === WifiSecurityType.Open || network.security === WifiSecurityType.Owe;
+    }
+    function wifiPasswordValid(network, password) {
+        if (network.security === WifiSecurityType.Sae) return password.length > 0 && password.length <= 63;
+        return (password.length >= 8 && password.length <= 63) || /^[0-9a-fA-F]{64}$/.test(password);
+    }
+    function wifiNetworkLabel(network) {
+        const state = network.stateChanging ? ConnectionState.toString(network.state)
+            : network.connected ? "Connected" : network.known ? "Saved" : "New network";
+        return state + " · " + wifiSecurityLabel(network) + " · " + Math.round(network.signalStrength * 100) + "%";
+    }
+
+    Binding {
+        target: root.bluetoothAdapter
+        property: "discovering"
+        when: root.bluetoothAdapter !== null
+        value: root.active && root.bluetoothEnabled && root.bluetoothScanRequested
+        restoreMode: Binding.RestoreNone
+    }
+    onBluetoothScanRequestedChanged: { if (bluetoothScanRequested) scanDeadline.restart(); else scanDeadline.stop(); }
+    Timer { id: scanDeadline; interval: 20000; onTriggered: root.bluetoothScanRequested = false }
+    function toggleBluetoothScan() {
+        if (!bluetoothEnabled) return false;
+        bluetoothScanRequested = !bluetoothScanRequested;
+        return true;
+    }
+
+    // The native Bluetooth module has no Agent1 API. The short-lived helper
+    // bridges BlueZ's own KeyboardDisplay agent to JSON; device state stays native.
+    Process {
+        id: pairingAgent
+        property bool hasStarted: false
+        stdinEnabled: true
+        command: ["python3", "-B", Quickshell.shellPath("components/bluetooth_pair.py"),
+            root.pairingDevice?.address ?? "", root.pairingDevice?.adapter?.adapterId ?? ""]
+        stdout: SplitParser {
+            onRead: data => {
+                try { root.handlePairingEvent(JSON.parse(data)); } catch (_) {}
+            }
+        }
+        onStarted: hasStarted = true
+        onExited: (code, status) => {
+            pairingDeadline.stop();
+            if (root.pairingDevice) {
+                root.bluetoothError = "Pairing agent stopped. Try again.";
+                root.pairingDevice = null;
+                root.pairingPrompt = "";
+                root.pairingCode = "";
+            }
+        }
+    }
+    function pairBluetooth(device) {
+        if (!bluetoothEnabled || pairingAgent.running || pairingDevice || device.paired
+                || !bluetoothDevices.includes(device)) return false;
+        bluetoothError = "";
+        pairingPrompt = "";
+        pairingCode = "";
+        pairingDevice = device;
+        bluetoothScanRequested = false;
+        pairingAgent.hasStarted = false;
+        pairingDeadline.restart();
+        pairingStartupCheck.restart();
+        pairingAgent.running = true;
+        return true;
+    }
+    function handlePairingEvent(event) {
+        if (!pairingDevice) return;
+        if (event.type === "prompt") {
+            pairingPrompt = event.kind;
+            pairingCode = event.code || "";
+        } else if (event.type === "done") {
+            pairingDeadline.stop();
+            const device = pairingDevice;
+            pairingDevice = null;
+            pairingPrompt = "";
+            pairingCode = "";
+            if (!event.success) {
+                bluetoothError = event.error || "Pairing failed. Try again with the device in pairing mode.";
+                feedback(bluetoothKey(device), "Bluetooth pairing failed", bluetoothError, false);
+            } else {
+                // Trust only after the user's requested pairing has succeeded.
+                device.trusted = true;
+                observeConnections();
+                ConnectionFeedback.request(connectionTracker, bluetoothKey(device), Date.now());
+                device.connected = true;
+                scheduleConnectionObservation();
+            }
+        }
+    }
+    function answerBluetoothPairing(answer) {
+        if (!pairingDevice || !pairingAgent.running || !["confirm", "authorize", "pin", "passkey"].includes(pairingPrompt)) return false;
+        if (["confirm", "authorize"].includes(pairingPrompt) && !["yes", "no"].includes(answer)) return false;
+        if (pairingPrompt === "passkey" && !/^[0-9]{1,6}$/.test(answer)) return false;
+        if (pairingPrompt === "pin" && (!answer || answer.length > 16 || /[\x00-\x1f\x7f]/.test(answer))) return false;
+        pairingAgent.write(JSON.stringify({answer: answer}) + "\n");
+        pairingPrompt = "";
+        pairingCode = "";
+        return true;
+    }
+    function cancelBluetoothPairing() {
+        if (!pairingDevice) return false;
+        pairingDevice.cancelPair();
+        pairingDeadline.stop();
+        pairingDevice = null;
+        pairingPrompt = "";
+        pairingCode = "";
+        if (pairingAgent.running) pairingAgent.write('{"cancel":true}\n');
+        return true;
+    }
+    Timer {
+        id: pairingStartupCheck
+        interval: 1000
+        onTriggered: {
+            if (root.pairingDevice && !pairingAgent.running && !pairingAgent.hasStarted) {
+                root.cancelBluetoothPairing();
+                root.bluetoothError = "Cannot start pairing. Check python3 and bluetoothctl.";
+            }
+        }
+    }
+    Timer {
+        id: pairingDeadline
+        interval: 95000
+        onTriggered: {
+            root.cancelBluetoothPairing();
+            pairingAgent.running = false;
+            root.bluetoothError = "Pairing agent did not respond. Try again.";
+        }
+    }
+    function forgetBluetooth(device) {
+        if (!bluetoothEnabled || bluetoothDeviceBusy(device) || !bluetoothDevices.includes(device) || !device.paired) return false;
+        bluetoothError = "";
+        ConnectionFeedback.silence(connectionTracker, bluetoothKey(device), true);
+        device.forget();
+        scheduleConnectionObservation();
+        return true;
     }
 
     Instantiator {
@@ -155,11 +321,14 @@ Scope {
             function onConnectedChanged() { root.scheduleConnectionObservation(); }
             function onStateChanged() { root.scheduleConnectionObservation(); }
             function onRequestDisconnect() {
+                if (!modelData?.device) return;
                 ConnectionFeedback.silence(root.connectionTracker, root.wifiKey(modelData), true);
                 root.scheduleConnectionObservation();
             }
             function onConnectionFailed(reason) {
+                if (!modelData?.device) return;
                 root.error = modelData.name + ": " + ConnectionFailReason.toString(reason);
+                root.wifiError = root.error;
                 ConnectionFeedback.failure(root.connectionTracker, root.wifiKey(modelData), ConnectionFailReason.toString(reason));
                 root.scheduleConnectionObservation();
             }
@@ -177,6 +346,7 @@ Scope {
     function toggleWifi() {
         if (!wifiAvailable || wifiBusy) return false;
         error = "";
+        wifiError = "";
         if (wifiEnabled) ConnectionFeedback.silence(connectionTracker, "wifi:");
         Networking.wifiEnabled = !Networking.wifiEnabled;
         scheduleConnectionObservation();
@@ -185,24 +355,49 @@ Scope {
     function toggleBluetooth() {
         if (!bluetoothAdapter || bluetoothBusy) return false;
         error = "";
+        bluetoothError = "";
         if (bluetoothEnabled) ConnectionFeedback.silence(connectionTracker, "bluetooth:");
         bluetoothAdapter.enabled = !bluetoothAdapter.enabled;
         scheduleConnectionObservation();
         return true;
     }
-    function connectWifi(network) {
-        if (!wifiEnabled || wifiBusy || !wifiProfiles.includes(network) || network.connected) return false;
+    function connectWifi(network, password = "") {
+        if (!wifiEnabled || wifiBusy || !wifiNearbyNetworks.includes(network) || network.connected) return false;
+        if (!wifiCanJoin(network)) { wifiError = "This network needs advanced authentication. Open network settings below."; return false; }
+        if ((!network.known || password !== "") && wifiUsesPassword(network) && !wifiPasswordValid(network, password)) {
+            wifiError = "Enter a valid Wi-Fi password.";
+            return false;
+        }
         error = "";
+        wifiError = "";
         observeConnections();
         // The tracker scopes switch suppression to this network's device.
         ConnectionFeedback.request(connectionTracker, wifiKey(network), Date.now());
-        network.connect();
+        if (password !== "") network.connectWithPsk(password);
+        else network.connect();
+        scheduleConnectionObservation();
+        return true;
+    }
+    function disconnectWifi(network) {
+        if (!wifiEnabled || wifiBusy || !wifiNearbyNetworks.includes(network) || !network.connected) return false;
+        wifiError = "";
+        ConnectionFeedback.silence(connectionTracker, wifiKey(network), true);
+        network.disconnect();
+        scheduleConnectionObservation();
+        return true;
+    }
+    function forgetWifi(network) {
+        if (!wifiEnabled || wifiBusy || !wifiNearbyNetworks.includes(network) || !network.known) return false;
+        wifiError = "";
+        ConnectionFeedback.silence(connectionTracker, wifiKey(network), true);
+        network.forget();
         scheduleConnectionObservation();
         return true;
     }
     function toggleBluetoothDevice(device) {
-        if (!bluetoothEnabled || bluetoothDeviceBusy(device) || !bluetoothDevices.includes(device)) return false;
+        if (!bluetoothEnabled || !device.paired || bluetoothDeviceBusy(device) || !bluetoothDevices.includes(device)) return false;
         error = "";
+        bluetoothError = "";
         observeConnections();
         if (device.connected) ConnectionFeedback.silence(connectionTracker, bluetoothKey(device), true);
         else ConnectionFeedback.request(connectionTracker, bluetoothKey(device), Date.now());

@@ -360,6 +360,7 @@ PanelWindow {
                     actions: panel.actions
                     notifs: panel.notifs
                     section: panel.controlSection
+                    panelOpen: panel.open && panel.showingDetails
                     onDismissRequested: panel.returnToHome()
                     Keys.onPressed: event => panel.handleKey(event)
                 }

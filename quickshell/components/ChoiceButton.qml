@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import ".."
 
 Rectangle {
@@ -19,13 +20,25 @@ Rectangle {
     // (icon + description); alone it replaces the label (play/back/etc).
     property string iconKind: ""
     property int iconSize: 18
+    property string tooltip: ""
     signal triggered()
+
+    activeFocusOnTab: visible && available
+    Accessible.role: Accessible.Button
+    Accessible.name: label || tooltip
+    Accessible.onPressAction: { if (available) triggered(); }
+    Keys.onReturnPressed: { if (available) triggered(); }
+    Keys.onEnterPressed: { if (available) triggered(); }
+    Keys.onSpacePressed: { if (available) triggered(); }
+    ToolTip.visible: mouse.containsMouse && tooltip !== ""
+    ToolTip.delay: 500
+    ToolTip.text: tooltip
 
     height: 34
     radius: style.radiusControl
     color: selected ? style.surfaceSelected
         : (mouse.containsMouse && available ? style.surfaceHover : filled ? choice.filledColor : "transparent")
-    border.width: selected ? 1 : 0
+    border.width: selected || activeFocus ? 1 : 0
     border.color: style.accent
     opacity: available ? 1 : 0.45
 
@@ -88,6 +101,7 @@ Rectangle {
         anchors.fill: parent
         enabled: choice.available
         hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
         onClicked: choice.triggered()
     }
 }

@@ -11,7 +11,9 @@
 | `components/LauncherPanel.qml` | Opening/closing, main tabs, query, selection, focus and shared sizing | Search-result rendering or system commands |
 | `components/SearchResultsPage.qml` | Result rendering and scrolling; activation signal | Search ranking, selection ownership or dispatch |
 | `DesktopServices.qml` | Audio, brightness, idle inhibition, media/battery adapters, network editor launch | Page navigation |
-| `SystemControls.qml` | Network/Bluetooth/power adapters and connection feedback | Search/UI state |
+| `SystemControls.qml` | Network/Bluetooth/power actions, pairing lifecycle and connection feedback | Search/UI state |
+| `components/ConnectivityPane.qml` | Device selection, credential fields and confirmation UI | Commands or copied device state |
+| `components/bluetooth_pair.py` | On-demand BlueZ agent bridge; bounded JSON protocol | Device lists, persistent state or status polling |
 | `HyprlandControls.qml` | Validated, explicit-target workspace/window requests and completion | Page selection or confirmation dialogs |
 | `components/WorkspaceLayoutState.qml` | Actual per-workspace layout readback and change signals | Optimistic layout changes |
 | `Notifications.qml` | Notification/history state and local notification delivery | Device operations |
@@ -105,9 +107,34 @@ succeeds, and model refreshes must not discard that pending completion.
 3. Keep navigation and focus changes in LauncherPanel. Render larger independent
    content as a page component, using the existing theme and sizing conventions.
 4. Add regression coverage for state transitions, ordering, rejected requests and
-   asynchronous completion. Use the runner documented in `tests/README.md`.
+   asynchronous completion. Use the runner documented in
+   [tests/quickshell/README.md](../tests/quickshell/README.md).
 
 Tests use inert adapters or pure Qt offscreen fixtures. They must not open a live
 Quickshell PanelWindow, operate real windows, modify network state or lock the
 session. New root QML modules also need deployment entries in `install.sh`;
 components are deployed through the existing directory symlink.
+
+Regression tests, mocks and offscreen previews live in the repository's
+`tests/quickshell/` directory. They are run manually and are neither deployed
+nor imported by the shell. The Bluetooth pairing helper remains in `components/`
+because it provides a runtime feature.
+
+## Connection details
+
+Nearby network/device rows come from native service objects. Selection uses a
+stable adapter/name/security or device-address key, so list rebuilding does not
+lose the selected editor. Credentials live only in the input field; submit,
+selection changes, page close and radio-off clear them. Forget requires a second
+click. Views call typed adapter methods and never build commands.
+
+Quickshell 0.3.2 has no BlueZ Agent1 API. SystemControls therefore owns one
+short-lived Python helper for a requested pairing, with startup and overall
+deadlines. The helper registers BlueZ's KeyboardDisplay agent through
+bluetoothctl, selects the requested adapter (its MAC comes from a typed busctl
+property), and emits only structured prompts/results. User responses are
+validated in both adapter and helper. It does not claim the default-agent role;
+leaving the detail page cancels the operation and closes the agent. Native
+Quickshell objects remain the source for pairing/connection state and normal
+device operations. This is a deliberate, isolated text-protocol exception to
+ordinary native service use, with transcript and fake-process regression tests.

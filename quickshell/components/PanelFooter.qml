@@ -48,6 +48,7 @@ Rectangle {
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
+                visible: footer.width >= 580
                 text: Qt.formatDateTime(footer.date, "MM-dd · ddd")
                 color: footer.style.textSecondary
                 font.family: footer.style.fontFamily
@@ -63,11 +64,11 @@ Rectangle {
                     value: Math.round((footer.services.battery?.percentage ?? 0) * 100) + "%",
                     level: footer.services.battery?.percentage ?? 0,
                     hint: footer.services.batteryDetail(footer.services.battery)},
-                {kind: "volume", shown: true,
+                {kind: "volume", shown: footer.width >= 580,
                     value: footer.services.sink?.audio ? Math.round(footer.services.sink.audio.volume * 100) + "%" : "—",
                     muted: footer.services.sink?.audio?.muted ?? false,
                     hint: footer.services.sink?.audio?.muted ? "Volume · Muted" : "Volume"},
-                {kind: "brightness", shown: footer.services.brightness >= 0,
+                {kind: "brightness", shown: footer.width >= 580 && footer.services.brightness >= 0,
                     value: Math.round(footer.services.brightness * 100) + "%", hint: "Brightness"},
                 {kind: "appearance", shown: true, level: footer.appearance.darkMode ? 1 : 0,
                     value: !footer.appearance.appearanceAvailable ? "!" : !footer.appearance.appearanceKnown ? "?"

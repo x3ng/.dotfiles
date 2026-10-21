@@ -4,13 +4,13 @@ import QtQuick
 import QtQuick.Layouts
 import ".."
 
-// Grouped container in the iOS/Android settings style: the card border
-// itself says "these controls belong together", so sections need no
-// text titles. Content declared inside flows into a padded column.
+// One labelled surface per related set of controls; avoid nested cards.
 Rectangle {
     id: card
     required property Theme style
-    default property alias content: inner.data
+    default property alias content: body.data
+    property string title: ""
+    property string iconKind: ""
     property int pad: card.style.spaceMd
     property real contentSpacing: style.spaceSm
     // Emitted when the card body is tapped; per-control MouseAreas
@@ -35,5 +35,32 @@ Rectangle {
         y: card.pad
         width: card.width - card.pad * 2
         spacing: card.contentSpacing
+        RowLayout {
+            Layout.fillWidth: true
+            visible: card.title !== ""
+            spacing: card.style.spaceSm
+            StatusIcon {
+                visible: card.iconKind !== ""
+                kind: card.iconKind
+                Layout.preferredWidth: 16
+                Layout.preferredHeight: 16
+                ink: card.style.accent
+            }
+            Text {
+                Layout.fillWidth: true
+                text: card.title
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: card.style.textPrimary
+                font.family: card.style.fontFamily
+                font.pixelSize: card.style.fontSizeSmall
+                font.weight: Font.DemiBold
+            }
+        }
+        ColumnLayout {
+            id: body
+            Layout.fillWidth: true
+            spacing: card.contentSpacing
+        }
     }
 }

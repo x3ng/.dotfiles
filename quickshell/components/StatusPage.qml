@@ -38,7 +38,7 @@ ColumnLayout {
             ColumnLayout {
                 id: content
                 width: viewport.width
-                spacing: page.style.spaceLg
+                spacing: page.style.spaceMd
 
                 StatusNotices {
                     actions: page.actions
@@ -47,10 +47,6 @@ ColumnLayout {
                     services: page.services
                 }
 
-                // Quick-settings style: one shared column grid, everything
-                // snapped to the same half/quarter divisions as the tiles above,
-                // so vertical edges stay in one straight line. No section
-                // titles, no category cards — one button per function.
                 DesktopControls {
                     actions: page.actions
                     Layout.fillWidth: true
@@ -58,51 +54,72 @@ ColumnLayout {
                     services: page.services
                 }
 
-                // Sliders sit on the same center split as the tiles (12px gap
-                // matches DesktopControls), so the middle seam stays continuous.
-                // Volume carries its device picker inline, Android-style.
-                GridLayout {
+                GroupCard {
                     Layout.fillWidth: true
-                    columns: viewport.width >= 520 ? 2 : 1
-                    columnSpacing: 12
-                    GroupCard {
+                    style: page.style
+                    title: "Sound & display"
+                    iconKind: "volume"
+                    contentSpacing: page.style.spaceSm
+                    RowLayout {
                         Layout.fillWidth: true
-                        Layout.preferredWidth: viewport.width >= 520
-                            ? Math.floor((content.width - 12) / 2) : content.width
-                        style: page.style
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: page.style.spaceSm
-                            FilledSlider {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 52
-                                style: page.style
-                                label: "Volume"
-                                value: page.sink?.audio?.volume ?? 0
-                                available: !!page.sink?.audio
-                                onEdited: value => page.services.setVolume(value)
-                            }
-                            ChoiceButton {
-                                Layout.preferredWidth: 44
-                                Layout.preferredHeight: 44
-                                style: page.style
-                                filled: true
-                                filledColor: page.style.surfaceHover
-                                label: ""
-                                iconKind: "headphones"
-                                iconSize: 20
-                                onTriggered: page.actions.execute("audio")
-                            }
+                        spacing: page.style.spaceSm
+                        ChoiceButton {
+                            Layout.preferredWidth: 36
+                            Layout.preferredHeight: 36
+                            style: page.style
+                            label: ""
+                            iconKind: "volume"
+                            tooltip: page.sink?.audio?.muted ? "Unmute output" : "Mute output"
+                            selected: page.sink?.audio?.muted ?? false
+                            available: page.actions.available("output-mute")
+                            onTriggered: page.actions.execute("output-mute")
                         }
-                    }
-                    GroupCard {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: viewport.width >= 520
-                            ? Math.floor((content.width - 12) / 2) : content.width
-                        style: page.style
                         FilledSlider {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 52
+                            Layout.preferredHeight: 36
+                            style: page.style
+                            label: page.sink?.audio?.muted ? "Muted" : "Volume"
+                            value: page.sink?.audio?.volume ?? 0
+                            available: !!page.sink?.audio
+                            onEdited: value => page.services.setVolume(value)
+                        }
+                        ChoiceButton {
+                            Layout.preferredWidth: 36
+                            Layout.preferredHeight: 36
+                            style: page.style
+                            label: ""
+                            iconKind: "mic"
+                            tooltip: page.services.source?.audio?.muted ? "Unmute microphone" : "Mute microphone"
+                            selected: page.services.source?.audio?.muted ?? false
+                            available: page.actions.available("mic-mute")
+                            onTriggered: page.actions.execute("mic-mute")
+                        }
+                        ChoiceButton {
+                            Layout.preferredWidth: 36
+                            Layout.preferredHeight: 36
+                            style: page.style
+                            label: ""
+                            iconKind: "headphones"
+                            tooltip: "Choose audio devices"
+                            onTriggered: page.actions.execute("audio")
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: page.style.spaceSm
+                        Item {
+                            Layout.preferredWidth: 36
+                            Layout.preferredHeight: 36
+                            StatusIcon {
+                                anchors.centerIn: parent
+                                width: 20; height: 20
+                                kind: "brightness"
+                                ink: page.style.textMuted
+                            }
+                        }
+                        FilledSlider {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 36
                             style: page.style
                             label: "Brightness"
                             value: Math.max(0, page.services.brightness)
@@ -112,108 +129,63 @@ ColumnLayout {
                     }
                 }
 
-                // Uniform quarter-grid of single-function toggles: even number
-                // of columns keeps the center seam aligned with the rows above.
                 GroupCard {
                     Layout.fillWidth: true
                     style: page.style
-                    GridLayout {
+                    title: "Modes"
+                    iconKind: "appearance"
+                    RowLayout {
                         Layout.fillWidth: true
-                        columns: viewport.width >= 520 ? 4 : 2
-                        columnSpacing: page.style.spaceSm
-                        rowSpacing: page.style.spaceSm
-
+                        spacing: page.style.spaceSm
                         ChoiceButton {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 36
                             style: page.style
-                            filled: true
-                            filledColor: page.style.surfaceHover
-                            label: "Mute output"
-                            iconKind: "volume"
-                            selected: page.sink?.audio?.muted ?? false
-                            available: page.actions.available("output-mute")
-                            onTriggered: page.actions.execute("output-mute")
-                        }
-                        ChoiceButton {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 36
-                            style: page.style
-                            filled: true
-                            filledColor: page.style.surfaceHover
-                            label: "Mute mic"
-                            iconKind: "mic"
-                            selected: page.services.source?.audio?.muted ?? false
-                            available: page.actions.available("mic-mute")
-                            onTriggered: page.actions.execute("mic-mute")
-                        }
-                        ChoiceButton {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 36
-                            style: page.style
-                            filled: true
-                            filledColor: page.style.surfaceHover
-                            label: "Light"
-                            iconKind: "brightness"
-                            selected: page.appearance.appearanceKnown && !page.appearance.darkMode
-                            available: page.actions.available("light")
-                            onTriggered: page.actions.execute("light")
-                        }
-                        ChoiceButton {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 36
-                            style: page.style
-                            filled: true
-                            filledColor: page.style.surfaceHover
-                            label: "Dark"
+                            label: "Dark mode"
                             iconKind: "moon"
                             selected: page.appearance.appearanceKnown && page.appearance.darkMode
-                            available: page.actions.available("dark")
-                            onTriggered: page.actions.execute("dark")
+                            available: page.actions.available("dark") && page.actions.available("light")
+                            onTriggered: page.actions.execute(page.appearance.darkMode ? "light" : "dark")
                         }
-
                         ChoiceButton {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 36
                             style: page.style
-                            filled: true
-                            filledColor: page.style.surfaceHover
                             label: "Keep awake"
                             iconKind: "eye"
                             selected: page.services.keepAwake
                             available: page.actions.available("keep-awake")
                             onTriggered: page.actions.execute("keep-awake")
                         }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 1
+                        visible: page.system.powerProfiles.length > 0
+                        color: page.style.separator
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: page.system.powerProfiles.length > 0
+                        spacing: page.style.spaceXs
+                        Text {
+                            text: "Power"
+                            color: page.style.textMuted
+                            font.family: page.style.fontFamily
+                            font.pixelSize: page.style.fontSizeCaption
+                            Layout.rightMargin: page.style.spaceSm
+                        }
                         Repeater {
                             model: page.system.powerProfiles
                             ChoiceButton {
                                 required property string modelData
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 36
+                                Layout.preferredHeight: 30
                                 style: page.style
-                                filled: true
-                                filledColor: page.style.surfaceHover
-                                label: modelData === "power-saver" ? "Saver"
-                                    : modelData === "performance" ? "Performance"
-                                    : "Balanced"
-                                iconKind: modelData === "power-saver" ? "leaf"
-                                    : modelData === "performance" ? "gauge"
-                                    : "balance"
+                                label: modelData === "power-saver" ? "Saver" : modelData === "performance" ? "Performance" : "Balanced"
                                 selected: page.system.powerProfile === modelData
                                 available: page.actions.available("power:" + modelData)
                                 onTriggered: page.actions.execute("power:" + modelData)
                             }
                         }
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        visible: page.system.busy || page.system.error !== ""
-                        text: page.system.busy ? "Applying…" : page.system.error
-                        textFormat: Text.PlainText
-                        wrapMode: Text.Wrap
-                        color: page.style.accentWarm
-                        font.family: page.style.fontFamily
-                        font.pixelSize: page.style.fontSizeCaption
                     }
                 }
 
@@ -250,8 +222,8 @@ ColumnLayout {
                             font.weight: Font.DemiBold
                         }
                         Text {
-                            visible: page.notifs.current.length > 0
-                            text: page.notifs.current.length + " pending"
+                            text: page.notifs.current.length > 0 ? page.notifs.current.length + " pending"
+                                : page.notifs.history.length + " saved"
                             color: page.style.textMuted
                             font.family: page.style.fontFamily
                             font.pixelSize: page.style.fontSizeCaption
@@ -263,6 +235,12 @@ ColumnLayout {
                             style: page.style
                             label: "Clear"
                             onTriggered: page.notifs.clearCurrent()
+                        }
+                        StatusIcon {
+                            Layout.preferredWidth: 14
+                            Layout.preferredHeight: 14
+                            kind: "chevron"
+                            ink: page.style.textMuted
                         }
                     }
 
@@ -277,41 +255,7 @@ ColumnLayout {
                             onTriggered: page.notifs.removeCurrent(index)
                         }
                     }
-                    Text {
-                        Layout.fillWidth: true
-                        visible: page.notifs.current.length === 0
-                        text: page.notifs.history.length > 0
-                            ? "No unread notifications" : "No notifications"
-                        color: page.style.textMuted
-                        font.family: page.style.fontFamily
-                        font.pixelSize: page.style.fontSizeSmall
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: page.style.spaceSm
-                        Text {
-                            Layout.fillWidth: true
-                            text: page.notifs.current.length > page.notifs.previewCount
-                                ? (page.notifs.current.length - page.notifs.previewCount) + " more pending"
-                                : "Notification history"
-                            color: page.style.accent
-                            elide: Text.ElideRight
-                            font.family: page.style.fontFamily
-                            font.pixelSize: page.style.fontSizeSmall
-                        }
-                        Text {
-                            text: page.notifs.history.length + " saved"
-                            color: page.style.textMuted
-                            font.family: page.style.fontFamily
-                            font.pixelSize: page.style.fontSizeCaption
-                        }
-                        StatusIcon {
-                            kind: "chevron"
-                            Layout.preferredWidth: 14
-                            Layout.preferredHeight: 14
-                            ink: page.style.accent
-                        }
-                    }
+
                 }
             }
         }
