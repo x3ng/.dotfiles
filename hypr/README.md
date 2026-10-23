@@ -73,3 +73,18 @@ with `Type=Application`, `Name=Fcitx 5`, and `Exec=fcitx5` under
 If launching Hyprland without an XDG Autostart manager, configure one
 Fcitx5 startup mechanism for that session instead. Do not combine a manual
 launch with another enabled autostart entry or Fcitx5 user service.
+
+## Idle and lock
+
+Hypridle dims the laptop backlight after 150 seconds, locks at 300 seconds
+and powers off displays at 600 seconds. Activity restores the saved brightness
+and display power. Inhibitors, including Quickshell's Keep awake control,
+continue to suppress idle actions. No automatic suspend timeout is added.
+Before system sleep, logind requests the configured lock command and hypridle
+waits for the session-lock confirmation. Display power commands use the
+Hyprland 0.56 Lua dispatcher syntax.
+
+Hyprlock uses a screenshot background, reduced blur, an Inter clock and date,
+keyboard layout, and a wider password field with authentication, failure and
+Caps Lock feedback. Its input field uses the shell's dark colours for contrast
+over screenshots; keep those native colour values in sync with `Theme.qml`.
