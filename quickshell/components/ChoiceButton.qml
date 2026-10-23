@@ -30,9 +30,11 @@ Rectangle {
     Keys.onReturnPressed: { if (available) triggered(); }
     Keys.onEnterPressed: { if (available) triggered(); }
     Keys.onSpacePressed: { if (available) triggered(); }
-    ToolTip.visible: mouse.containsMouse && tooltip !== ""
-    ToolTip.delay: 500
-    ToolTip.text: tooltip
+    ShellToolTip {
+        style: choice.style
+        visible: mouse.containsMouse && choice.tooltip !== ""
+        text: choice.tooltip
+    }
 
     height: 34
     radius: style.radiusControl

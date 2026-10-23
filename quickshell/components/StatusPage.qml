@@ -16,6 +16,7 @@ ColumnLayout {
     required property var sink
     required property var player
     required property bool panelOpen
+    signal dismissRequested()
     readonly property real naturalHeight: content.implicitHeight
     onPanelOpenChanged: { if (panelOpen) viewport.contentY = 0; }
     spacing: page.style.spaceLg
@@ -129,58 +130,57 @@ ColumnLayout {
                     }
                 }
 
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: page.style.spaceMd
+                    ChoiceButton {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.preferredHeight: 42
+                        style: page.style
+                        filled: true
+                        label: "Dark mode"
+                        iconKind: "moon"
+                        selected: page.appearance.appearanceKnown && page.appearance.darkMode
+                        available: page.actions.available("dark") && page.actions.available("light")
+                        onTriggered: page.actions.execute(page.appearance.darkMode ? "light" : "dark")
+                    }
+                    ChoiceButton {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.preferredHeight: 42
+                        style: page.style
+                        filled: true
+                        label: "Keep awake"
+                        iconKind: "eye"
+                        tooltip: "Prevent automatic lock and screen sleep"
+                        selected: page.services.keepAwake
+                        available: page.actions.available("keep-awake")
+                        onTriggered: page.actions.execute("keep-awake")
+                    }
+                }
+
                 GroupCard {
                     Layout.fillWidth: true
+                    visible: page.system.powerProfiles.length > 0
                     style: page.style
-                    title: "Modes"
-                    iconKind: "appearance"
+                    title: "Power profile"
+                    iconKind: "gauge"
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: page.style.spaceSm
-                        ChoiceButton {
-                            Layout.fillWidth: true
-                            style: page.style
-                            label: "Dark mode"
-                            iconKind: "moon"
-                            selected: page.appearance.appearanceKnown && page.appearance.darkMode
-                            available: page.actions.available("dark") && page.actions.available("light")
-                            onTriggered: page.actions.execute(page.appearance.darkMode ? "light" : "dark")
-                        }
-                        ChoiceButton {
-                            Layout.fillWidth: true
-                            style: page.style
-                            label: "Keep awake"
-                            iconKind: "eye"
-                            selected: page.services.keepAwake
-                            available: page.actions.available("keep-awake")
-                            onTriggered: page.actions.execute("keep-awake")
-                        }
-                    }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: 1
-                        visible: page.system.powerProfiles.length > 0
-                        color: page.style.separator
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        visible: page.system.powerProfiles.length > 0
                         spacing: page.style.spaceXs
-                        Text {
-                            text: "Power"
-                            color: page.style.textMuted
-                            font.family: page.style.fontFamily
-                            font.pixelSize: page.style.fontSizeCaption
-                            Layout.rightMargin: page.style.spaceSm
-                        }
                         Repeater {
                             model: page.system.powerProfiles
                             ChoiceButton {
                                 required property string modelData
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 30
+                                Layout.preferredWidth: 1
+                                Layout.preferredHeight: 36
                                 style: page.style
+                                filled: true
+                                filledColor: page.style.surfaceHover
                                 label: modelData === "power-saver" ? "Saver" : modelData === "performance" ? "Performance" : "Balanced"
+                                iconKind: modelData === "power-saver" ? "leaf" : modelData === "performance" ? "gauge" : "balance"
                                 selected: page.system.powerProfile === modelData
                                 available: page.actions.available("power:" + modelData)
                                 onTriggered: page.actions.execute("power:" + modelData)
@@ -251,7 +251,10 @@ ColumnLayout {
                             Layout.fillWidth: true
                             style: page.style
                             entry: page.notifs.current[index]
-                            onActivated: page.actions.execute("notifications")
+                            actions: page.notifs.entryActions(entry)
+                            activationLabel: page.notifs.activationLabel(entry)
+                            onActivated: { if (page.notifs.activateEntry(entry)) page.dismissRequested(); }
+                            onActionRequested: action => { if (page.notifs.invokeEntryAction(entry, action)) page.dismissRequested(); }
                             onTriggered: page.notifs.removeCurrent(index)
                         }
                     }

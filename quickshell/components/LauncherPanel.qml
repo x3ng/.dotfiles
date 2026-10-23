@@ -95,7 +95,9 @@ PanelWindow {
         open = true;
         Qt.callLater(() => { if (panel.open && !panel.showingDetails) search.forceActiveFocus(); });
     }
-    function dismiss() { trayMenu.dismiss(); controlSection = ""; open = false; }
+    // Keep the current route on screen until its exit finishes. Opening resets
+    // search/details; panelOpen still turns off immediately for service cleanup.
+    function dismiss() { trayMenu.dismiss(); open = false; }
     function selectHome(tab) {
         if (!homeTabDefinitions.some(definition => definition.key === tab)) return;
         trayMenu.dismiss();
@@ -175,6 +177,18 @@ PanelWindow {
     onResultsChanged: syncSelection()
 
     visible: open || card.opacity > 0
+    property bool surfaceReady: false
+    onVisibleChanged: { if (!visible) surfaceReady = false; }
+    // Map an initial transparent frame before starting the entrance. Starting
+    // at open=true can consume the first part of the animation before mapping.
+    Connections {
+        target: card.Window.window
+        enabled: panel.open && !panel.surfaceReady
+        function onFrameSwapped() { panel.surfaceReady = true; }
+    }
+    readonly property string pageKey: showingDetails ? "detail:" + controlSection
+        : searching ? "search" : homeTab
+    onPageKeyChanged: { if (open) pageEnter.restart(); }
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
     // Respect the screen keyboard's exclusive zone so the backdrop never
@@ -196,15 +210,22 @@ PanelWindow {
         id: backdropRect
         anchors.fill: parent
         color: panel.style.backdrop
-        opacity: panel.open ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-        MouseArea { anchors.fill: parent; onClicked: panel.dismiss() }
+        opacity: card.revealProgress
+        MouseArea { anchors.fill: parent; enabled: panel.open; onClicked: panel.dismiss() }
     }
 
     Rectangle {
         id: card
-        opacity: panel.open ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+        property real revealProgress: panel.open && panel.surfaceReady ? 1 : 0
+        opacity: revealProgress
+        enabled: panel.open
+        transform: Translate { y: -panel.style.motionDistance * (1 - card.revealProgress) }
+        Behavior on revealProgress {
+            NumberAnimation {
+                duration: panel.open ? panel.style.motionEnter : panel.style.motionExit
+                easing.type: panel.open ? Easing.OutCubic : Easing.InCubic
+            }
+        }
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         // Keep the search field stationary as status/search content changes height.
@@ -217,9 +238,22 @@ PanelWindow {
             : panel.style.stripHeight + footer.implicitHeight + panel.style.panelGap * 2
                 + (homeTabs.visible ? homeTabs.implicitHeight + panel.style.panelGap : 0)
         // Each page sizes to its own content, subject to one shared ceiling.
-        height: Math.min(panel.style.maximumPanelHeight, parent.height - anchors.topMargin - 16,
+        readonly property real targetHeight: Math.min(panel.style.maximumPanelHeight, parent.height - anchors.topMargin - 16,
             contentHeight + chromeHeight + panel.style.panelPadding * 2)
-        Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+        property real layoutHeight: 0
+        Binding {
+            target: card
+            property: "layoutHeight"
+            value: card.targetHeight
+            when: panel.open
+            restoreMode: Binding.RestoreNone
+        }
+        height: layoutHeight
+        Behavior on height {
+            enabled: panel.open && card.revealProgress > 0
+            NumberAnimation { duration: panel.style.motionResize; easing.type: Easing.OutCubic }
+        }
+        clip: true
         radius: panel.style.radiusPanel
         color: panel.style.panelSurface
         border.color: panel.style.outline
@@ -230,8 +264,12 @@ PanelWindow {
         Keys.onPressed: event => panel.handleKey(event)
 
         ColumnLayout {
-            anchors.fill: parent
+            id: bodyLayout
+            // Lay out once at the destination height. The animated outer card
+            // reveals/clips it instead of squeezing every row on every frame.
+            anchors { left: parent.left; right: parent.right; top: parent.top }
             anchors.margins: panel.style.panelPadding
+            height: Math.max(0, card.layoutHeight - panel.style.panelPadding * 2)
             spacing: panel.style.panelGap
 
             Rectangle {
@@ -288,11 +326,13 @@ PanelWindow {
                     iconSize: 20
                     selected: panel.keyboard.shown
                     available: panel.keyboard.available && !panel.keyboard.pending
-                    ToolTip.visible: keyboardHover.hovered
-                    ToolTip.delay: 500
-                    ToolTip.text: panel.keyboard.error || (!panel.keyboard.available
-                        ? "Screen keyboard unavailable" : panel.keyboard.shown
-                            ? "Hide screen keyboard" : "Show screen keyboard")
+                    ShellToolTip {
+                        style: panel.style
+                        visible: keyboardHover.hovered
+                        text: panel.keyboard.error || (!panel.keyboard.available
+                            ? "Screen keyboard unavailable" : panel.keyboard.shown
+                                ? "Hide screen keyboard" : "Show screen keyboard")
+                    }
                     HoverHandler { id: keyboardHover }
                     onTriggered: {
                         search.forceActiveFocus();
@@ -324,6 +364,18 @@ PanelWindow {
 
             StackLayout {
                 id: pages
+                property real revealProgress: 1
+                opacity: revealProgress
+                transform: Translate { y: panel.style.motionDistance * (1 - pages.revealProgress) }
+                NumberAnimation {
+                    id: pageEnter
+                    target: pages
+                    property: "revealProgress"
+                    from: 0
+                    to: 1
+                    duration: panel.style.motionPage
+                    easing.type: Easing.OutCubic
+                }
                 Layout.minimumHeight: 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -349,6 +401,7 @@ PanelWindow {
                     sink: panel.sink
                     player: panel.player
                     panelOpen: panel.open && panel.activePage === panel.pageIndexes.controls
+                    onDismissRequested: panel.dismiss()
                 }
                 ControlDetails {
                     id: controlDetails
@@ -362,6 +415,7 @@ PanelWindow {
                     section: panel.controlSection
                     panelOpen: panel.open && panel.showingDetails
                     onDismissRequested: panel.returnToHome()
+                    onClosePanelRequested: panel.dismiss()
                     Keys.onPressed: event => panel.handleKey(event)
                 }
                 DesktopPage {

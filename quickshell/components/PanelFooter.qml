@@ -106,9 +106,11 @@ Rectangle {
                     }
                 }
                 HoverHandler { id: hover }
-                ToolTip.visible: hover.hovered
-                ToolTip.delay: 500
-                ToolTip.text: indicator.modelData.hint
+                ShellToolTip {
+                    style: footer.style
+                    visible: hover.hovered
+                    text: indicator.modelData.hint
+                }
             }
         }
 
@@ -152,6 +154,12 @@ Rectangle {
                                 footer.menuRequested(trayItem.modelData, pos.x, pos.y);
                             } else trayItem.modelData.activate();
                         }
+                    }
+                    ShellToolTip {
+                        style: footer.style
+                        visible: trayMouse.containsMouse && text !== ""
+                        text: [trayItem.modelData.tooltipTitle || trayItem.modelData.title || trayItem.modelData.id || "",
+                            trayItem.modelData.tooltipDescription || ""].filter(part => part !== "").join("\n")
                     }
                 }
             }

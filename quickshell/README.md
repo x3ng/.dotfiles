@@ -93,10 +93,10 @@ battery details are available on hover.
   on either main tab, close the panel.
   Super+Q again, Ctrl+G, or clicking outside closes from any page.
 - Sliders: drag/click or use the wheel. Adjustments keep the panel open.
-- System controls: compact connectivity tiles lead into two labelled groups:
-  Sound & display (volume, microphone mute, audio devices and brightness), and
-  Modes (appearance, keep-awake and a separate power-profile selector).
-  Each group shares one surface rather than nesting a card around each control.
+- System controls: compact connectivity tiles lead into Sound & display
+  (volume, microphone mute, audio devices and brightness). Appearance and
+  keep-awake are separate, equally sized toggle buttons. Power profile has its
+  own labelled card with equally sized choices.
   Connected/enabled tiles use the accent surface; buttons and device rows have
   hover and keyboard-focus feedback. Notifications collapse to a history row
   when empty; media and unread previews appear only when relevant. The page
@@ -121,16 +121,24 @@ battery details are available on hover.
   missing icons. Titles and bodies wrap, including long URLs and Chinese text.
   "Show more" expands truncated text or an image; long expanded bodies scroll
   inside the card. Text is explicitly plain text, matching the advertised
-  capabilities. Action buttons wrap onto additional rows. The default action
-  is invoked by clicking the card's content when it does not need expanding;
-  it is not duplicated as a labeled button. Resident actions leave the card
-  open, and the sender can close it. Use the close button to dismiss a banner.
-  Pending entries and saved history remain after a banner closes or expires.
+  capabilities. Action buttons wrap onto additional rows. Clicking the card's
+  content invokes the application's default action, even for long messages;
+  expansion has its own control. The same action is labelled Open notification.
+  Resident actions leave the notification live, and the sender can close it.
+  Banner timeout only hides the banner; a bounded live list keeps actions usable
+  from the center. Explicit close dismisses the native notification and removes
+  its pending row, while the saved history remains.
   The status page previews the newest two pending entries with up to two body
-  lines each; clicking a preview opens history, and its close button removes
-  only that pending entry.
-  "Clear" clears pending entries only. History uses the same card layout with
-  expandable content, per-entry close buttons and "Clear all history".
+  lines each. Preview and history rows can invoke live default actions; history
+  also exposes the application's other action buttons. Successful activation
+  closes the panel. Clear closes pending notifications while preserving history.
+  History uses expandable content, per-entry removal and Clear all history.
+  Closed notifications and records restored after restart have no live actions.
+  If they include a resolvable desktop-entry hint, Open app launches that app;
+  it does not promise to reopen the original message. Missing default actions
+  never cause an arbitrary first action to run. Quickshell 0.3.2's native action
+  API has no activation-token argument, so raising a Wayland window still
+  depends on the application's implementation.
   Pending is capped at twenty entries and history at fifty; both are saved in
   `$XDG_STATE_HOME/quickshell/notifications.json` (default `~/.local/state`) and survive restarts.
   If this file is absent, the notification module imports its previous per-shell
@@ -185,10 +193,34 @@ While muted, the OSD shows MUTED alongside the stored volume, with warm
 status text and progress; adjusting volume does not unmute it. Switching the focused
 workspace shows the workspace numbers and application icons for one second on
 the focused monitor, with the current workspace highlighted. This OSD reuses the
-compact workspace summary, wraps within the screen width, and fades in/out with a
+compact workspace summary, sizes to its content without a minimum card width,
+wraps within the screen width, and fades in/out with a
 slight vertical motion. OSD windows use the overlay layer so feedback remains
 visible over fullscreen applications; they do not accept input or keyboard focus.
 Initial workspace discovery does not show a popup.
+
+Moving a window also shows the destination workspace, window title and workspace
+summary for 1.5 seconds, with a border around the destination. This follows the
+compositor's movewindowv2 event, covering both silent and following keybindings
+and overview actions. A bounded readback confirms the actual destination before
+displaying success. Workspace and window rows are published after native event
+handling finishes, avoiding delegate rebuilds inside workspace removal signals.
+The summary keeps its icon delegates across focus and title updates, with
+window icons ordered by stable address instead of changing window titles.
+Launcher and OSD fades run in QML; `hypr/rules.lua` disables the compositor's
+additional animations for those two surfaces. Notifications retain their
+compositor exit fade.
+
+Motion timings live in `Theme.qml`: 200 ms entrance, 140 ms exit, 160 ms page
+reveal and 200 ms frame resize. The launcher uses one progress value for its
+backdrop, opacity and small vertical movement. It retains the current route
+and frame size through dismissal; reopening resets navigation as before.
+Launcher and OSD entrances wait for the surface's first submitted frame so
+mapping latency does not skip the start of the animation. Reopening while
+still fading out reverses from the current progress.
+During page changes, content lays out at the destination size and the outer
+card clips it while resizing, avoiding row compression. New pages fade and
+move in briefly; changing search results does not restart the page animation.
 
 Microphone mute changes show `MICROPHONE · MUTED/UNMUTED`, including hardware
 keys while the panel is closed. Switching the default audio output shows its
@@ -316,6 +348,7 @@ resize bindings repeat while held.
 | `components/WorkspaceSummary.qml` | Used workspace numbers and application icons |
 | `components/MediaCard.qml` | Media artwork, playback and timeline |
 | `components/FilledSlider.qml`, `ChoiceButton.qml` | Shared controls |
+| `components/ShellToolTip.qml` | Theme-aware hover hints with bounded width and plain text |
 | `components/StatusIcon.qml` | Palette-aware status icons without an icon-font dependency |
 | `components/PanelFooter.qml` | Date/time, icon-based status summary and tray entries |
 | `components/TrayMenuPopup.qml` | Themed DBusMenu entries and submenus |

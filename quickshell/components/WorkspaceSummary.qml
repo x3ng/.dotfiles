@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
-import Quickshell.Hyprland
 import Quickshell.Widgets
 import ".."
 
@@ -11,20 +10,41 @@ Rectangle {
     required property Theme style
     required property var searchModel
     required property var layoutState
+    required property var controls
     property bool interactive: true
     property int padding: 9
-    readonly property var workspaces: Hyprland.workspaces.values
-        .filter(w => w.id > 0 && (w.toplevels.values.length > 0
-            || w.id === Hyprland.focusedWorkspace?.id))
+    property int highlightedWorkspaceId: 0
+    // Focus/title updates must not reset the nested Repeaters and reload all
+    // icons during a workspace animation. Publish only structural icon data;
+    // active styling and layout labels retain their own live bindings.
+    property var workspaces: []
+    readonly property var structureSnapshot: controls.workspaces
+        .filter(w => (w.id > 0 && (w.windowCount > 0
+            || w.id === controls.focusedWorkspaceId)) || w.id === highlightedWorkspaceId)
+        .map(w => ({id: w.id, name: w.name, windows: controls.windows
+            .filter(window => window.workspaceId === w.id)
+            .map(window => ({address: window.address, appId: window.appId}))
+            .sort((a, b) => a.address.localeCompare(b.address))}))
         .sort((a, b) => a.id - b.id)
+    onStructureSnapshotChanged: structureDelay.restart()
+    Component.onCompleted: structureDelay.restart()
+    Timer {
+        id: structureDelay
+        interval: 0
+        onTriggered: {
+            if (JSON.stringify(summary.workspaces) !== JSON.stringify(summary.structureSnapshot))
+                summary.workspaces = summary.structureSnapshot;
+        }
+    }
 
     function workspaceLabel(workspace) {
-        return workspace.id + "·" + layoutState.marker(workspace.id);
+        const name = workspace.id > 0 ? workspace.id : workspace.name.replace(/^special:/, "");
+        return name + "·" + layoutState.marker(workspace.id);
     }
 
     function workspaceWidth(workspace) {
         return Math.ceil(labelMetrics.advanceWidth(workspaceLabel(workspace)))
-            + 12 + workspace.toplevels.values.length * 24;
+            + 12 + workspace.windows.length * 24;
     }
 
     FontMetrics {
@@ -59,15 +79,19 @@ Rectangle {
                 Rectangle {
                     id: workspace
                     required property var modelData
-                    readonly property bool active: modelData.id === Hyprland.focusedWorkspace?.id
+                    readonly property bool active: modelData.id === summary.controls.focusedWorkspaceId
                     width: Math.min(summary.workspaceWidth(modelData), workspaceFlow.width)
                     height: Math.max(30, icons.implicitHeight)
                     radius: summary.style.radiusControl
+                    border.width: modelData.id === summary.highlightedWorkspaceId ? 1 : 0
+                    border.color: summary.style.accent
                     color: active ? summary.style.surfaceSelected
                         : workspaceMouse.containsMouse ? summary.style.surfaceHover : "transparent"
-                    ToolTip.visible: summary.interactive && workspaceMouse.containsMouse
-                    ToolTip.delay: 500
-                    ToolTip.text: summary.layoutState.label(modelData.id)
+                    ShellToolTip {
+                        style: summary.style
+                        visible: summary.interactive && workspaceMouse.containsMouse
+                        text: summary.layoutState.label(workspace.modelData.id)
+                    }
                     Behavior on color {
                         ColorAnimation { duration: 140 }
                     }
@@ -93,13 +117,11 @@ Rectangle {
                             font.weight: Font.DemiBold
                         }
                         Repeater {
-                            model: workspace.modelData.toplevels.values
+                            model: workspace.modelData.windows
                             Item {
                                 id: app
                                 required property var modelData
-                                readonly property var entry: summary.searchModel.desktopEntryFor(
-                                    modelData.wayland ?? {appId: modelData.lastIpcObject.initialClass
-                                        || modelData.lastIpcObject.class})
+                                readonly property var entry: summary.searchModel.desktopEntryFor({appId: modelData.appId})
                                 width: 20
                                 height: 30
                                 IconImage {
@@ -125,7 +147,7 @@ Rectangle {
                         enabled: summary.interactive
                         anchors.fill: parent
                         hoverEnabled: true
-                        onClicked: Hyprland.dispatch("hl.dsp.focus({workspace = " + workspace.modelData.id + "})")
+                        onClicked: summary.controls.focusWorkspace(workspace.modelData.id)
                     }
                 }
             }

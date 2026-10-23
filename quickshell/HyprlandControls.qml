@@ -21,7 +21,22 @@ Scope {
     signal operationFinished(bool success, string operation, string target, int requestId, string message)
     readonly property int focusedWorkspaceId: Hyprland.focusedMonitor?.lastIpcObject.specialWorkspace?.id
         || Hyprland.focusedWorkspace?.id || 0
-    readonly property var workspaces: {
+    property var workspaces: []
+    property var windows: []
+    // Snapshot native data, then publish outside the compositor's removal
+    // signal stack. Qt must not rebuild nested delegates during QObject removal.
+    onWorkspaceSnapshotChanged: publishDelay.restart()
+    onWindowSnapshotChanged: publishDelay.restart()
+    Component.onCompleted: publishDelay.restart()
+    Timer {
+        id: publishDelay
+        interval: 0
+        onTriggered: {
+            if (JSON.stringify(root.workspaces) !== JSON.stringify(root.workspaceSnapshot)) root.workspaces = root.workspaceSnapshot;
+            if (JSON.stringify(root.windows) !== JSON.stringify(root.windowSnapshot)) root.windows = root.windowSnapshot;
+        }
+    }
+    readonly property var workspaceSnapshot: {
         const rows = Hyprland.workspaces.values.map(workspace => ({
             id: workspace.id,
             name: workspace.name,
@@ -47,7 +62,7 @@ Scope {
         }
         return rows.sort((a, b) => Number(a.special) - Number(b.special) || a.id - b.id);
     }
-    readonly property var windows: Hyprland.toplevels.values
+    readonly property var windowSnapshot: Hyprland.toplevels.values
         .filter(window => window.lastIpcObject.mapped !== false && Commands.address(window.address))
         .map(window => ({
             address: Commands.address(window.address),

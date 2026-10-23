@@ -12,6 +12,7 @@ Rectangle {
     required property Theme style
     required property var entry
     property var actions: []
+    property string activationLabel: ""
     property bool compact: false
     property bool expandable: true
     property bool expanded: false
@@ -25,21 +26,29 @@ Rectangle {
     signal dismissRequested()
     signal actionRequested(var action)
 
+    function activateCard() {
+        if (activationLabel) activated();
+        else if (expandable && (hasMore || expanded)) expanded = !expanded;
+    }
+
     implicitHeight: content.implicitHeight + pad * 2
     radius: style.radiusCard
     color: compact ? (hovered ? style.surfaceHover : "transparent") : style.surfaceRaised
-    border.width: compact ? 0 : 1
-    border.color: critical ? style.accentWarm : style.separator
-    Accessible.role: Accessible.ListItem
+    border.width: compact && !activeFocus ? 0 : 1
+    border.color: activeFocus ? style.accent : critical ? style.accentWarm : style.separator
+    activeFocusOnTab: visible
+    Accessible.role: activationLabel ? Accessible.Button : Accessible.ListItem
     Accessible.name: [entry.appName, entry.summary].filter(Boolean).join(". ")
+    Accessible.onPressAction: activateCard()
+    Keys.onReturnPressed: activateCard()
+    Keys.onEnterPressed: activateCard()
+    Keys.onSpacePressed: activateCard()
 
     HoverHandler { id: hover }
     MouseArea {
         anchors.fill: parent
-        onClicked: {
-            if (card.expandable && card.hasMore) card.expanded = !card.expanded;
-            else card.activated();
-        }
+        cursorShape: card.activationLabel || (card.expandable && (card.hasMore || card.expanded)) ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onClicked: card.activateCard()
     }
 
     ColumnLayout {
@@ -152,10 +161,20 @@ Rectangle {
         Flow {
             id: actionFlow
             Layout.fillWidth: true
-            visible: !card.compact && card.buttons.length > 0
+            visible: card.activationLabel !== "" || (!card.compact && card.buttons.length > 0)
             spacing: card.style.spaceSm
+            ChoiceButton {
+                width: Math.min(actionFlow.width, 150)
+                height: 32
+                visible: card.activationLabel !== ""
+                style: card.style
+                filled: true
+                filledColor: card.style.surfaceHover
+                label: card.activationLabel
+                onTriggered: card.activated()
+            }
             Repeater {
-                model: card.buttons
+                model: card.compact ? [] : card.buttons
                 ChoiceButton {
                     required property var modelData
                     width: Math.min(actionFlow.width, Math.max(96, Math.min(180, actionLabel.width + 24)))

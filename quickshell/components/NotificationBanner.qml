@@ -50,8 +50,9 @@ PanelWindow {
                     style: banner.style
                     entry: wrapper
                     actions: wrapper.actions
+                    activationLabel: banner.notifs.activationLabel(wrapper)
                     onHoveredChanged: banner.notifs.setHovered(wrapper, hovered)
-                    onActivated: banner.notifs.activate(wrapper)
+                    onActivated: banner.notifs.activateEntry(wrapper)
                     onDismissRequested: banner.notifs.dismiss(wrapper)
                     onActionRequested: action => banner.notifs.invokeAction(wrapper, action)
                     opacity: 0

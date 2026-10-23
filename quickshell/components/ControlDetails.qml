@@ -16,6 +16,7 @@ Rectangle {
     property bool audioInput: false
     property bool panelOpen: visible
     signal dismissRequested()
+    signal closePanelRequested()
     readonly property bool isNotifs: section === "notifications"
     readonly property string title: section === "wifi" ? "Wi-Fi"
         : section === "bluetooth" ? "Bluetooth"
@@ -24,7 +25,7 @@ Rectangle {
     readonly property string subtitle: section === "wifi" ? "Nearby networks · connect & manage"
         : section === "bluetooth" ? "Devices · discover, pair & connect"
         : detail.isNotifs ? (detail.notifs.history.length > 0
-            ? detail.notifs.history.length + " saved · expand to read"
+            ? detail.notifs.history.length + " saved · open or expand to read"
             : "Cleared notifications are kept here")
         : "Choose your default device"
     readonly property bool radioEnabled: section === "wifi" ? system.wifiEnabled : system.bluetoothEnabled
@@ -196,6 +197,10 @@ Rectangle {
                                 style: detail.style
                                 entry: modelData
                                 compact: false
+                                actions: detail.notifs.entryActions(entry)
+                                activationLabel: detail.notifs.activationLabel(entry)
+                                onActivated: { if (detail.notifs.activateEntry(entry)) detail.closePanelRequested(); }
+                                onActionRequested: action => { if (detail.notifs.invokeEntryAction(entry, action)) detail.closePanelRequested(); }
                                 onTriggered: detail.notifs.removeHistory(index)
                             }
                         }

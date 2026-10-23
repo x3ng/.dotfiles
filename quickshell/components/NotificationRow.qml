@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 
-// Shared content layout; preview cards open history, history cards expand.
+// Shared center content; activation and dismissal are owned by Notifications.
 NotificationCard {
     compact: true
     expandable: !compact

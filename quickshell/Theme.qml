@@ -18,7 +18,17 @@ Scope {
     readonly property int maximumPanelHeight: 700
     // One stable frame for tabs, search and details; only height follows content.
     readonly property int maximumPanelWidth: 600
+    readonly property int maximumTooltipWidth: 320
+    readonly property int tooltipDelay: 500
     readonly property int stripHeight: 40
+    // Shared motion rhythm: entrance settles gently; dismissal is shorter.
+    readonly property int motionEnter: 200
+    readonly property int motionExit: 140
+    readonly property int motionPage: 160
+    readonly property int motionResize: 200
+    readonly property int motionDistance: 8
+    readonly property int motionHintEnter: 100
+    readonly property int motionHintExit: 80
     readonly property int radiusPanel: 16
     readonly property int radiusInput: 10
     readonly property int radiusPopup: 8

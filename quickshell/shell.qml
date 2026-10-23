@@ -73,7 +73,7 @@ ShellRoot {
     }
     PanelHotCorners { panel: launcher; style: theme }
     NotificationBanner { notifs: notifications; style: theme }
-    OsdOverlay { shell: desktop; style: theme; searchModel: desktopSearch; layoutState: workspaceLayouts }
+    OsdOverlay { shell: desktop; style: theme; searchModel: desktopSearch; layoutState: workspaceLayouts; controls: hyprControls }
 
     IpcHandler {
         target: "appearance"

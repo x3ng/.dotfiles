@@ -48,9 +48,11 @@ Rectangle {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: tile.toggled()
             }
-            ToolTip.visible: toggleMouse.containsMouse
-            ToolTip.delay: 500
-            ToolTip.text: tile.active ? "Turn off " + tile.title : "Turn on " + tile.title
+            ShellToolTip {
+                style: tile.style
+                visible: toggleMouse.containsMouse
+                text: tile.active ? "Turn off " + tile.title : "Turn on " + tile.title
+            }
         }
         ColumnLayout {
             Layout.fillWidth: true

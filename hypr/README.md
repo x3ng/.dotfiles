@@ -2,7 +2,8 @@
 
 These Lua configs target Hyprland 0.56.2. Validate changes without starting a
 second compositor with `Hyprland --verify-config -c "$PWD/hypr/hyprland.lua"`
-from the repository root.
+from the repository root. Independent reload regression checks live in
+`tests/hypr/`; run `texlua tests/hypr/workspace-layouts.lua`.
 
 Hyprland owns window management and key bindings. Quickshell owns launcher,
 notifications and OSD presentation; `Super+Q` calls its launcher IPC endpoint.
@@ -13,8 +14,30 @@ and restart policy. Do not also run a separate `quickshell` startup command.
 workspace, with a visible special workspace taking precedence. The binding
 applies a workspace rule and emits the custom `workspace-layout` event.
 Quickshell then reads the actual compositor state to update workspace labels
-and show the layout OSD. These rules last for the current configuration;
-they are not saved as per-workspace layout preferences across a reload.
+and show the layout OSD. On configuration reload, `hyprland.lua` snapshots
+existing workspaces' live layouts and reapplies their rules before Hyprland's
+deferred layout refresh. This preserves choices from both the key bindings
+and the panel when monitor profiles change (including lid-related reloads),
+without depending on Quickshell. Numeric, named and special workspaces use
+their native `config_name` selectors. The snapshot is restored before
+`rules.lua` and monitor profiles: an explicit layout in those modules takes
+precedence. Layout-only rules merge with other settings such as gaps,
+monitor binding and persistence.
+
+Layout choices belong to the current session. Rules remain active until
+the next configuration reload, so destroying a workspace and recreating
+the same selector can reuse its chosen layout. On reload, only existing
+workspaces are captured; absent workspaces lose their runtime rules.
+New selectors and a new Hyprland session use the configured default or
+explicit workspace rules. Changing only the global default preserves
+existing workspaces' selected layouts; an explicit per-workspace layout
+overrides them. Only the four built-in layouts above are preserved.
+
+This preserves the layout algorithm, not a saved window arrangement. It
+cannot recover a workspace destroyed before the snapshot, or recover from
+a compositor restart. Live workspace names are captured anew on every
+reload. Renaming a workspace without reloading does not migrate its old
+runtime selector rule; that is Hyprland's native rule behavior.
 
 Darkman owns the appearance mode. Quickshell applies its observed mode through
 `appearance.lua` and saves a snapshot for compositor startup/config reload.

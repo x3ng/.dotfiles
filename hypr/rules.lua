@@ -17,6 +17,13 @@ hl.window_rule({
   center = true,
 })
 
+-- These shell surfaces already animate opacity in QML. A second compositor
+-- fade multiplies that animation and adds another fade after QML unmaps them.
+hl.layer_rule({
+  match = { namespace = "^(quickshell-launcher|quickshell:osd)$" },
+  no_anim = true,
+})
+
 -- "Smart gaps" / "No gaps when only" — uncomment to enable
 -- hl.workspace_rule({
 --   workspace = "w[tv1]",

@@ -12,13 +12,15 @@ import "components/NotificationUtils.js" as NotificationUtils
 //   - `current` notifications the user has not dealt with yet. The status
 //     page card shows these and its Clear empties only this list.
 //   - `history` the saved log the detail page browses, kept across restarts.
-// Dismissing a banner or letting it time out only hides the toast; the entry
-// stays pending in `current` until it is cleared from the notification center.
+// Banner timeout only hides the toast. Live objects remain separately bounded
+// so the center can still invoke the application's actions after the toast ends.
 Scope {
     id: root
 
     // Live popup wrappers, newest last. Capped; overflow evicts the oldest.
     property var popups: []
+    // Runtime objects only; never serialize actions or D-Bus notification IDs.
+    property var liveNotifications: []
     // Pending entries, newest first, `time` is epoch ms.
     property var current: []
     // Saved log entries, newest first, `time` is epoch ms.
@@ -66,7 +68,7 @@ Scope {
         actionIconsSupported: false
         imageSupported: true
         inlineReplySupported: false
-        persistenceSupported: false
+        persistenceSupported: true
 
         onNotification: notif => root.track(notif)
     }
@@ -84,6 +86,7 @@ Scope {
         readonly property string body: notification.body
         readonly property string appIcon: notification.appIcon
             || DesktopEntries.heuristicLookup(notification.desktopEntry)?.icon || ""
+        readonly property string desktopEntry: notification.desktopEntry || ""
         readonly property string contentImage: notification.image
         readonly property int urgency: notification.urgency
         readonly property bool critical: urgency === NotificationUrgency.Critical
@@ -125,11 +128,12 @@ Scope {
         // drop the popup so nothing lingers on screen.
         readonly property Connections closedWatch: Connections {
             target: wrapper.localKey ? null : wrapper.notification
-            function onClosed() { root.remove(wrapper); }
+            function onClosed() { root.notificationClosed(wrapper); }
             function onSummaryChanged() { wrapper.updateTimer.restart(); }
             function onBodyChanged() { wrapper.updateTimer.restart(); }
             function onAppNameChanged() { wrapper.updateTimer.restart(); }
             function onAppIconChanged() { wrapper.updateTimer.restart(); }
+            function onDesktopEntryChanged() { wrapper.updateTimer.restart(); }
             function onImageChanged() { wrapper.updateTimer.restart(); }
             function onUrgencyChanged() { wrapper.updateTimer.restart(); }
             function onActionsChanged() { wrapper.updateTimer.restart(); }
@@ -140,21 +144,33 @@ Scope {
 
     function track(notif) {
         notif.tracked = true;
-        const existing = popups.find(w => w.notification === notif);
-        if (existing) { existing.updateTimer.restart(); return; }
+        const existing = liveNotifications.find(w => w.notification === notif);
+        if (existing) {
+            if (!popups.includes(existing)) popups = [...popups, existing];
+            existing.updateTimer.restart();
+            limitPopups();
+            return;
+        }
         const wrapper = notifWrapperComponent.createObject(root, {
             notification: notif,
             recordKey: Date.now() + ":" + (++nextRecord)
         });
         if (!wrapper) return;
+        liveNotifications = [...liveNotifications, wrapper];
         saveRecord(wrapper);
         popups = [...popups, wrapper];
         wrapper.restartTimeout();
-        // Prefer evicting cards the user is not currently reading.
-        while (popups.length > maxVisible) {
-            const evicted = popups.find(w => !w.hovered) || popups[0];
-            expire(evicted);
-        }
+        limitPopups();
+        limitLive();
+    }
+
+    function limitPopups() {
+        while (popups.length > maxVisible)
+            expire(popups.find(w => !w.hovered) || popups[0]);
+    }
+    function limitLive() {
+        while (liveNotifications.length > maxHistory)
+            dismiss(liveNotifications.find(w => !popups.includes(w)) || liveNotifications[0]);
     }
 
     // Stable local keys replace one record instead of growing duplicate alerts.
@@ -169,21 +185,23 @@ Scope {
             urgency: details.critical ? NotificationUrgency.Critical : NotificationUrgency.Normal,
             expireTimeout: -1, transient: false, resident: false
         };
-        let wrapper = popups.find(w => w.localKey === key);
+        let wrapper = liveNotifications.find(w => w.localKey === key);
         if (wrapper) {
             wrapper.notification = payload;
             wrapper.time = Date.now();
+            if (!popups.includes(wrapper)) popups = [...popups, wrapper];
         } else {
             wrapper = notifWrapperComponent.createObject(root, {
                 notification: payload, localKey: key, recordKey: "local:" + key
             });
             if (!wrapper) return false;
+            liveNotifications = [...liveNotifications, wrapper];
             popups = [...popups, wrapper];
         }
         saveRecord(wrapper);
         wrapper.restartTimeout();
-        while (popups.length > maxVisible)
-            expire(popups.find(w => !w.hovered) || popups[0]);
+        limitPopups();
+        limitLive();
         return true;
     }
 
@@ -192,7 +210,7 @@ Scope {
             closedLocalKeys = [...closedLocalKeys, key];
             persistHistory();
         }
-        const wrapper = popups.find(w => w.localKey === key);
+        const wrapper = liveNotifications.find(w => w.localKey === key);
         if (wrapper) remove(wrapper);
         const remaining = current.filter(e => e.recordKey !== "local:" + key);
         if (remaining.length !== current.length) {
@@ -212,6 +230,7 @@ Scope {
                 summary: wrapper.summary,
                 body: wrapper.body,
                 appIcon: NotificationUtils.savedImage(wrapper.appIcon),
+                desktopEntry: wrapper.desktopEntry || "",
                 contentImage: NotificationUtils.savedImage(wrapper.contentImage),
                 urgency: wrapper.urgency,
                 time: wrapper.time
@@ -239,67 +258,126 @@ Scope {
     }
 
     function remove(wrapper) {
-        const i = popups.indexOf(wrapper);
-        if (i < 0) return;
+        if (wrapper.closing) return;
         wrapper.closing = true;
         wrapper.timer.stop();
         wrapper.updateTimer.stop();
         popups = popups.filter(w => w !== wrapper);
+        liveNotifications = liveNotifications.filter(w => w !== wrapper);
         wrapper.destroy();
     }
 
-    // Banner timer elapsed: hide the popup, close the notification. The
-    // entry stays pending in `current`.
-    function expire(wrapper) {
-        if (!wrapper.localKey) {
-            try { wrapper.notification.expire(); } catch (e) {}
-        }
+    function notificationClosed(wrapper) {
+        current = current.filter(e => e.recordKey !== wrapper.recordKey);
         remove(wrapper);
+        persistHistory();
     }
 
-    // User clicked the banner: dismiss instead of expire. Like Noctalia,
-    // dismissing a toast only hides it - it still shows up in the card.
-    function dismiss(wrapper) {
-        if (!wrapper.localKey) {
-            try { wrapper.notification.dismiss(); } catch (e) {}
+    // Retain recorded notifications after their banner timeout. Calling expire()
+    // on the native object here would invalidate all of its application actions.
+    function expire(wrapper) {
+        if (wrapper.closing) return;
+        wrapper.timer.stop();
+        popups = popups.filter(w => w !== wrapper);
+        if (!current.some(e => e.recordKey === wrapper.recordKey)
+                && !history.some(e => e.recordKey === wrapper.recordKey)) {
+            const notification = wrapper.notification;
+            const local = wrapper.localKey;
+            remove(wrapper);
+            if (!local) { try { notification.expire(); } catch (_) {} }
         }
+    }
+
+    // Explicit dismiss closes the live notification and clears its pending row;
+    // the saved log remains readable.
+    function dismiss(wrapper) {
+        if (!wrapper || wrapper.closing || !liveNotifications.includes(wrapper)) return false;
+        const notification = wrapper.notification;
+        const local = wrapper.localKey;
+        current = current.filter(e => e.recordKey !== wrapper.recordKey);
         remove(wrapper);
+        if (!local) { try { notification.dismiss(); } catch (_) {} }
+        persistHistory();
+        return true;
     }
 
     function invokeAction(wrapper, action) {
-        if (wrapper.closing) return;
-        const resident = wrapper.notification.resident;
-        try { action.invoke(); } catch (e) {}
-        // invoke() may synchronously emit closed; don't touch a removed card.
-        if (!resident && popups.includes(wrapper)) dismiss(wrapper);
+        if (!wrapper || wrapper.closing || !liveNotifications.includes(wrapper)
+                || !Array.from(wrapper.actions).includes(action)) return false;
+        // Native invoke() closes non-resident notifications itself. It may emit
+        // closed synchronously, so never dereference the wrapper afterwards.
+        try { action.invoke(); return true; } catch (_) { return false; }
     }
 
     function activate(wrapper) {
+        if (!wrapper || wrapper.closing || !liveNotifications.includes(wrapper)) return false;
         const action = Array.from(wrapper.actions).find(a => a.identifier === "default");
-        if (action) invokeAction(wrapper, action);
+        return action ? invokeAction(wrapper, action) : false;
+    }
+
+    function liveEntry(entry) {
+        return liveNotifications.find(w => !w.closing && w.recordKey === entry?.recordKey) || null;
+    }
+    function entryActions(entry) {
+        return Array.from(liveEntry(entry)?.actions || []);
+    }
+    function entryApplication(entry) {
+        return entry?.desktopEntry ? DesktopEntries.heuristicLookup(entry.desktopEntry) : null;
+    }
+    function activationLabel(entry) {
+        if (entryActions(entry).some(a => a.identifier === "default")) return "Open notification";
+        return entryApplication(entry) ? "Open app" : "";
+    }
+    function activateEntry(entry) {
+        const wrapper = liveEntry(entry);
+        if (wrapper && entryActions(entry).some(a => a.identifier === "default")) return activate(wrapper);
+        const application = entryApplication(entry);
+        if (!application) return false;
+        try { application.execute(); return true; } catch (_) { return false; }
+    }
+    function invokeEntryAction(entry, action) {
+        return invokeAction(liveEntry(entry), action);
     }
 
     // Status-page "Clear": empty the pending list only. History keeps every
     // entry, so nothing disappears from the detail page.
     function clearCurrent() {
         if (current.length === 0) return;
+        const keys = new Set(current.map(e => e.recordKey));
+        for (const wrapper of liveNotifications.slice()) {
+            if (keys.has(wrapper.recordKey)) dismiss(wrapper);
+        }
         current = [];
         persistHistory();
     }
 
     function removeCurrent(index) {
-        current = current.filter((_, i) => i !== index);
+        const entry = current[index];
+        if (!entry) return;
+        const wrapper = liveEntry(entry);
+        if (wrapper) dismiss(wrapper);
+        current = current.filter(e => e.recordKey !== entry.recordKey);
         persistHistory();
     }
 
     function clearHistory() {
         if (history.length === 0) return;
+        const keys = new Set(history.map(e => e.recordKey));
+        for (const wrapper of liveNotifications.slice()) {
+            if (keys.has(wrapper.recordKey)) dismiss(wrapper);
+        }
+        current = current.filter(e => !keys.has(e.recordKey));
         history = [];
         persistHistory();
     }
 
     function removeHistory(index) {
-        history = history.filter((_, i) => i !== index);
+        const entry = history[index];
+        if (!entry) return;
+        const wrapper = liveEntry(entry);
+        if (wrapper) dismiss(wrapper);
+        current = current.filter(e => e.recordKey !== entry.recordKey);
+        history = history.filter(e => e.recordKey !== entry.recordKey);
         persistHistory();
     }
 

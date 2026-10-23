@@ -16,7 +16,7 @@
 | `components/bluetooth_pair.py` | On-demand BlueZ agent bridge; bounded JSON protocol | Device lists, persistent state or status polling |
 | `HyprlandControls.qml` | Validated, explicit-target workspace/window requests and completion | Page selection or confirmation dialogs |
 | `components/WorkspaceLayoutState.qml` | Actual per-workspace layout readback and change signals | Optimistic layout changes |
-| `Notifications.qml` | Notification/history state and local notification delivery | Device operations |
+| `Notifications.qml` | Live notification actions, bounded popup/history lifetimes, application fallback and local alerts | Device operations |
 | `ScreenKeyboard.qml` | Keyboard process, observed visibility and request deadline | Launcher lifecycle |
 
 The native service/compositor remains the source of truth. Views read adapters;
@@ -24,6 +24,35 @@ they do not copy device state into their own independent stores. Theme tokens
 and reusable controls define the visual language. `components` currently contains
 both views and a few established helpers; file moves should not be confused with
 fixing ownership.
+
+HyprlandControls publishes plain workspace/window snapshots after the native
+event handler returns. WorkspaceSummary consumes these snapshots too. This
+avoids synchronously rebuilding nested delegates while Qt is removing a native
+workspace object; it does not make the view a separate system-state owner.
+WorkspaceSummary further projects these rows to workspace selectors and sorted
+window address/app-ID pairs. Focus, title and layout-label changes retain the
+existing icon delegates; only structural changes reset its Repeaters.
+
+Launcher and OSD surfaces own both entrance and exit animation in QML. The
+matching Hyprland layer rules disable an additional compositor animation for
+those two namespaces. Notification banners still use the compositor's exit
+fade, since removal currently unmaps their surface immediately.
+Theme owns shared motion timings. LauncherPanel keeps layout height separate
+from animated frame height and retains the visible route during dismissal.
+Service lifecycle still follows `open`, so an exit animation does not prolong
+scanning/pairing. Navigation resets on the next opening.
+ShellToolTip owns hover-hint presentation across controls, workspace summaries
+and the footer/tray. It uses explicit theme colours and an in-scene Qt popup,
+so platform tooltip palettes cannot override its surface or text. Theme also
+owns its maximum width, hover delay and fade timings; Qt handles the delay
+and keeps the popup within the scene bounds.
+
+Notification banners are only a view of the bounded live notification list.
+Banner timeout must not close a recorded native notification, or its actions
+become invalid. Center records resolve live actions by recordKey; only display
+data and the explicit desktop-entry hint are persisted. Sender close, explicit
+dismiss and eviction invalidate live actions. Archive fallback is labelled
+Open app and must never simulate the original notification's default action.
 
 ## Persistent state
 
