@@ -2,8 +2,7 @@
 
 These Lua configs target Hyprland 0.56.2. Validate changes without starting a
 second compositor with `Hyprland --verify-config -c "$PWD/hypr/hyprland.lua"`
-from the repository root. Independent reload regression checks live in
-`tests/hypr/`; run `texlua tests/hypr/workspace-layouts.lua`.
+from the repository root.
 
 Hyprland owns window management and key bindings. Quickshell owns launcher,
 notifications and OSD presentation; `Super+Q` calls its launcher IPC endpoint.
@@ -16,8 +15,7 @@ applies a native workspace rule. There is no synthetic layout event or layout
 polling: Quickshell refreshes labels when the panel opens, after panel actions,
 and on native workspace/configuration events. Hyprland 0.56.2 exposes no tiled-layout
 change event, so these bindings do not trigger an OSD. On configuration reload,
-`hyprland.lua` snapshots
-existing workspaces' live layouts and reapplies their rules before Hyprland's
+`hyprland.lua` snapshots existing workspaces' live layouts and reapplies their rules before Hyprland's
 deferred layout refresh. This preserves choices from both the key bindings
 and the panel when monitor profiles change (including lid-related reloads),
 without depending on Quickshell. Numeric, named and special workspaces use
@@ -48,8 +46,8 @@ explicit `apply("dark")` / `apply("light")` interface is shared with Quickshell;
 keep the palettes in sync with `quickshell/Theme.qml`.
 
 Window styling follows the shell's muted green palette, with 4px inner / 8px
-outer gaps, 10px corners and a soft 18px shadow. Compositor opacity multipliers stay at 1.0; applications may supply transparency;
-grouped-window titles use the same Inter family as the panel.
+outer gaps, 10px corners and a soft 18px shadow. Compositor opacity multipliers stay at 1.0; applications may supply transparency.
+Grouped-window titles use the same Inter family as the panel.
 
 Run `hyprmoncfg` to arrange displays and save profiles. `startup.lua` starts
 `hyprmoncfgd.service` to switch saved profiles automatically. Before a

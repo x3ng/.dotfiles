@@ -5,7 +5,6 @@
 | Module | Owns | Does not own |
 | --- | --- | --- |
 | `shell.qml` | Object lifetime, dependency injection, feedback-to-notification wiring | Page state or device operations |
-| `PanelState.qml` | Legacy saved-tab file compatibility (not used by navigation) | Other module state or live navigation |
 | `ShellActions.qml` | Searchable command metadata, shared availability, dispatch | System state, asynchronous completion, panel dismissal |
 | `DesktopSearch.qml` | Search ranking, stable result identity, activation requests | Navigation or keyboard focus |
 | `components/LauncherPanel.qml` | Opening/closing, Overview and internal routes, query, selection, focus and shared sizing | Search-result rendering or system commands |
@@ -16,15 +15,14 @@
 | `components/ConnectivityPane.qml` | Device selection, credential fields and confirmation UI | Commands or copied device state |
 | `components/bluetooth_pair.py` | On-demand BlueZ agent bridge; bounded JSON protocol | Device lists, persistent state or status polling |
 | `HyprlandControls.qml` | Validated, explicit-target workspace/window requests and completion | Page selection or confirmation dialogs |
-| `components/WorkspaceLayoutState.qml` | Actual per-workspace layout readback and change signals | Optimistic layout changes |
+| `components/WorkspaceLayoutState.qml` | Per-workspace layout snapshots on native events and explicit refresh | Optimistic layout changes |
 | `Notifications.qml` | Live notification actions, bounded popup/history lifetimes, application fallback and local alerts | Device operations |
 | `ScreenKeyboard.qml` | Keyboard process, observed visibility and request deadline | Launcher lifecycle |
 
 The native service/compositor remains the source of truth. Views read adapters;
 they do not copy device state into their own independent stores. Theme tokens
 and reusable controls define the visual language. `components` currently contains
-both views and a few established helpers; file moves should not be confused with
-fixing ownership.
+views and runtime helpers.
 
 HyprlandControls publishes plain workspace/window snapshots after the native
 event handler returns. WorkspaceSummary consumes these snapshots too. This
@@ -55,6 +53,40 @@ data and the explicit desktop-entry hint are persisted. Sender close, explicit
 dismiss and eviction invalidate live actions. Archive fallback is labelled
 Open app and must never simulate the original notification's default action.
 
+## Route and interaction contract
+
+Status (`overview`) is the only control overview. It is not a gateway to another
+settings dashboard. `LauncherPanel.navigate()` validates route IDs and owns all
+transitions; ShellActions describes and dispatches actions without implementing
+page routing. Search and visible buttons use that same action path.
+
+| View | Entry | Visible responsibility | Destructive actions |
+| --- | --- | --- | --- |
+| Status | Super+Q, return, status search action | Workspace summary, radio/audio/display/session controls, media | None for unseen notifications |
+| Search | Query in Status | Apps, windows, shared commands | Only explicit command results |
+| Workspaces | Window icon or search | Workspace/window management | Close requires an inline confirmation |
+| Wi-Fi / Bluetooth / audio | Relevant control or search | Devices and connection/device actions | Forget is confirmed next to the selected device |
+| Notifications | Bell/count or search | Pending list, history, per-entry actions | Clear belongs above the list it affects |
+
+The footer shows date/time, selected status indicators, notification entry, lock
+and tray. It does not duplicate volume/brightness controls or add a settings page.
+Tray growth is constrained to a horizontally scrollable strip; it must not push
+the date or notification entry outside the panel.
+
+## Presentation and service lifetimes
+
+- Overview/Desktop retain their last plain-data view snapshots while closed and
+  refresh on opening. This avoids invisible delegate rebuilds on focus events.
+- Details render only their current section. `panelOpen` controls work; an explicit
+  `retainContent` allows existing presentation through the exit animation, then
+  releases list delegates. Native device objects are not cached across teardown.
+- Panel visibility permits readiness probes. Wi-Fi discovery has its own flag and
+  runs only in an open Wi-Fi detail page; search/workspaces/notifications do not scan.
+- Notification bulk-clear intent survives asynchronous disk loading. Old saved
+  records cannot reappear after clearing; genuinely new arrivals remain.
+- Timers used for debounce, animation, deadlines and reconnect are not substitutes
+  for native state notifications. There is no periodic layout command polling.
+
 ## Persistent state
 
 Each module owns its own state file, schema, validation and migration. There is
@@ -64,22 +96,17 @@ lives under `$XDG_STATE_HOME/quickshell/`, falling back to
 
 | File | Owner | Purpose |
 | --- | --- | --- |
-| `panel-state.json` | PanelState | Last main tab, Desktop or System controls |
 | `appearance-mode` | AppearanceState | Startup snapshot of the mode owned by darkman |
 | `notifications.json` | Notifications | Pending notifications and history |
 | `battery-alerts.json` | BatteryAlerts | Charge-cycle alert deduplication |
 
-New state files should use atomic writes, explicit validation, and protect newer
-user changes from late startup reads. PanelState serializes writes and keeps the
-latest choice in memory when disk access fails. Notifications imports the old
+State writes are atomic and validate stored data. Notifications imports the old
 per-shell cache only if its new state file does not exist, and preserves the old
 file. Existing empty history is authoritative; a read error must not resurrect
 old notifications.
 
-Panel navigation always starts at Overview. The old panel-state file is retained
-for compatibility, but LauncherPanel neither reads its route nor writes new tab
-choices. Query text, details, expanded menus and confirmation targets remain
-transient. Device state is owned by the native services, not the navigation.
+Panel navigation always starts at Overview. Query text, details, expanded menus
+and confirmation targets remain transient; navigation has no persisted preference. Device state is owned by the native services, not the navigation.
 
 ## Action and result contracts
 
@@ -123,27 +150,12 @@ workspace together; changing the layout picker does not cancel an unrelated
 window request. Workspace switching dismisses only after its matching request
 succeeds, and model refreshes must not discard that pending completion.
 
-## Adding a feature
+## Deployment
 
-1. Add state/validation to the relevant service adapter when needed.
-2. For a general searchable command, add metadata and dispatch in ShellActions.
-   Reuse `available(id)` in visible buttons. Keep target-specific selection in a
-   page, then call the service with that explicit target.
-3. Keep navigation and focus changes in LauncherPanel. Render larger independent
-   content as a page component, using the existing theme and sizing conventions.
-4. Add regression coverage for state transitions, ordering, rejected requests and
-   asynchronous completion. Use the runner documented in
-   [tests/quickshell/README.md](../tests/quickshell/README.md).
-
-Tests use inert adapters or pure Qt offscreen fixtures. They must not open a live
-Quickshell PanelWindow, operate real windows, modify network state or lock the
-session. New root QML modules also need deployment entries in `install.sh`;
-components are deployed through the existing directory symlink.
-
-Regression tests, mocks and offscreen previews live in the repository's
-`tests/quickshell/` directory. They are run manually and are neither deployed
-nor imported by the shell. The Bluetooth pairing helper remains in `components/`
-because it provides a runtime feature.
+`install.sh` links each root QML module explicitly and links `components/` as a
+directory. `quickshell.service` owns the runtime process. The BlueZ pairing helper
+is part of runtime and lives in `components/`. Local regression helpers under
+ignored `tests/` are neither deployed nor loaded by the shell.
 
 ## Connection details
 
@@ -161,5 +173,4 @@ property), and emits only structured prompts/results. User responses are
 validated in both adapter and helper. It does not claim the default-agent role;
 leaving the detail page cancels the operation and closes the agent. Native
 Quickshell objects remain the source for pairing/connection state and normal
-device operations. This is a deliberate, isolated text-protocol exception to
-ordinary native service use, with transcript and fake-process regression tests.
+device operations. The agent bridge is an isolated text-protocol integration.

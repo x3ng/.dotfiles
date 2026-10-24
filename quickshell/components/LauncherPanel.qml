@@ -19,13 +19,11 @@ PanelWindow {
     required property var notifs
     required property var keyboard
     required property var actions
-    required property var panelState
     property bool open: false
     property string homeTab: "overview"
     readonly property var homeTabDefinitions: [
         {key: "overview", label: "Overview"},
-        {key: "desktop", label: "Desktop"},
-        {key: "controls", label: "System controls"}
+        {key: "desktop", label: "Desktop"}
     ]
     readonly property var detailSections: ["wifi", "bluetooth", "audio", "notifications"]
     // Read actual StackLayout indices so adding/reordering a page cannot change
@@ -33,7 +31,6 @@ PanelWindow {
     readonly property var pageIndexes: ({
         overview: overviewPage.StackLayout.index,
         search: searchResultsPage.StackLayout.index,
-        controls: statusPage.StackLayout.index,
         details: controlDetails.StackLayout.index,
         desktop: desktopPage.StackLayout.index
     })
@@ -93,6 +90,15 @@ PanelWindow {
     // Keep the current route on screen until its exit finishes. Opening resets
     // search/details; panelOpen still turns off immediately for service cleanup.
     function dismiss() { trayMenu.dismiss(); open = false; }
+    // The only route dispatcher. Commands and visible controls use this same
+    // path; unknown route IDs must not create an empty or hidden page.
+    function navigate(section) {
+        if (homeTabDefinitions.some(page => page.key === section)) {
+            selectHome(section);
+            return true;
+        }
+        return showDetails(section);
+    }
     function selectHome(tab) {
         if (!homeTabDefinitions.some(definition => definition.key === tab)) return;
         trayMenu.dismiss();
@@ -235,10 +241,9 @@ PanelWindow {
         readonly property real contentHeight: panel.showingDetails ? controlDetails.naturalHeight
             : panel.searching ? searchResultsPage.naturalHeight
             : panel.homeTab === "desktop" ? desktopPage.naturalHeight
-            : panel.homeTab === "controls" ? statusPage.naturalHeight : overviewPage.naturalHeight
+            : overviewPage.naturalHeight
         readonly property real chromeHeight: panel.showingDetails || panel.showingWorkspace ? 0
             : panel.style.stripHeight + footer.implicitHeight + panel.style.panelGap * 2
-                + (homeTabs.visible ? homeTabs.implicitHeight + panel.style.panelGap : 0)
         // Fit the active page; long content scrolls under the shared screen limit.
         readonly property real targetHeight: Math.max(0, Math.min(panel.style.maximumPanelHeight,
             parent.height - anchors.topMargin - 16,
@@ -352,43 +357,6 @@ PanelWindow {
                 }
             }
 
-            RowLayout {
-                id: homeTabs
-                visible: !panel.showingDetails && !panel.searching && panel.homeTab === "controls"
-                Layout.fillWidth: true
-                implicitHeight: 32
-                Layout.minimumHeight: implicitHeight
-                Layout.maximumHeight: implicitHeight
-                spacing: panel.style.spaceSm
-                ChoiceButton {
-                    Layout.preferredWidth: 32
-                    Layout.preferredHeight: 32
-                    style: panel.style
-                    label: ""
-                    iconKind: "back"
-                    tooltip: "Back to overview"
-                    onTriggered: panel.returnToHome()
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: "System controls"
-                    color: panel.style.textPrimary
-                    font.family: panel.style.fontFamily
-                    font.pixelSize: panel.style.fontSizeHeading
-                    font.weight: Font.DemiBold
-                }
-                ChoiceButton {
-                    Layout.preferredWidth: 32
-                    Layout.preferredHeight: 32
-                    style: panel.style
-                    label: ""
-                    iconKind: "lock"
-                    tooltip: "Lock screen"
-                    available: panel.actions.available("lock")
-                    onTriggered: panel.actions.execute("lock")
-                }
-            }
-
             StackLayout {
                 id: pages
                 property real revealProgress: 1
@@ -429,19 +397,6 @@ PanelWindow {
                     active: panel.searching && !panel.showingDetails
                     onActivateRequested: index => panel.activate(index)
                 }
-                StatusPage {
-                    id: statusPage
-                    Layout.minimumHeight: 0
-                    services: panel.services
-                    actions: panel.actions
-                    style: panel.style
-                    appearance: panel.appearance
-                    notifs: panel.notifs
-                    sink: panel.sink
-                    player: panel.player
-                    panelOpen: panel.open && panel.activePage === panel.pageIndexes.controls
-                    onDismissRequested: panel.dismiss()
-                }
                 ControlDetails {
                     id: controlDetails
                     Layout.fillWidth: true
@@ -453,6 +408,7 @@ PanelWindow {
                     notifs: panel.notifs
                     section: panel.controlSection
                     panelOpen: panel.open && panel.showingDetails
+                    retainContent: panel.visible && panel.activePage === panel.pageIndexes.details
                     onDismissRequested: panel.returnToHome()
                     onClosePanelRequested: panel.dismiss()
                     Keys.onPressed: event => panel.handleKey(event)
@@ -487,8 +443,6 @@ PanelWindow {
                 notificationHistoryCount: panel.notifs.history.length
                 lockAvailable: panel.actions.available("lock")
                 onNotificationsRequested: panel.showDetails("notifications")
-                onClearNotificationsRequested: panel.notifs.clearCurrent()
-                onSettingsRequested: panel.selectHome("controls")
                 onLockRequested: panel.actions.execute("lock")
                 trayItems: panel.trayItems
                 date: clock.date

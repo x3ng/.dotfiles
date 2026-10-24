@@ -14,14 +14,14 @@ Scope {
     signal navigateRequested(string section)
     readonly property var entries: [
         {id: "desktop", title: "Manage windows and workspaces", keywords: "desktop layout float fullscreen move close 桌面 窗口 工作区 布局 平铺 浮动 全屏 移动 关闭", icon: "window", enabled: true},
-        {id: "controls", title: "Open system controls", keywords: "settings 系统 设置 控制", icon: "app", enabled: true},
+        {id: "overview", title: "Show desktop status", keywords: "status settings 总览 状态 系统 设置 控制", icon: "app", enabled: true},
         {id: "wifi", title: "Wi-Fi settings", keywords: "network wireless 网络 无线", icon: "wifi", enabled: true},
         {id: "bluetooth", title: "Bluetooth settings", keywords: "devices 蓝牙 设备", icon: "bluetooth", enabled: true},
         {id: "audio", title: "Audio devices", keywords: "sound volume output input 声音 音频 音量 输出 输入", icon: "headphones", enabled: true},
         {id: "brightness", title: "Adjust brightness", keywords: "display screen 亮度 屏幕 显示", icon: "brightness", enabled: true},
         {id: "wifi-toggle", title: services.controls.wifiEnabled ? "Turn off Wi-Fi" : "Turn on Wi-Fi", keywords: "wireless radio 无线 网络 开关", icon: "wifi", enabled: services.controls.wifiAvailable && !services.controls.wifiBusy},
         {id: "bluetooth-toggle", title: services.controls.bluetoothEnabled ? "Turn off Bluetooth" : "Turn on Bluetooth", keywords: "radio 蓝牙 开关", icon: "bluetooth", enabled: services.controls.bluetoothAvailable && !services.controls.bluetoothBusy},
-        {id: "notifications", title: "Notification history", keywords: "messages 通知 历史 消息", icon: "app", enabled: true},
+        {id: "notifications", title: "Notification center", keywords: "messages 通知 历史 消息", icon: "app", enabled: true},
         {id: "output-mute", title: services.sink?.audio?.muted ? "Unmute output" : "Mute output", keywords: "sound speaker 静音 扬声器 取消静音", icon: "volume", enabled: !!services.sink?.audio},
         {id: "mic-mute", title: services.source?.audio?.muted ? "Unmute microphone" : "Mute microphone", keywords: "mic 静音 麦克风 取消静音", icon: "mic", enabled: !!services.source?.audio},
         {id: "keep-awake", title: services.keepAwake ? "Resume automatic sleep" : "Keep awake", keywords: "idle suspend 保持唤醒 休眠 自动锁屏", icon: "eye", enabled: true},
@@ -45,12 +45,12 @@ Scope {
     // Service feedback signals report asynchronous failures independently.
     function execute(id) {
         if (!available(id)) return false;
-        if (["desktop", "controls", "wifi", "bluetooth", "audio", "notifications"].includes(id)) {
+        if (["overview", "desktop", "wifi", "bluetooth", "audio", "notifications"].includes(id)) {
             navigateRequested(id);
             return true;
         }
         switch (id) {
-        case "brightness": navigateRequested("controls"); break;
+        case "brightness": navigateRequested("overview"); break;
         case "wifi-toggle": return services.controls.toggleWifi();
         case "bluetooth-toggle": return services.controls.toggleBluetooth();
         case "output-mute": return services.toggleOutputMute();

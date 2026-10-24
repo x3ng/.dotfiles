@@ -18,11 +18,16 @@ Scope {
     property list<string> terminalCommand: ["kitty", "--"]
     signal feedback(string key, string summary, string body, bool critical)
     property bool controlsVisible: false
+    property bool wifiDiscoveryActive: false
     readonly property var controls: systemControls
     readonly property var audioOutputs: Pipewire.nodes.values.filter(n => n.audio && !n.isStream && n.isSink)
     readonly property var audioInputs: Pipewire.nodes.values.filter(n => n.audio && !n.isStream && !n.isSink)
 
-    SystemControls { id: systemControls; active: root.controlsVisible }
+    SystemControls {
+        id: systemControls
+        active: root.controlsVisible
+        wifiDiscoveryActive: root.wifiDiscoveryActive
+    }
 
     // A systemd idle inhibitor survives closing the panel. Closing stdin
     // releases it normally; shell shutdown also closes the pipe to cat.

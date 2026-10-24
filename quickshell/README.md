@@ -1,380 +1,125 @@
 # Quickshell desktop panel
 
-For module ownership and extension rules, see [ARCHITECTURE.md](ARCHITECTURE.md).
-Regression checks are documented in [tests/quickshell/README.md](../tests/quickshell/README.md).
+A barless desktop panel for Hyprland. `Super+Q` toggles it; each opening starts
+on Status. The upper screen corners also open it after a dwell, configured in
+`components/PanelHotCorners.qml`.
 
-`Super+Q` toggles a panel on the focused monitor. Alternatively, rest the mouse
-in the top-left or top-right corner of any screen for 400 ms to open the full
-desktop panel on that screen. Each transparent sensor occupies only 6×6 logical
-pixels of pointer input, reserves no workspace space and takes no keyboard focus.
-Entering an armed corner shows a soft gradient that spreads and deepens across
-96px during the 400 ms dwell, without a countdown ring. Leaving early fades the
-hint away and cancels opening. The larger
-visual is pointer-transparent outside the original 6×6 input region.
-Passing through or holding a mouse button does not trigger it. Both corners only
-open the panel; they never toggle an already-open panel closed. Closing with the
-pointer still in a corner requires leaving and returning before another trigger.
-Startup with the pointer already in a corner also stays silent. Adjust
-`PanelHotCorners.qml`'s `dwellTime`/`cornerSize`, or set its `enabled` to false in
-`shell.qml`, to tune or disable this entry. There is no bar. Pages fit their content under one shared height limit:
-`Theme.maximumPanelHeight` (700px by default), also constrained by available screen
-space. All pages, search and details share one stable 600px maximum width. The
-panel uses 22px outer padding and adapts to narrower screens; changing pages
-never changes its width. Height adapts smoothly to the current page. Excess content scrolls without a scrollbar. Every opening
-starts on Overview. The old saved main-tab preference is retained on disk but
-no longer controls navigation. Overview shows workspace numbers and app icons,
-Wi-Fi/Bluetooth state, direct volume/brightness controls, compact session toggles,
-an expandable power-profile selector and a 64px media row only when a player exists.
-Notifications stay collapsed in Overview: the footer bell and pending count open
-the notification center, while the adjacent clear button dismisses pending entries
-and keeps history. Overview does not render notification previews.
-Overview and search share the same height ceiling; short pages shrink to fit.
-Reopening resets the scroll to the normal status controls.
-There is no redundant Overview heading. The footer contains the notification
-count, Settings and lock shortcuts; the count is pending entries, not an unread
-receipt. The workspace strip reserves only 32px for its All windows icon. Notification history and full media controls remain in Settings.
-All windows opens the complete workspace manager; Settings opens all system
-controls. Both remain inside the same panel. System controls keeps search and the
-footer. Workspaces, device details and notifications share a `DetailHeader`
-with the same back button, title, subtitle and spacing; these detail pages hide
-the main search field and footer. Esc or the back button returns to Overview.
+## Status and navigation
 
-Desktop presents workspace cards and their windows in one ordered column.
-Workspace headers switch directly to their workspace;
-the layout button beside each title exposes that workspace's layout choices.
-Window rows show application icons and titles. Right-clicking a row or using its
-ellipsis button opens the same inline actions for floating, fullscreen, moving
-to another workspace and closing (with a second confirmation). Dragging windows
-is not implemented. Clicking a window activates it and closes the panel after
-the request succeeds. Actions target that window's address, even while the panel
-holds keyboard focus. Lock screen is also available on Desktop.
+Status is the only control overview. It contains workspace/app summaries,
+Wi-Fi and Bluetooth controls, volume and brightness sliders, microphone mute,
+appearance, keep-awake, power profiles and playback controls when a player exists.
 
-Typing immediately searches applications, open windows and shell actions from Overview or System controls.
-System actions include settings pages, mute controls, appearance, keep-awake,
-power profiles, the screen keyboard and locking. English titles and Chinese
-keywords are searchable. Selection follows the result identity when live titles
-change the ranking. Search and visible controls share `ShellActions.qml`;
-services own state and asynchronous feedback. Window/workspace operations use
-explicit targets through `HyprlandControls.qml`; searching for window management
-opens Desktop to choose a target. Disabled actions cannot execute. Actions keep
-the panel open, while navigation opens the corresponding page.
-Results are ranked by prefix, word start, then substring; open windows rank highly
-when their titles match. Deleting the query returns to its source page; Esc returns to Overview. The footer
-keeps the date, time, battery and appearance summary visible; volume and brightness
-are omitted on Overview because its sliders already show them;
-battery details are available on hover.
+- Workspace chips switch workspace. The window icon opens the workspace manager.
+- Radio icons toggle Wi-Fi/Bluetooth; the tile text opens device details.
+- The headphones button opens output/input device selection.
+- The footer shows time/date, battery and appearance state, notification count,
+  lock and tray. Tray items scroll horizontally when they exceed the available width.
+- The bell opens the notification center. Notifications are not expanded in Status,
+  and clearing is available only in the center beside its visible list.
+- Detail pages share a back/title header. Back or Esc returns to Status; Esc on
+  Status closes the panel. Clicking outside, `Super+Q` or `Ctrl+G` also closes it.
 
-- `Ctrl+N/P`: next/previous result.
-- `Tab` / `Shift+Tab`: ordinary forward/backward focus traversal, without changing pages.
-- `Ctrl+A/E`: beginning/end of input; `Ctrl+F/B`: character forward/back.
-- `Alt+F/B`: word forward/back; `Alt+D` / `Alt+Backspace`: kill next/previous word.
-- `Ctrl+K/U`: kill to end/beginning; `Ctrl+W`: kill selection or previous word.
-- `Ctrl+H/D`: backward/forward delete; `Ctrl+Y`: restore the last killed text.
-- `Ctrl+G`: close. Vim-style result navigation is not used.
-- Enter: launch an application or activate a window, then close.
-- The keyboard button beside the search field shows/hides `wvkbd-mobintl`.
-  Keep the panel open to type into search, or click outside to return to the
-  previous application while leaving the keyboard available. The keyboard takes
-  no keyboard focus, and the panel respects its reserved bottom area. Its own
-  hide key also updates the button: visibility comes from Hyprland layer events
-  and PID-filtered readback, not process lifetime. There is no periodic polling.
-  It starts only on demand and exits with Quickshell; theme colours are supplied
-  when starting the process. Missing `wvkbd-mobintl` disables the button; opening
-  the panel rechecks availability after installation. Apply the NixOS configuration
-  containing `pkgs.wvkbd` first. This is a manual desktop keyboard, not automatic
-  input-field detection, a Chinese input method, or a login/lock-screen keyboard.
-- Applications declaring `Terminal=true` (such as Yazi) open in kitty automatically.
-  `Shift+Enter` forces a selected application to open in the terminal; window results
-  still activate the existing window. `DesktopSearch.qml`'s `terminalCommand`
-  configures the terminal argv (default `["kitty", "--"]`). Native desktop-entry
-  arguments and working directories are preserved without shell string parsing.
-  Applications, including the terminal wrapper, run in independent systemd user
-  scopes in `app.slice`; restarting `quickshell.service` does not terminate them.
-  The scope inherits the launcher's environment, and systemd argument expansion
-  is disabled to preserve literal `$` characters. The service retains its default
-  `KillMode=control-group` to clean up shell-owned helpers. Applications already
-  running in the old service cgroup must be exited and relaunched to move scopes.
-- `Ctrl+1`–`Ctrl+9`, `Ctrl+0`: directly open search results 1–10. The list
-  uses compact single-line rows to fit the first ten results at normal screen sizes
-  and displays these shortcuts; they do nothing outside search or for missing results.
-- Esc: return from search, details, Workspaces or Settings to Overview;
-  on Overview, close the panel.
-  Super+Q again, Ctrl+G, or clicking outside closes from any page.
-- Sliders: drag/click or use the wheel. Adjustments keep the panel open.
-- System controls: compact connectivity tiles lead into Sound & display
-  (volume, microphone mute, audio devices and brightness). Appearance and
-  keep-awake are separate, equally sized toggle buttons. Power profile has its
-  own labelled card with equally sized choices.
-  Connected/enabled tiles use the accent surface; buttons and device rows have
-  hover and keyboard-focus feedback. Notifications collapse to a history row
-  when empty; media and unread previews appear only when relevant. The page
-  scrolls when necessary and resets its position when opened.
-- Keep awake: toggle to inhibit automatic idle locking and screen power-off
-  through Hypridle. The highlighted button stays active when the panel closes;
-  toggle it off to restore idle timeouts. Quickshell exit/reload releases it.
-  Uses the existing `systemd-inhibit` command; manual locking still works.
-  While active, a notice near the top of the status page explains that automatic
-  locking and screen power-off are paused, with a direct Turn off button.
-  Muted microphones and outputs get similarly explicit notices and Unmute actions;
-  these notices remain discoverable every time the panel opens.
-- Tray: left click activates; right click opens a themed menu.
-- Notifications: quickshell replaces mako as the Freedesktop notification
-  daemon. Banners appear top-center on the focused monitor, at up to 400 logical
-  pixels wide with margins on narrower screens. Up to four cards are visible;
-  overflow evicts the oldest unhovered card. Tall stacks scroll within 75% of
-  the screen height. Normal banners honor the app's timeout, or five seconds
-  by default; critical notifications and a zero timeout stay until closed.
-  Hovering pauses the countdown and leaving resumes the remaining time.
-  Application icons and attached images are separate, with icon fallbacks for
-  missing icons. Titles and bodies wrap, including long URLs and Chinese text.
-  "Show more" expands truncated text or an image; long expanded bodies scroll
-  inside the card. Text is explicitly plain text, matching the advertised
-  capabilities. Action buttons wrap onto additional rows. Clicking the card's
-  content invokes the application's default action, even for long messages;
-  expansion has its own control. The same action is labelled Open notification.
-  Resident actions leave the notification live, and the sender can close it.
-  Banner timeout only hides the banner; a bounded live list keeps actions usable
-  from the center. Explicit close dismisses the native notification and removes
-  its pending row, while the saved history remains.
-  The status page previews the newest two pending entries with up to two body
-  lines each. Preview and history rows can invoke live default actions; history
-  also exposes the application's other action buttons. Successful activation
-  closes the panel. Clear closes pending notifications while preserving history.
-  History uses expandable content, per-entry removal and Clear all history.
-  Closed notifications and records restored after restart have no live actions.
-  If they include a resolvable desktop-entry hint, Open app launches that app;
-  it does not promise to reopen the original message. Missing default actions
-  never cause an arbitrary first action to run. Quickshell 0.3.2's native action
-  API has no activation-token argument, so raising a Wayland window still
-  depends on the application's implementation.
-  Pending is capped at twenty entries and history at fifty; both are saved in
-  `$XDG_STATE_HOME/quickshell/notifications.json` (default `~/.local/state`) and survive restarts.
-  If this file is absent, the notification module imports its previous per-shell
-  cache file once; the old file is retained. An existing new file, including an
-  empty history, always takes precedence. Notifications
-  updated with `replaces_id` update the existing live card and saved entry.
-  Transient notifications are also recorded by default, including fcitx5's
-  Wayland diagnostic tips; set `recordTransient` to `false` in
-  `Notifications.qml` to keep them toast-only. File-backed attached images can
-  be shown in history; in-memory `image://qsimage/` attachments are shown live
-  but omitted from disk because their URLs expire with the notification.
-- Wi-Fi and Bluetooth: click the icon to toggle the radio, or the card text/arrow
-  to open a detail view inside the same panel. Audio devices opens the same
-  view, with output/microphone tabs. Details use the same adaptive frame,
-  with a return/title header instead of the main search field and footer.
-  Their lists and controls scroll together when they exceed the viewport;
-  the return header stays visible.
-  The back arrow or Esc returns to status; outside click closes the launcher.
-  Power profiles are selected directly in the main panel.
-  Wi-Fi lists nearby networks, with connected and saved networks first, stable
-  name order, security and signal percentage. Select a row to connect, enter or
-  replace a WPA/WPA2/WPA3 personal password, disconnect, or forget its saved
-  profile (with a second confirmation). Open/OWE networks can connect directly;
-  saved credentials are reused when the password field stays empty. Passwords
-  are cleared on submit, page/radio changes and panel close. They go directly to
-  the native NetworkManager API, never into command arguments or a shell file.
-  Unknown enterprise/legacy authentication and hidden networks use the explicit
-  Advanced network settings entry (`nmtui` in the configured terminal).
-  Bluetooth lists paired and discovered devices. Search devices runs discovery
-  for up to twenty seconds and stops on page close or pairing. Select a device
-  to pair/connect, disconnect or forget (with confirmation). Pairing supports
-  PIN/passkey entry, numeric comparison, service authorization, code display
-  for keyboards and cancellation. Only a successful requested pairing trusts
-  the device and requests connection. Closing the page cancels pending pairing.
-  BlueZ's own `bluetoothctl --agent KeyboardDisplay` is bridged by a short-lived
-  Python standard-library helper because Quickshell 0.3.2 has no Agent1 API.
-  It handles fixed English agent prompts, has a ninety-second deadline, and
-  never registers itself as the default agent. Ordinary device state, discovery
-  and connect/disconnect/forget remain native D-Bus-backed Quickshell objects;
-  there is no CLI status polling. Failures appear in the corresponding detail
-  page and connection outcomes use the existing notification service.
-  Audio selects the default output/input through PipeWire. Power mode offers
-  the profiles reported by the native PowerProfiles service.
+The panel has a maximum width of 600px and fits narrower screens. Height follows
+the displayed content up to 700px or the available screen space; overflow scrolls.
+Width does not change between pages. These values are in `Theme.qml`.
 
-There are no keyboard modes. The media card appears only when a player exists.
-Window icons use their appId to resolve
-DesktopEntries; unmatched entries draw a generic window/app glyph from
-`StatusIcon` (the same line-icon set backs transport, chevron, check and
-close controls — no Unicode glyph fallbacks). Volume/brightness
-changes also produce a brief independent OSD, including when the panel is closed.
-While muted, the OSD shows MUTED alongside the stored volume, with warm
-status text and progress; adjusting volume does not unmute it. Switching the focused
-workspace shows the workspace numbers and application icons for one second on
-the focused monitor, with the current workspace highlighted. This OSD reuses the
-compact workspace summary, sizes to its content without a minimum card width,
-wraps within the screen width, and fades in/out with a
-slight vertical motion. OSD windows use the overlay layer so feedback remains
-visible over fullscreen applications; they do not accept input or keyboard focus.
-Initial workspace discovery does not show a popup.
+## Search and keyboard
 
-Moving a window also shows the destination workspace, window title and workspace
-summary for 1.5 seconds, with a border around the destination. This follows the
-compositor's movewindowv2 event, covering both silent and following keybindings
-and overview actions. A bounded readback confirms the actual destination before
-displaying success. Workspace and window rows are published after native event
-handling finishes, avoiding delegate rebuilds inside workspace removal signals.
-The summary keeps its icon delegates across focus and title updates, with
-window icons ordered by stable address instead of changing window titles.
-Launcher and OSD fades run in QML; `hypr/rules.lua` disables the compositor's
-additional animations for those two surfaces. Notifications retain their
-compositor exit fade.
+Typing in Status searches applications, open windows and shell actions. Ranking
+uses prefix, word-start and substring matches. Search and visible controls share
+`ShellActions.qml`; disabled actions cannot execute.
 
-Motion timings live in `Theme.qml`: 200 ms entrance, 140 ms exit, 160 ms page
-reveal and 200 ms frame resize. OSD uses the faster hint timings: 100 ms in and
-80 ms out. Closed Overview and Desktop pages retain their displayed workspace/window
-snapshots and refresh on opening, avoiding invisible delegate rebuilds during
-workspace switches. The launcher uses one progress value for its
-backdrop, opacity and small vertical movement. It retains the current route
-and frame size through dismissal; reopening resets navigation as before.
-Launcher and OSD entrances wait for the surface's first submitted frame so
-mapping latency does not skip the start of the animation. Reopening while
-still fading out reverses from the current progress.
-Page changes retain the same width and animate height to fit the destination. New pages fade and move in
-briefly; changing search results does not restart the page animation.
-
-Microphone mute changes show `MICROPHONE · MUTED/UNMUTED`, including hardware
-keys while the panel is closed. Switching the default audio output shows its
-device name. Initial device discovery and changing input devices stay silent;
-output changes settle for 180 ms, ignoring temporary missing nodes or rebuilding
-the same device. These use the existing 1.5-second OSD, without input capture.
-All OSDs share one card surface, border, radius and padding. Labels and primary
-values align left; volume and brightness add a progress track below. Standard
-cards are 320 logical pixels wide, capped to the available screen width. Device
-names elide rather than widening the output OSD. Workspace feedback uses the
-same outer card with an unframed workspace summary and retains content-driven
-width and wrapping. Ordinary values use primary text, muted states use the warm
-accent, and progress/selected workspaces carry the main accent.
-
-Battery warnings enter the regular notification center at 20%, 10% and 5%
-while discharging. The 20% banner expires normally; 10% and 5% are critical and
-stay until dismissed or power is connected. Crossing several thresholds at once
-shows only the most urgent one. Each threshold is announced once per observed
-charge cycle, saved in `$XDG_STATE_HOME/quickshell/battery-alerts.json`, so shell
-reloads do not repeat it. Charging resets the cycle and removes the pending
-battery warning while keeping its history. If the shell missed an entire charge
-cycle while stopped and restarts at 25% or less, it conservatively retains the
-previous threshold; above 25% it recognizes the recharge.
-
-Wi-Fi and Bluetooth connection feedback uses the same notification banners and
-history. Connections requested from the panel report success or failure; an
-established connection must remain disconnected for four seconds before a loss
-is reported. Startup discovery, scanning, radio-off and disconnect actions from
-the panel stay silent. Other tools' single-device disconnects may be reported
-because the native API does not reliably expose their intent. Native Wi-Fi
-failures also cover external connection attempts, with repeated reasons throttled
-to one alert per 30 seconds. Bluetooth falls back to a
-failed connection transition or timeout because its API exposes no failure reason.
-Repeated updates for the same connection replace one notification record.
-Wi-Fi switch suppression is scoped to the requesting adapter and released when
-the attempt succeeds, fails or times out. Manual-disconnect suppression also
-expires; a failed request cannot silence later connection-loss alerts forever.
-Power-profile availability is checked against the D-Bus service at startup and
-when opening the panel, without an additional persistent monitor process.
-
-Each workspace also displays a compact marker for its actual Hyprland tiled
-layout (D = dwindle, M = master, S = scrolling, O = monocle) beside its number,
-in the compact workspace OSD; Desktop shows the full selected layout name.
-Number and marker form a single 14px
-semibold label, such as `3·S`, with width measured from its text and compact
-spacing between application icons. The workspace OSD grows with its content up to the screen
-width minus 64 pixels, wrapping only when that available width is exhausted.
-Hyprland 0.56.2 has no native tiled-layout change event (`activelayout` means
-keyboard layout). Layout changes therefore do not trigger a dedicated OSD.
-Layout snapshots come from `hyprctl -j workspaces` at startup, on native workspace
-and configuration events, when opening the panel, and after panel operations.
-There is no custom layout event or periodic polling. An external layout change
-may leave a label stale until one of those refresh points. Workspace switching
-and window-move OSDs still use native compositor events.
-
-Hyprland keeps the existing general bindings and switches only the current
-workspace's layout with `Super+Alt+D/M/S/O` for dwindle, master, scrolling,
-and monocle respectively. Number bindings are reserved for workspaces.
-When a special workspace is open, layout selection applies to it instead of
-the regular workspace behind it.
-
-Additional bindings:
-
-| Binding | Dwindle | Master | Scrolling | Monocle |
-| --- | --- | --- | --- | --- |
-| `Super+H/K/J/L` | Directional focus | Directional focus | H/L focus columns; J/K directional focus | H/K previous, J/L next tiled window |
-| `Super+Ctrl+H/L` | Resize width by −/+10 px | Same | Resize column by −/+5% of usable width and refit view | General resize dispatcher |
-| `Super+N/P` | Next / previous workspace window | Same | Same | Next / previous tiled window |
-| `Super+R` | Toggle split | Rotate master orientation | — | — |
-| `Super+Return` | — | Toggle focus between master and previous window | — | — |
-| `Super+Shift+Return` | — | Swap with master, focus master | — | — |
-| `Super+W` / `Super+Shift+W` | — | — | Next / previous column-width preset | — |
-| `Super+[` / `Super+]` | — | — | Swap whole column left/right | — |
-| `Super+X` / `Super+Shift+X` | — | — | Pull next column's first window / expel current column's last window | — |
-| `Super+O` / `Super+Shift+O` | — | — | Extract focused window / center column | — |
-| `Super+D/E` | Preselect down/right split; Shift reverses | — | — | — |
-| `Super+Alt+Space` | Clear split preselection | — | — | — |
-
-`Super+T` opens the terminal; `Super+Q` toggles the launcher.
-`Super+Shift+H/K/J/L` swaps tiled windows in that direction (except monocle),
-or moves floating windows by 20 pixels.
-Layout-specific structural operations ignore floating windows and unsupported
-layouts. Floating-window directional focus retains its usual behavior.
-`Super+Ctrl+H/L` retains pixel resizing for floating windows. `Super+Ctrl+K/J`
-retains the general resize dispatcher with +10/−10 px height changes. All four
-resize bindings repeat while held.
-`Super+Tab` / `Super+Shift+Tab` still switch tabs within a window group.
-
-## Structure
-
-| File | Responsibility |
+| Input | Action |
 | --- | --- |
-| `shell.qml` | Composition and launcher IPC |
-| `Theme.qml` | Colours, typography scale, spacing scale and shared radii |
-| `AppearanceState.qml` | Darkman socket subscription, controls and reconnect |
-| `Appearance.qml` | Apply observed Darkman mode to Hyprland colours |
-| `DesktopServices.qml` | Audio devices, UPower, MPRIS, brightness and keep-awake controls |
-| `SystemControls.qml` | Native network, Bluetooth and power objects, signals and actions |
-| `DesktopSearch.qml` | Search, desktop-entry/icon lookup, window activation and application scopes |
-| `Notifications.qml` | Notification daemon and local alerts: tracking, popup queue and history |
-| `BatteryAlerts.qml` | Discharging thresholds, charge-cycle deduplication and persistence |
-| `PanelState.qml` | Legacy saved-tab file compatibility; ignored by Overview navigation |
-| `ShellActions.qml` | Shared searchable action directory and dispatch for panel controls |
-| `HyprlandControls.qml` | Explicit workspace/window operations and compositor state |
-| `components/DesktopPage.qml` | Workspace browsing, layouts and targeted window actions |
-| `components/DesktopWindowCard.qml` | Window activation and contextual controls |
-| `ScreenKeyboard.qml` | On-demand wvkbd process and compositor-observed visibility |
-| `components/LauncherPanel.qml` | Shared sizing, fixed Overview entry, navigation, search selection and focus |
-| `components/OverviewPage.qml` | Compact global status, workspace shortcuts, device controls and bounded activity |
-| `components/SearchResultsPage.qml` | Search result rendering and scrolling |
-| `components/PanelHotCorners.qml` | Per-screen upper-corner dwell entry, without cursor polling |
-| `components/HotCornerHint.qml` | Mirrored corner glow and dwell progress, without input handling |
-| `components/WorkspaceLayoutState.qml` | Shared per-workspace layout state and change signals |
-| `components/NotificationBanner.qml` | Screen-aware top-center notification stack |
-| `components/NotificationCard.qml` | Shared popup, preview and history card layout |
-| `components/NotificationUtils.js` | Icon URL normalization and persistent-image filtering |
-| `components/StatusNotices.qml` | Persistent keep-awake and mute state, with direct recovery actions |
-| `components/ConnectionFeedback.js` | Connection intent, settling and deduplicated outcomes |
-| `components/StatusPage.qml` | Scrollable system controls, media and notification preview |
-| `components/DesktopControls.qml`, `ControlTile.qml` | Connectivity cards with direct radio toggles |
-| `components/ControlDetails.qml`, `ConnectivityPane.qml`, `ConnectionField.qml`, `DeviceRow.qml` | In-panel connection/authentication and audio device selection |
-| `components/bluetooth_pair.py` | On-demand bridge to the BlueZ pairing agent, JSON lines over stdin/stdout |
-| `components/EmacsInput.qml` | Readline-style input editing and local kill buffer |
-| `components/WorkspaceSummary.qml` | Used workspace numbers and application icons |
-| `components/MediaCard.qml` | Media artwork, playback and timeline |
-| `components/FilledSlider.qml`, `ChoiceButton.qml` | Shared controls |
-| `components/ShellToolTip.qml` | Theme-aware hover hints with bounded width and plain text |
-| `components/StatusIcon.qml` | Palette-aware status icons without an icon-font dependency |
-| `components/PanelFooter.qml` | Date/time, icon-based status summary and tray entries |
-| `components/TrayMenuPopup.qml` | Themed DBusMenu entries and submenus |
-| `components/OsdOverlay.qml` | Independent volume/brightness/microphone/output/workspace feedback |
-| `components/OsdCard.qml` | Shared OSD frame, text hierarchy and progress treatment |
+| Enter | Activate the selected result |
+| Shift+Enter | Launch an application in the configured terminal |
+| Ctrl+N / Ctrl+P | Next / previous result |
+| Ctrl+1…9, Ctrl+0 | Activate results 1–10 |
+| Tab / Shift+Tab | Move keyboard focus without changing pages |
+| Ctrl+A / Ctrl+E | Beginning / end of input |
+| Ctrl+F / Ctrl+B | Forward / backward character |
+| Alt+F / Alt+B | Forward / backward word |
+| Alt+D / Alt+Backspace | Kill next / previous word |
+| Ctrl+K / Ctrl+U | Kill to end / beginning |
+| Ctrl+W | Kill selection or previous word |
+| Ctrl+H / Ctrl+D | Backward / forward delete |
+| Ctrl+Y | Restore the last killed text |
 
-Brightness reads use brightnessctl's native machine-readable output; kernel
-backlight events trigger updates through udevadm. Slider writes are serialized,
-rapid adjustments retain the latest target, and completion reads back the hardware
-value. No custom watcher daemon or
-application index is maintained. Theme colours are semantic; every text size and
-common spacing maps to a `Theme` token (one-off optical adjustments stay
-literal), and the palette is shared with `hypr/appearance.lua` — change both
-together. Panels and internal
-cards are opaque for readability. The launcher namespace is
-`quickshell-launcher`; it does not apply fullscreen background blur. The UI requires Quickshell's desktop-entry,
-Wayland toplevel, layer-shell and Hyprland monitor APIs.
+Application and window activation close the panel; settings actions keep it open.
+Terminal desktop entries use `DesktopSearch.terminalCommand`, defaulting to
+`["kitty", "--"]`. Applications run in independent systemd user scopes, so a shell
+restart does not terminate them. Desktop-entry arguments and working directories
+are passed without constructing a shell command string.
+
+The keyboard button toggles `wvkbd-mobintl`. It is started on demand, takes no
+keyboard focus and exits with Quickshell. Visibility is observed through Hyprland
+layer events/readback. It is a manual desktop keyboard, not an input method or
+lock-screen keyboard.
+
+## Windows and devices
+
+The workspace manager shows workspace cards in one ordered column. Workspace
+headers switch workspace; their layout controls select dwindle, master, scrolling
+or monocle. Window rows activate the selected window. Right-click or the ellipsis
+opens floating, fullscreen, move and close actions; close requires confirmation.
+Requests use explicit workspace IDs/window addresses and dismiss only after the
+matching successful completion.
+
+Wi-Fi details list nearby networks and support personal passwords, connect,
+disconnect and confirmed forget. Advanced or hidden-network setup opens `nmtui`.
+Scanning runs only while Wi-Fi details are open. Bluetooth supports bounded
+discovery, pairing prompts, connect/disconnect and confirmed forget. Leaving the
+Bluetooth detail page cancels an in-progress pairing agent.
+
+Audio details select output/input devices. Media controls show artwork/title and
+previous/play-pause/next; there is no player selector or seek control. Keep-awake
+inhibits automatic idle locking and screen power-off until disabled or the shell
+exits; manual locking remains available.
+
+## Notifications
+
+Quickshell owns `org.freedesktop.Notifications`. Do not run another notification
+daemon alongside it. Banners appear on the focused monitor, with at most four
+visible cards. Normal timeout defaults to five seconds; critical/zero-timeout
+banners remain until closed. Hover pauses expiry. Banner expiry hides presentation
+without invalidating live actions; explicit dismissal closes the notification.
+
+The center has Pending and History views. Clear all dismisses pending entries and
+keeps history. Clear history removes stored entries and matching pending entries.
+Per-entry actions and clear controls are next to the displayed list. Bulk-clear
+intent also applies to history that is still loading from disk.
+
+Titles/bodies use plain text. Cards support wrapped actions, attached images and
+expandable content. A live default action opens the notification; archived records
+with a valid desktop-entry hint can open the application, not the original message.
+Sender closure invalidates live actions. Resident notifications remain live after
+an action when requested by the sender.
+
+Pending entries are capped at 20 and history at 50. Display data is saved in
+`$XDG_STATE_HOME/quickshell/notifications.json` (default `~/.local/state`). Live
+objects/actions and in-memory image handles are not persisted.
+
+## OSD and appearance
+
+OSD covers volume, brightness, microphone mute, output-device changes, regular
+workspace switches and window moves. It uses native service/compositor updates;
+backlight changes use kernel events. Workspace feedback shows workspace numbers,
+layout markers and app icons. Special-workspace open/close has no dedicated OSD.
+
+Hyprland 0.56.2 has no native tiled-layout change event; `activelayout` is a keyboard
+layout event. Layout labels are refreshed on native workspace/configuration events,
+when the panel opens and after panel operations. There is no layout polling or
+synthetic event, and changing the tiling algorithm does not trigger an OSD.
+
+`Theme.qml` defines colour, spacing, radius and motion tokens. The launcher uses
+200ms entrance / 140ms exit; OSD uses 100ms / 80ms. Hyprland layer rules disable a
+second compositor animation for these two surfaces. Panel and card surfaces are
+opaque; accents are limited to state and keyboard focus. Hyprland colours are
+mirrored in `hypr/appearance.lua`.
+
+For module ownership, route dispatch, service lifetimes and persistence, see
+[ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Deployment
 
@@ -480,84 +225,3 @@ gdbus call --session --dest org.freedesktop.portal.Desktop \
   --method org.freedesktop.portal.Settings.ReadOne \
   org.freedesktop.appearance color-scheme
 ```
-
-### Notification implementation references
-
-The layout and lifecycle were reviewed against
-[Noctalia's toast implementation](https://github.com/noctalia-dev/noctalia/blob/b2e3ffb/src/shell/notification/notification_toast.cpp)
-and [DMS's shared notification card](https://github.com/AvengeMedia/DankMaterialShell/blob/6d331b8/quickshell/Modules/Notifications/NotificationCard.qml)
-and [notification service](https://github.com/AvengeMedia/DankMaterialShell/blob/6d331b8/quickshell/Services/NotificationService.qml).
-The current Noctalia implementation is native C++; this config follows its
-layout patterns rather than importing its code. The relevant practices here
-are content-sized cards, wrapped actions, a separate close control, expandable
-text, separate app icons and attachments, hover-aware expiry, and updating
-existing notifications. Remote markup, inline replies, app grouping and an
-image-file cache are not implemented or advertised by this shell.
-
-### Widget and detail-menu review
-
-Reviewed against [Noctalia control-center tabs](https://github.com/noctalia-dev/noctalia/tree/b2e3ffb/src/shell/control_center/tabs)
-and [DMS control-center widgets](https://github.com/AvengeMedia/DankMaterialShell/tree/6d331b8/quickshell/Modules/ControlCenter/Widgets).
-Keep this a personal QML configuration; introduce shared infrastructure only
-when repeated behavior actually needs it.
-
-| Area | Current behavior and useful remaining gaps |
-| --- | --- |
-| Wi-Fi | Nearby network list, personal password entry/replacement, connection, disconnect, confirmed forget and feedback. Unknown enterprise/legacy authentication and hidden networks use advanced settings. IP/DNS editing is not provided. |
-| Bluetooth | Limited discovery, PIN/passkey/numeric-confirmation pairing, connect/disconnect, confirmed forget, battery and feedback. Successful requested pairing trusts the device. Codec/profile and manual trust policy editing are not provided. |
-| Audio | Output/input selection, volume and mute. Per-application volume and Bluetooth profile selection are possible later additions. |
-| Media | Playing player preferred, transport buttons and read-only timeline. Explicit player selection and seeking are useful next additions; shuffle/repeat should respect player capabilities. |
-| Power | Profiles and keep-awake toggle. Profile availability/degradation feedback and timed inhibition need further work. |
-| Tray | Native DBusMenu submenus, disabled entries, checkboxes/radio items and scrolling. Escape returns from a submenu before closing. Arrow-key navigation remains a gap. |
-
-Wi-Fi and Bluetooth have separate busy states; audio and power controls are not
-blocked by unrelated connection work. Bluetooth device actions are guarded per
-device. Device lists show transitions rather than presenting an idle clickable
-row during connection. Network lists keep a stable name order within connection
-and saved-state groups rather than moving rows on every signal-strength update.
-
-The connection flows and compact grouping were reviewed against
-[Noctalia's network tab](https://github.com/noctalia-dev/noctalia/blob/4f84e9980989b534d93f32c2f18f4297344aa62d/src/shell/control_center/tabs/network_tab.cpp),
-[home organization](https://github.com/noctalia-dev/noctalia/blob/4f84e9980989b534d93f32c2f18f4297344aa62d/src/shell/control_center/tabs/home_tab.cpp),
-[DMS's Wi-Fi credential dialog](https://github.com/AvengeMedia/DankMaterialShell/blob/203b1369b3b157c8270822e8cc84f5a3849f4b81/quickshell/Modals/WifiPasswordModal.qml)
-and [pairing dialog](https://github.com/AvengeMedia/DankMaterialShell/blob/203b1369b3b157c8270822e8cc84f5a3849f4b81/quickshell/Modals/BluetoothPairingModal.qml).
-These inform the interaction hierarchy, credential cleanup, separate confirmation
-steps and stable selection. This config uses the installed native Quickshell
-services plus BlueZ's agent; it does not import either upstream backend or claim
-all their features. The agent prompt bridge is matched to BlueZ 5.87's
-[`client/agent.c`](https://github.com/bluez/bluez/blob/5.87/client/agent.c).
-
-### Visual design
-
-The shell uses a restrained graphite/sage palette in dark mode and soft neutral
-surfaces in light mode. A 24px outer radius, 16px card radius and 22px panel inset
-separate the frame from its content. Ordinary cards and selected buttons use
-surface contrast instead of outlines; keyboard focus retains an accent border.
-Workspace titles establish the heading hierarchy, with compact, unframed window
-rows inside each workspace. Workspace cards follow a single column at every
-panel width. Detail pages share a reusable header; search remains the Overview
-entry area; the footer uses a single divider and budgets secondary readings
-after the tray width. Very large tray collections still need a future overflow UI.
-
-This treatment draws on the semantic surface roles in
-[DMS Theme.qml](https://github.com/AvengeMedia/DankMaterialShell/blob/master/quickshell/Common/Theme.qml)
-and the spacing, type and radius scales in
-[Caelestia's design tokens](https://github.com/caelestia-dots/shell/blob/main/plugin/src/Caelestia/Config/tokens.hpp).
-These are design references, not imported implementations or runtime dependencies.
-Hyprland's matching palette and quieter window geometry live in
-`hypr/appearance.lua` and `hypr/compositor.lua`.
-
-The trial center uses neutral selected surfaces, local green radio/slider marks,
-and independent keyboard-focus outlines. ChoiceButton's `tone` distinguishes
-neutral choices, toggle icons and destructive confirmations. Manual mute and
-keep-awake are normal states, not amber warnings. FilledSlider uses a neutral filled surface with its label and value inside,
-matching other controls. Playback does not reserve an empty placeholder.
-Long notification contents and extra actions remain in the full center, reachable
-from the footer badge. A compact clear button beside the badge dismisses pending
-notifications while keeping history. Overview keeps the notification list collapsed.
-The center opens on Pending, with a History tab and a
-fixed clear button above the list. Clear all dismisses pending entries while
-retaining history; Clear history removes saved entries and any matching pending
-notifications. The Overview scroll
-viewport clips rectangularly; its children own their individual rounded corners
-so a larger parent radius cannot cut the workspace buttons.

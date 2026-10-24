@@ -11,7 +11,7 @@ deploy/
   lib.sh           # shared helpers (dot_link, dot_template, etc.)
   tui              # CLI and terminal tool profile
   gui              # graphical tool profile
-tests/             # manual regression checks, separate from deployed configs
+tests/             # optional local-only checks (ignored, not versioned)
 ```
 
 ## Usage
@@ -82,13 +82,9 @@ sudo ./deploy/deploy grub                     # optional GRUB appearance
 GRUB appearance is opt-in and requires a bootloader configuration hook. See
 [grub/README.md](grub/README.md) for deployment, missing-file fallback, and recovery.
 
-## Regression checks
+## Local regression checks
 
-Quickshell checks live in [tests/quickshell](tests/quickshell/README.md):
-
-```bash
-bash tests/quickshell/run.sh
-```
-
-Tests and mock previews are run manually. They are not installed with the
-desktop configuration or started by Quickshell.
+Local helpers may be kept under `tests/`, which is intentionally ignored and
+absent from Git history. They are not deployed or started by the desktop.
+Runtime module ownership is documented in
+[quickshell/ARCHITECTURE.md](quickshell/ARCHITECTURE.md).

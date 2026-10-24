@@ -12,17 +12,13 @@ ShellRoot {
     DesktopServices {
         id: desktop
         controlsVisible: launcher.open
+        wifiDiscoveryActive: launcher.open && launcher.showingDetails && launcher.controlSection === "wifi"
         terminalCommand: desktopSearch.terminalCommand
         onFeedback: (key, summary, body, critical) =>
             notifications.notifyLocal(key, {summary: summary, body: body, critical: critical})
     }
     DesktopSearch { id: desktopSearch; query: launcher.query; actions: shellActions }
     Notifications { id: notifications }
-    PanelState {
-        id: panelState
-        onFeedback: (key, summary, body, critical) =>
-            notifications.notifyLocal(key, {summary: summary, body: body, critical: critical})
-    }
     BatteryAlerts { battery: desktop.battery; notifications: notifications }
     ScreenKeyboard {
         id: keyboard
@@ -44,10 +40,7 @@ ShellRoot {
         appearance: appearance
         keyboard: keyboard
         hyprControls: hyprControls
-        onNavigateRequested: section => {
-            if (section === "desktop" || section === "controls") launcher.selectHome(section);
-            else launcher.showDetails(section);
-        }
+        onNavigateRequested: section => launcher.navigate(section)
     }
 
     Connections {
@@ -70,7 +63,6 @@ ShellRoot {
         keyboard: keyboard
         hyprControls: hyprControls
         actions: shellActions
-        panelState: panelState
     }
     PanelHotCorners { panel: launcher; style: theme }
     NotificationBanner { notifs: notifications; style: theme }

@@ -15,7 +15,12 @@ Rectangle {
     required property string section
     property bool audioInput: false
     property bool showHistory: false
-    readonly property var notificationEntries: showHistory ? notifs.history : notifs.current
+    // Keep the current page through its exit animation, then release delegates.
+    // Never instantiate unrelated detail lists behind the selected section.
+    property bool retainContent: false
+    readonly property bool renderContent: panelOpen || retainContent
+    readonly property var notificationEntries: renderContent && isNotifs
+        ? (showHistory ? notifs.history : notifs.current) : []
     property bool panelOpen: visible
     signal dismissRequested()
     signal closePanelRequested()
@@ -30,7 +35,8 @@ Rectangle {
             : "Pending notifications · cleared entries remain in history")
         : "Choose your default device"
     readonly property bool radioEnabled: section === "wifi" ? system.wifiEnabled : system.bluetoothEnabled
-    readonly property var rows: audioInput ? services.audioInputs : services.audioOutputs
+    readonly property var rows: renderContent && section === "audio"
+        ? (audioInput ? services.audioInputs : services.audioOutputs) : []
     onSectionChanged: { audioInput = false; showHistory = false; viewport.contentY = 0; }
     readonly property real naturalHeight: detailHeader.implicitHeight + style.spaceLg + content.implicitHeight
         + (isNotifs ? notificationToolbar.implicitHeight + style.spaceLg : 0)
@@ -183,6 +189,7 @@ Rectangle {
                         Layout.fillWidth: true
                         visible: detail.section === "wifi" || detail.section === "bluetooth"
                         active: detail.panelOpen && visible
+                        retainContent: detail.renderContent && visible
                         section: detail.section
                         style: detail.style
                         services: detail.services

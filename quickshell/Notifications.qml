@@ -46,6 +46,9 @@ Scope {
         || Quickshell.env("HOME") + "/.local/state") + "/quickshell/notifications.json"
     readonly property string legacyHistoryFile: Quickshell.cacheDir + "/notification_history.json"
     property int nextRecord: 0
+    // Bulk-clear intent must survive the asynchronous startup snapshot load.
+    property bool currentClearedBeforeLoad: false
+    property bool historyClearedBeforeLoad: false
     property bool historyLoaded: false
     property var closedLocalKeys: []
     property bool legacyRequested: false
@@ -339,10 +342,10 @@ Scope {
         return invokeAction(liveEntry(entry), action);
     }
 
-    // Status-page "Clear": empty the pending list only. History keeps every
-    // entry, so nothing disappears from the detail page.
+    // Clear the visible pending list in the notification center; keep history.
     function clearCurrent() {
-        if (current.length === 0) return;
+        if (current.length === 0 && historyLoaded) return;
+        if (!historyLoaded) currentClearedBeforeLoad = true;
         const keys = new Set(current.map(e => e.recordKey));
         for (const wrapper of liveNotifications.slice()) {
             if (keys.has(wrapper.recordKey)) dismiss(wrapper);
@@ -361,7 +364,11 @@ Scope {
     }
 
     function clearHistory() {
-        if (history.length === 0) return;
+        if (history.length === 0 && historyLoaded) return;
+        if (!historyLoaded) {
+            historyClearedBeforeLoad = true;
+            currentClearedBeforeLoad = true;
+        }
         const keys = new Set(history.map(e => e.recordKey));
         for (const wrapper of liveNotifications.slice()) {
             if (keys.has(wrapper.recordKey)) dismiss(wrapper);
@@ -390,9 +397,9 @@ Scope {
     }
 
     function loadHistory(data) {
-        const loadedHistory = data.notifications
+        const loadedHistory = (historyClearedBeforeLoad ? [] : data.notifications)
             .filter(e => e && Number.isFinite(e.time));
-        const loadedCurrent = (data.current || [])
+        const loadedCurrent = (currentClearedBeforeLoad ? [] : (data.current || []))
             .filter(e => e && Number.isFinite(e.time)
                 && !closedLocalKeys.some(key => e.recordKey === "local:" + key));
         // Anything that arrived before the async load sits in front.
@@ -401,6 +408,8 @@ Scope {
         history = [...history, ...loadedHistory.filter(e => !historyKeys.has(e.recordKey))].slice(0, maxHistory);
         current = [...current, ...loadedCurrent.filter(e => !currentKeys.has(e.recordKey))].slice(0, maxCurrent);
         closedLocalKeys = [];
+        currentClearedBeforeLoad = false;
+        historyClearedBeforeLoad = false;
     }
 
     function finishLoad(writable, message) {

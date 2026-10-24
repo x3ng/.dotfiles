@@ -14,6 +14,8 @@ import "components/ConnectionFeedback.js" as ConnectionFeedback
 Scope {
     id: root
     property bool active: false
+    // Discovery is needed only in Wi-Fi details; connected state stays subscribed.
+    property bool wifiDiscoveryActive: false
     property string error: ""
     property string wifiError: ""
     property string bluetoothError: ""
@@ -309,7 +311,7 @@ Scope {
             required property var modelData
             target: modelData
             property: "scannerEnabled"
-            value: root.active
+            value: root.active && root.wifiDiscoveryActive
             restoreMode: Binding.RestoreNone
         }
     }

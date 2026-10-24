@@ -10,10 +10,14 @@ ColumnLayout {
     required property var services
     required property string section
     required property bool active
+    property bool retainContent: false
     readonly property var system: services.controls
     readonly property bool wifi: section === "wifi"
     readonly property bool radioEnabled: wifi ? system.wifiEnabled : system.bluetoothEnabled
-    readonly property var rows: radioEnabled ? (wifi ? system.wifiNearbyNetworks : system.bluetoothDevices) : []
+    // Visible content may outlive active briefly during the panel exit fade.
+    // Hidden panes must not retain/rebuild native device delegates.
+    readonly property var rows: (active || retainContent) && (wifi || section === "bluetooth") && radioEnabled
+        ? (wifi ? system.wifiNearbyNetworks : system.bluetoothDevices) : []
     property string selectedKey: ""
     property bool confirmForget: false
     readonly property var selectedDevice: rows.find(device => key(device) === selectedKey) ?? null

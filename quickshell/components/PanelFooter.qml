@@ -19,15 +19,13 @@ Rectangle {
     property int notificationHistoryCount: 0
     property bool lockAvailable: false
     signal notificationsRequested()
-    signal clearNotificationsRequested()
-    signal settingsRequested()
     signal lockRequested()
     required property date date
     signal menuRequested(var owner, real right, real top)
 
     // Budget secondary status fields after the tray, not against the outer
     // panel width. The panel's normal content width is less than 580px.
-    readonly property real statusWidth: width - trayRow.implicitWidth
+    readonly property real statusWidth: width - trayViewport.width
         - (trayItems.length > 0 ? 21 : 0)
         - (centerActions ? actionRow.implicitWidth + 10 : 0)
     implicitHeight: 40
@@ -49,13 +47,6 @@ Rectangle {
 
         Row {
             spacing: footer.style.spaceSm
-            StatusIcon {
-                anchors.verticalCenter: parent.verticalCenter
-                kind: "calendar"
-                visible: !footer.centerActions || footer.statusWidth >= 160
-                ink: footer.style.textSecondary
-                width: 16; height: 16
-            }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: Qt.formatDateTime(footer.date, "HH:mm")
@@ -66,8 +57,8 @@ Rectangle {
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                visible: footer.statusWidth >= (footer.summaryOnly ? 320 : 410)
-                text: Qt.formatDateTime(footer.date, "MM-dd · ddd")
+                objectName: "footer-date"
+                text: Qt.formatDateTime(footer.date, footer.statusWidth >= 200 ? "MM-dd · ddd" : "MM-dd")
                 color: footer.style.textSecondary
                 font.family: footer.style.fontFamily
                 font.pixelSize: footer.style.fontSizeSmall
@@ -150,27 +141,6 @@ Rectangle {
                 onTriggered: footer.notificationsRequested()
             }
             ChoiceButton {
-                objectName: "overview-clear-notifications"
-                width: 28; height: 28
-                style: footer.style
-                label: ""
-                iconKind: "trash"
-                iconSize: 16
-                available: footer.notificationCount > 0
-                tooltip: "Clear pending notifications · keep history"
-                onTriggered: footer.clearNotificationsRequested()
-            }
-            ChoiceButton {
-                objectName: "overview-settings"
-                width: 28; height: 28
-                style: footer.style
-                label: ""
-                iconKind: "settings"
-                iconSize: 16
-                tooltip: "System controls"
-                onTriggered: footer.settingsRequested()
-            }
-            ChoiceButton {
                 width: 28; height: 28
                 style: footer.style
                 label: ""
@@ -187,48 +157,85 @@ Rectangle {
             width: 1; height: 24
             color: footer.style.separator
         }
-        Row {
-            id: trayRow
-            spacing: footer.style.spaceXs
-            Repeater {
-                model: footer.trayItems
-                Rectangle {
-                    id: trayItem
-                    required property var modelData
-                    width: 28; height: 28
-                    radius: footer.style.radiusControl
-                    color: trayMouse.containsMouse ? footer.style.surfaceHover : "transparent"
-                    IconImage {
-                        id: trayIcon
-                        anchors.centerIn: parent
-                        implicitSize: 20
-                        source: trayItem.modelData.icon
-                        visible: source !== "" && status !== Image.Error
-                    }
-                    Text {
-                        anchors.centerIn: parent
-                        visible: !trayIcon.visible
-                        text: (trayItem.modelData.title || trayItem.modelData.id || "?").slice(0, 1)
-                        color: footer.style.textSecondary
-                        font.pixelSize: footer.style.fontSizeBody
-                    }
-                    MouseArea {
-                        id: trayMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                        onClicked: event => {
-                            if (event.button === Qt.RightButton || trayItem.modelData.onlyMenu) {
-                                const pos = trayItem.mapToItem(footer, trayItem.width, 0);
-                                footer.menuRequested(trayItem.modelData, pos.x, pos.y);
-                            } else trayItem.modelData.activate();
+        Flickable {
+            id: trayViewport
+            objectName: "footer-tray-viewport"
+            visible: footer.trayItems.length > 0
+            Layout.preferredWidth: Math.min(trayRow.implicitWidth, Math.max(28, footer.width - 240))
+            Layout.maximumWidth: Layout.preferredWidth
+            Layout.preferredHeight: 28
+            contentWidth: trayRow.implicitWidth
+            contentHeight: 28
+            clip: true
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            function clampScroll() { contentX = Math.max(0, Math.min(contentX, contentWidth - width)); }
+            onContentWidthChanged: clampScroll()
+            onWidthChanged: clampScroll()
+            ScrollBar.horizontal: ScrollBar {
+                policy: ScrollBar.AsNeeded
+                height: 3
+                contentItem: Rectangle {
+                    implicitHeight: 3
+                    radius: 1.5
+                    color: footer.style.textMuted
+                }
+                background: Item {}
+            }
+            WheelHandler {
+                target: null
+                onWheel: event => {
+                    if (trayViewport.contentWidth <= trayViewport.width) return;
+                    const pixels = event.pixelDelta.x || event.pixelDelta.y;
+                    const delta = pixels || (event.angleDelta.x || event.angleDelta.y) / 120 * 32;
+                    trayViewport.contentX = Math.max(0, Math.min(trayViewport.contentWidth - trayViewport.width,
+                        trayViewport.contentX - delta));
+                    event.accepted = true;
+                }
+            }
+            Row {
+                id: trayRow
+                spacing: footer.style.spaceXs
+                Repeater {
+                    model: footer.trayItems
+                    Rectangle {
+                        id: trayItem
+                        required property var modelData
+                        width: 28; height: 28
+                        radius: footer.style.radiusControl
+                        color: trayMouse.containsMouse ? footer.style.surfaceHover : "transparent"
+                        IconImage {
+                            id: trayIcon
+                            anchors.centerIn: parent
+                            implicitSize: 20
+                            source: trayItem.modelData.icon
+                            visible: source !== "" && status !== Image.Error
                         }
-                    }
-                    ShellToolTip {
-                        style: footer.style
-                        visible: trayMouse.containsMouse && text !== ""
-                        text: [trayItem.modelData.tooltipTitle || trayItem.modelData.title || trayItem.modelData.id || "",
-                            trayItem.modelData.tooltipDescription || ""].filter(part => part !== "").join("\n")
+                        Text {
+                            anchors.centerIn: parent
+                            visible: !trayIcon.visible
+                            text: (trayItem.modelData.title || trayItem.modelData.id || "?").slice(0, 1)
+                            color: footer.style.textSecondary
+                            font.pixelSize: footer.style.fontSizeBody
+                        }
+                        MouseArea {
+                            id: trayMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onClicked: event => {
+                                if (event.button === Qt.RightButton || trayItem.modelData.onlyMenu) {
+                                    const pos = trayItem.mapToItem(footer, trayItem.width, 0);
+                                    footer.menuRequested(trayItem.modelData, pos.x, pos.y);
+                                } else trayItem.modelData.activate();
+                            }
+                        }
+                        ShellToolTip {
+                            style: footer.style
+                            visible: trayMouse.containsMouse && text !== ""
+                            text: [trayItem.modelData.tooltipTitle || trayItem.modelData.title || trayItem.modelData.id || "",
+                                trayItem.modelData.tooltipDescription || ""].filter(part => part !== "").join("\n")
+                        }
                     }
                 }
             }

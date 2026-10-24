@@ -2,7 +2,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/../deploy/lib.sh"
-MODULE_FILES=(shell.qml Theme.qml AppearanceState.qml Appearance.qml DesktopServices.qml SystemControls.qml DesktopSearch.qml Notifications.qml BatteryAlerts.qml ScreenKeyboard.qml HyprlandControls.qml ShellActions.qml PanelState.qml)
+MODULE_FILES=(shell.qml Theme.qml AppearanceState.qml Appearance.qml DesktopServices.qml SystemControls.qml DesktopSearch.qml Notifications.qml BatteryAlerts.qml ScreenKeyboard.qml HyprlandControls.qml ShellActions.qml)
 
 user_systemd_available() {
   command -v systemctl >/dev/null 2>&1 &&
@@ -11,6 +11,11 @@ user_systemd_available() {
 
 case "${1:-install}" in
   install)
+    # Retire only our obsolete module link; leave user files and saved state intact.
+    if [[ -L "$HOME/.config/quickshell/PanelState.qml" ]] && \
+       [[ "$(readlink "$HOME/.config/quickshell/PanelState.qml")" == "$SCRIPT_DIR/PanelState.qml" ]]; then
+      dot_unlink "$HOME/.config/quickshell/PanelState.qml"
+    fi
     for file in "${MODULE_FILES[@]}"; do
       dot_link "$SCRIPT_DIR/$file" "$HOME/.config/quickshell/$file"
     done
