@@ -28,8 +28,6 @@ local function setLayout(layout)
     local workspace = activeWorkspace()
     if workspace then
       hl.workspace_rule({ workspace = workspace.config_name, layout = layout })
-      -- Quickshell reads the resulting state rather than trusting the requested layout.
-      hl.dispatch(hl.dsp.event("workspace-layout"))
     end
   end
 end

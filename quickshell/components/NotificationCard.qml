@@ -14,6 +14,8 @@ Rectangle {
     property var actions: []
     property string activationLabel: ""
     property bool compact: false
+    property int compactBodyLines: 2
+    property bool showActionButtons: true
     property bool expandable: true
     property bool expanded: false
     property int maximumBodyHeight: 220
@@ -141,7 +143,7 @@ Rectangle {
                 textFormat: Text.PlainText
                 color: card.style.textSecondary
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                maximumLineCount: card.expanded ? 2147483647 : card.compact ? 2 : 3
+                maximumLineCount: card.expanded ? 2147483647 : card.compact ? card.compactBodyLines : 3
                 elide: card.expanded ? Text.ElideNone : Text.ElideRight
                 font.family: card.style.fontFamily
                 font.pixelSize: card.compact ? card.style.fontSizeSmall : card.style.fontSizeBody
@@ -161,7 +163,7 @@ Rectangle {
         Flow {
             id: actionFlow
             Layout.fillWidth: true
-            visible: card.activationLabel !== "" || (!card.compact && card.buttons.length > 0)
+            visible: card.showActionButtons && (card.activationLabel !== "" || (!card.compact && card.buttons.length > 0))
             spacing: card.style.spaceSm
             ChoiceButton {
                 width: Math.min(actionFlow.width, 150)

@@ -45,6 +45,29 @@ Canvas {
                 c.arc(8, 10, 10, -0.7, 0.7);
             }
             c.stroke();
+        } else if (kind === "settings") {
+            c.beginPath();
+            for (let i = 0; i < 32; i++) {
+                const angle = i * Math.PI / 16;
+                const radius = i % 4 < 2 ? 8 : 6;
+                const x = 10 + Math.cos(angle) * radius;
+                const y = 10 + Math.sin(angle) * radius;
+                if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+            }
+            c.closePath(); c.stroke();
+            c.beginPath(); c.arc(10, 10, 2.5, 0, Math.PI * 2); c.stroke();
+        } else if (kind === "bell") {
+            c.beginPath(); c.moveTo(3, 14); c.lineTo(5, 11); c.lineTo(5, 8);
+            c.arc(10, 8, 5, Math.PI, 0); c.lineTo(15, 11); c.lineTo(17, 14);
+            c.closePath(); c.stroke();
+            c.beginPath(); c.arc(10, 16, 2, 0, Math.PI); c.stroke();
+        } else if (kind === "lock") {
+            c.strokeRect(4, 9, 12, 9);
+            c.beginPath(); c.arc(10, 8, 4, Math.PI, 0); c.stroke();
+            c.beginPath(); c.moveTo(10, 12); c.lineTo(10, 15); c.stroke();
+        } else if (kind === "search") {
+            c.beginPath(); c.arc(8.5, 8.5, 5.5, 0, Math.PI * 2); c.stroke();
+            c.beginPath(); c.moveTo(12.5, 12.5); c.lineTo(17.5, 17.5); c.stroke();
         } else if (kind === "keyboard") {
             c.strokeRect(1.5, 4, 17, 12);
             for (let row = 0; row < 2; row++) {
@@ -113,6 +136,12 @@ Canvas {
             c.stroke();
         } else if (kind === "minus") {
             c.beginPath(); c.moveTo(4, 10); c.lineTo(16, 10); c.stroke();
+        } else if (kind === "trash") {
+            c.beginPath(); c.moveTo(4, 5); c.lineTo(16, 5);
+            c.moveTo(8, 5); c.lineTo(8, 3); c.lineTo(12, 3); c.lineTo(12, 5);
+            c.moveTo(5, 5); c.lineTo(6, 17); c.lineTo(14, 17); c.lineTo(15, 5);
+            c.moveTo(8, 8); c.lineTo(8.5, 14);
+            c.moveTo(12, 8); c.lineTo(11.5, 14); c.stroke();
         } else if (kind === "close") {
             c.beginPath();
             c.moveTo(5, 5); c.lineTo(15, 15);

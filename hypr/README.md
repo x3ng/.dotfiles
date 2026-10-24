@@ -12,9 +12,11 @@ and restart policy. Do not also run a separate `quickshell` startup command.
 
 `Super+Alt+D/M/S/O` selects dwindle/master/scrolling/monocle for the active
 workspace, with a visible special workspace taking precedence. The binding
-applies a workspace rule and emits the custom `workspace-layout` event.
-Quickshell then reads the actual compositor state to update workspace labels
-and show the layout OSD. On configuration reload, `hyprland.lua` snapshots
+applies a native workspace rule. There is no synthetic layout event or layout
+polling: Quickshell refreshes labels when the panel opens, after panel actions,
+and on native workspace/configuration events. Hyprland 0.56.2 exposes no tiled-layout
+change event, so these bindings do not trigger an OSD. On configuration reload,
+`hyprland.lua` snapshots
 existing workspaces' live layouts and reapplies their rules before Hyprland's
 deferred layout refresh. This preserves choices from both the key bindings
 and the panel when monitor profiles change (including lid-related reloads),
@@ -44,6 +46,10 @@ Darkman owns the appearance mode. Quickshell applies its observed mode through
 Missing or invalid saved state falls back to the dark palette. The adapter's
 explicit `apply("dark")` / `apply("light")` interface is shared with Quickshell;
 keep the palettes in sync with `quickshell/Theme.qml`.
+
+Window styling follows the shell's muted green palette, with 4px inner / 8px
+outer gaps, 10px corners and a soft 18px shadow. Compositor opacity multipliers stay at 1.0; applications may supply transparency;
+grouped-window titles use the same Inter family as the panel.
 
 Run `hyprmoncfg` to arrange displays and save profiles. `startup.lua` starts
 `hyprmoncfgd.service` to switch saved profiles automatically. Before a
@@ -84,7 +90,7 @@ Before system sleep, logind requests the configured lock command and hypridle
 waits for the session-lock confirmation. Display power commands use the
 Hyprland 0.56 Lua dispatcher syntax.
 
-Hyprlock uses a screenshot background, reduced blur, an Inter clock and date,
+Hyprlock uses a dimmed screenshot background, reduced blur, a light-weight Inter clock and date,
 keyboard layout, and a wider password field with authentication, failure and
 Caps Lock feedback. Its input field uses the shell's dark colours for contrast
 over screenshots; keep those native colour values in sync with `Theme.qml`.

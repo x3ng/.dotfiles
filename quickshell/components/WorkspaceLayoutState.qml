@@ -9,7 +9,6 @@ Scope {
     id: state
     property var layouts: ({})
     property bool pending: false
-    signal layoutChanged(int workspaceId)
 
     function label(workspaceId) {
         const layout = layouts[String(workspaceId)];
@@ -44,20 +43,14 @@ Scope {
             if (event.name === "activespecialv2") Hyprland.refreshMonitors();
             if (event.name === "configreloaded" || event.name === "workspacev2"
                 || event.name === "activespecialv2" || event.name === "createworkspacev2"
-                || event.name === "destroyworkspacev2" || event.name === "renameworkspace"
-                || (event.name === "custom" && event.data === "workspace-layout"))
+                || event.name === "destroyworkspacev2" || event.name === "renameworkspace")
                 state.scheduleRefresh();
         }
     }
 
     Timer { id: refreshDelay; interval: 40; onTriggered: state.refresh() }
-    // 0.56 has no dedicated tiled-layout IPC event. Reconcile external changes too.
-    Timer {
-        interval: 3000
-        repeat: true
-        running: !!Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE")
-        onTriggered: state.refresh()
-    }
+    // Hyprland 0.56 exposes layout snapshots but no tiled-layout change event.
+    // Refresh on native lifecycle events and explicit UI requests; do not poll.
 
     Process {
         id: read
@@ -70,17 +63,13 @@ Scope {
                     const rows = JSON.parse(output);
                     if (!Array.isArray(rows)) throw new Error("Expected workspace array");
                     const next = {};
-                    const changed = [];
                     for (const workspace of rows) {
                         if (typeof workspace.tiledLayout !== "string") continue;
                         const key = String(workspace.id);
                         next[key] = workspace.tiledLayout;
-                        if (state.layouts[key] && state.layouts[key] !== next[key])
-                            changed.push(workspace.id);
                     }
                     if (JSON.stringify(state.layouts) !== JSON.stringify(next))
                         state.layouts = next;
-                    for (const id of changed) state.layoutChanged(id);
                 } catch (error) {
                     console.warn("Workspace layouts:", error);
                 }

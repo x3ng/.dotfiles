@@ -12,12 +12,11 @@ ClippingRectangle {
     property bool available: true
     signal edited(real newValue)
 
-    // Fill rule: bars with text on top (here) use surfaceSelected so the
-    // label stays readable; bare progress bars (OSD, media timeline) use accent.
+    // Neutral fill keeps the label readable and matches other filled controls.
     implicitWidth: 240
-    implicitHeight: 48
-    radius: style.radiusCard
-    color: style.surfaceHover
+    implicitHeight: 36
+    radius: style.radiusControl
+    color: style.surfaceRaised
     opacity: available ? 1 : 0.5
 
     Rectangle {
@@ -28,22 +27,26 @@ ClippingRectangle {
     }
     Text {
         anchors.left: parent.left
-        anchors.leftMargin: 14
+        anchors.leftMargin: 12
+        anchors.right: percentage.left
+        anchors.rightMargin: slider.style.spaceSm
+        elide: Text.ElideRight
         anchors.verticalCenter: parent.verticalCenter
         text: slider.label
         color: slider.style.textPrimary
         font.family: slider.style.fontFamily
-        font.pixelSize: slider.style.fontSizeControl
+        font.pixelSize: slider.style.fontSizeSmall
         font.weight: Font.Medium
     }
     Text {
+        id: percentage
         anchors.right: parent.right
-        anchors.rightMargin: 14
+        anchors.rightMargin: 12
         anchors.verticalCenter: parent.verticalCenter
         text: slider.available ? Math.round(slider.value * 100) + "%" : "Unavailable"
         color: slider.style.textPrimary
         font.family: slider.style.fontFamily
-        font.pixelSize: slider.style.fontSizeControl
+        font.pixelSize: slider.style.fontSizeSmall
     }
     MouseArea {
         anchors.fill: parent

@@ -24,8 +24,6 @@ Scope {
     property bool lastMuted: false
     property bool workspaceReady: false
     property var lastWorkspaceId: null
-    property string layoutLabel: ""
-    property string layoutWorkspaceLabel: ""
     property bool lastMicMuted: false
     property bool microphoneMuted: false
     property string lastOutputKey: ""
@@ -36,17 +34,13 @@ Scope {
     property string movedWindowTitle: ""
     readonly property bool workspaceContent: kind === "workspace" || kind === "window-move"
     readonly property var workspace: Hyprland.focusedWorkspace
-    readonly property int layoutWorkspaceId: Hyprland.focusedMonitor?.lastIpcObject.specialWorkspace?.id
-        || workspace?.id || 0
     readonly property var sink: Pipewire.defaultAudioSink
     readonly property var source: Pipewire.defaultAudioSource
     readonly property var sinkAudio: sink?.ready ? sink.audio : null
     readonly property var sourceAudio: source?.ready ? source.audio : null
     readonly property string outputKey: sink?.ready ? (sink.name || String(sink.id)) : ""
-    readonly property string feedbackTitle: kind === "layout" ? layoutWorkspaceLabel
-        : kind === "microphone" ? "MICROPHONE" : "AUDIO OUTPUT"
-    readonly property string feedbackValue: kind === "layout" ? layoutLabel
-        : kind === "microphone" ? (microphoneMuted ? "MUTED" : "UNMUTED") : outputLabel
+    readonly property string feedbackTitle: kind === "microphone" ? "MICROPHONE" : "AUDIO OUTPUT"
+    readonly property string feedbackValue: kind === "microphone" ? (microphoneMuted ? "MUTED" : "UNMUTED") : outputLabel
     readonly property real level: kind === "brightness"
         ? shell.brightness : (sinkAudio?.volume ?? 0)
     readonly property bool muted: kind === "volume" && (sinkAudio?.muted ?? false)
@@ -159,18 +153,6 @@ Scope {
     }
 
     Connections {
-        target: osd.layoutState
-        function onLayoutChanged(workspaceId) {
-            if (workspaceId !== osd.layoutWorkspaceId) return;
-            const workspace = Hyprland.workspaces.values.find(w => w.id === workspaceId);
-            osd.layoutLabel = osd.layoutState.label(workspaceId);
-            osd.layoutWorkspaceLabel = workspaceId < 0
-                ? (workspace?.name ?? "SPECIAL WORKSPACE") : "WORKSPACE " + (workspace?.name ?? workspaceId);
-            osd.reveal("layout");
-        }
-    }
-
-    Connections {
         target: osd.sinkAudio
 
         function onVolumeChanged() {
@@ -239,7 +221,7 @@ Scope {
                 transform: Translate { y: (1 - content.opacity) * 8 }
                 Behavior on opacity {
                     NumberAnimation {
-                        duration: window.active ? osd.style.motionEnter : osd.style.motionExit
+                        duration: window.active ? osd.style.motionHintEnter : osd.style.motionHintExit
                         easing.type: window.active ? Easing.OutCubic : Easing.InCubic
                     }
                 }

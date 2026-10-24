@@ -11,6 +11,12 @@ Rectangle {
     required property Theme style
     required property string label
     property bool selected: false
+    // neutral: navigation/expanded choices; toggle: local on-state icon;
+    // danger: explicit destructive confirmation. Focus remains independent.
+    property string tone: "neutral"
+    readonly property color contentInk: tone === "danger" ? style.danger
+        : selected ? style.textSelected : style.textSecondary
+    readonly property color iconInk: tone === "toggle" && selected ? style.accent : contentInk
     property bool available: true
     property bool filled: false
     // Background for filled buttons; override to surfaceHover inside cards.
@@ -40,7 +46,7 @@ Rectangle {
     radius: style.radiusControl
     color: selected ? style.surfaceSelected
         : (mouse.containsMouse && available ? style.surfaceHover : filled ? choice.filledColor : "transparent")
-    border.width: selected || activeFocus ? 1 : 0
+    border.width: activeFocus ? 1 : 0
     border.color: style.accent
     opacity: available ? 1 : 0.45
 
@@ -55,7 +61,7 @@ Rectangle {
         elide: Text.ElideRight
         text: choice.label
         textFormat: Text.PlainText
-        color: choice.selected ? choice.style.textSelected : choice.style.textSecondary
+        color: choice.contentInk
         font.family: choice.style.fontFamily
         font.pixelSize: choice.textSize
         font.weight: choice.selected ? Font.DemiBold : Font.Normal
@@ -74,7 +80,7 @@ Rectangle {
             Layout.preferredHeight: choice.iconSize
             Layout.minimumWidth: choice.iconSize
             Layout.maximumWidth: choice.iconSize
-            ink: choice.selected ? choice.style.textSelected : choice.style.textSecondary
+            ink: choice.iconInk
         }
         Text {
             Layout.fillWidth: true
@@ -82,7 +88,7 @@ Rectangle {
             text: choice.label
             textFormat: Text.PlainText
             elide: Text.ElideRight
-            color: choice.selected ? choice.style.textSelected : choice.style.textSecondary
+            color: choice.contentInk
             font.family: choice.style.fontFamily
             font.pixelSize: choice.textSize
             font.weight: choice.selected ? Font.DemiBold : Font.Normal
@@ -95,7 +101,7 @@ Rectangle {
         kind: choice.iconKind
         width: choice.iconSize
         height: choice.iconSize
-        ink: choice.selected ? choice.style.textSelected : choice.style.textSecondary
+        ink: choice.iconInk
     }
 
     MouseArea {

@@ -17,8 +17,9 @@ GroupCard {
     readonly property var entry: searchModel.desktopEntryFor({appId: windowData.appId})
     readonly property string iconSource: searchModel.desktopIconSource(entry)
     pad: style.spaceSm
-    border.color: windowData.focused ? style.accent : style.separator
-    color: windowMouse.containsMouse ? style.surfaceHover : style.surfaceRaised
+    radius: style.radiusControl
+    color: windowMouse.containsMouse ? style.surfaceHover
+        : windowData.focused ? style.surfaceSelected : "transparent"
 
     function showActions() {
         if (!expanded) expandRequested();
@@ -30,7 +31,7 @@ GroupCard {
         Item {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            Layout.preferredHeight: 34
+            Layout.preferredHeight: 38
             RowLayout {
                 anchors.fill: parent
                 spacing: card.style.spaceSm
@@ -70,9 +71,9 @@ GroupCard {
                             + (card.windowData.focused ? " · Active" : "")
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
-                        color: card.style.textSecondary
+                        color: card.style.textMuted
                         font.family: card.style.fontFamily
-                        font.pixelSize: card.style.fontSizeSmall
+                        font.pixelSize: card.style.fontSizeCaption
                     }
                 }
             }
@@ -151,7 +152,7 @@ GroupCard {
             text: "Move to workspace"
             color: card.style.textSecondary
             font.family: card.style.fontFamily
-            font.pixelSize: card.style.fontSizeSmall
+            font.pixelSize: card.style.fontSizeCaption
         }
         Flow {
             Layout.fillWidth: true
@@ -178,7 +179,7 @@ GroupCard {
             text: "No other workspace is available."
             color: card.style.textSecondary
             font.family: card.style.fontFamily
-            font.pixelSize: card.style.fontSizeSmall
+            font.pixelSize: card.style.fontSizeCaption
         }
     }
 
@@ -191,7 +192,7 @@ GroupCard {
             wrapMode: Text.Wrap
             color: card.style.textSecondary
             font.family: card.style.fontFamily
-            font.pixelSize: card.style.fontSizeSmall
+            font.pixelSize: card.style.fontSizeCaption
         }
         RowLayout {
             Layout.fillWidth: true
@@ -206,6 +207,7 @@ GroupCard {
                 Layout.fillWidth: true
                 style: card.style
                 label: "Close window"
+                tone: "danger"
                 filled: true
                 filledColor: card.style.surfaceHover
                 available: !card.controls.busy

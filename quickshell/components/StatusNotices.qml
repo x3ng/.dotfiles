@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 
-// Persistent exceptions stay visible whenever the status page is opened.
+// Intentional session states stay readable without implying an error.
 GroupCard {
     id: notices
     required property var actions
@@ -17,7 +17,7 @@ GroupCard {
             detail: "The default output is silent.", action: "Unmute", actionId: "output-mute"}
     ].filter(entry => entry.shown)
     visible: entries.length > 0
-    border.color: style.accentWarm
+    border.color: style.separator
 
     Repeater {
         model: notices.entries
@@ -31,7 +31,7 @@ GroupCard {
                 Layout.preferredHeight: 20
                 kind: notice.modelData.icon
                 muted: notice.modelData.actionId !== "keep-awake"
-                ink: notices.style.accentWarm
+                ink: notices.style.textSecondary
             }
             ColumnLayout {
                 Layout.fillWidth: true

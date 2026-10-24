@@ -12,6 +12,22 @@ ColumnLayout {
     required property var controls
     required property var actions
     required property bool panelOpen
+    // Retain the last page snapshot while closed; background focus changes
+    // must not rebuild invisible workspace and window delegates.
+    property var displayedWorkspaces: []
+    property var displayedWindows: []
+    Binding {
+        target: page; property: "displayedWorkspaces"
+        value: page.controls.workspaces
+        when: page.panelOpen
+        restoreMode: Binding.RestoreNone
+    }
+    Binding {
+        target: page; property: "displayedWindows"
+        value: page.controls.windows
+        when: page.panelOpen
+        restoreMode: Binding.RestoreNone
+    }
     // The layout picker has an explicit target; the overview always shows every workspace.
     property int selectedWorkspaceId: 0
     property string expandedAddress: ""
@@ -24,7 +40,9 @@ ColumnLayout {
     property int pendingWorkspaceId: 0
     property int pendingWorkspaceRequestId: 0
     readonly property var selectedWorkspace: controls.workspaces.find(w => w.id === selectedWorkspaceId) ?? null
-    readonly property real naturalHeight: content.implicitHeight
+    readonly property real naturalHeight: detailHeader.implicitHeight + spacing + content.implicitHeight
+    spacing: style.spaceLg
+    signal backRequested()
     signal dismissRequested()
 
     function ensureSelection(reset) {
@@ -88,6 +106,14 @@ ColumnLayout {
         }
     }
 
+    DetailHeader {
+        id: detailHeader
+        style: page.style
+        title: "Workspaces"
+        subtitle: page.controls.workspaces.length + " workspaces · " + page.controls.windows.length + " windows"
+        onBackRequested: page.backRequested()
+    }
+
     ClippingRectangle {
         Layout.fillWidth: true
         Layout.fillHeight: true
@@ -109,14 +135,8 @@ ColumnLayout {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Workspaces"
-                        color: page.style.textPrimary
-                        font.family: page.style.fontFamily
-                        font.pixelSize: page.style.fontSizeBody
-                        font.weight: Font.DemiBold
-                    }
+                    visible: page.controls.workspaceTargets.some(w => !w.exists)
+                    Item { Layout.fillWidth: true }
                     ChoiceButton {
                         Layout.preferredWidth: 136
                         visible: page.controls.workspaceTargets.some(w => !w.exists)
@@ -158,7 +178,7 @@ ColumnLayout {
                 RowLayout {
                     id: workspaceGrid
                     Layout.fillWidth: true
-                    readonly property int columns: width >= 560 ? 2 : 1
+                    readonly property int columns: 1
                     spacing: page.style.spaceMd
                     Repeater {
                         model: workspaceGrid.columns
@@ -169,22 +189,20 @@ ColumnLayout {
                             Layout.preferredWidth: 1
                             Layout.alignment: Qt.AlignTop
                             spacing: page.style.spaceMd
-                            // Stable source order, independent column heights: expanding a
-                            // window's actions never shifts cards into another column.
+                            // Keep workspace order stable while inline window actions expand.
                             Repeater {
-                                model: page.controls.workspaces.filter((workspace, i) => i % workspaceGrid.columns === workspaceColumn.index)
+                                model: page.displayedWorkspaces.filter((workspace, i) => i % workspaceGrid.columns === workspaceColumn.index)
                                 GroupCard {
                                     id: workspaceCard
                                     required property var modelData
-                                    readonly property var windows: page.controls.windows.filter(w => w.workspaceId === modelData.id)
+                                    readonly property var windows: page.displayedWindows.filter(w => w.workspaceId === modelData.id)
                                     objectName: "workspace-" + modelData.id
                                     Layout.fillWidth: true
                                     Layout.preferredWidth: 1
                                     Layout.alignment: Qt.AlignTop
                                     style: page.style
-                                    color: page.style.panelSurface
-                                    border.color: modelData.active ? page.style.accent : page.style.separator
-                                    pad: page.style.spaceSm
+                                    color: page.style.surfaceRaised
+                                    pad: page.style.spaceMd
                                     contentSpacing: page.style.spaceXs
 
                                     RowLayout {
@@ -197,12 +215,12 @@ ColumnLayout {
                                             Text {
                                                 anchors.fill: parent
                                                 verticalAlignment: Text.AlignVCenter
-                                                text: (workspaceCard.modelData.active ? "● " : "") + workspaceCard.modelData.name
+                                                text: workspaceCard.modelData.name
                                                 textFormat: Text.PlainText
                                                 elide: Text.ElideRight
                                                 color: workspaceCard.modelData.active ? page.style.accent : page.style.textPrimary
                                                 font.family: page.style.fontFamily
-                                                font.pixelSize: page.style.fontSizeBody
+                                                font.pixelSize: page.style.fontSizeHeading
                                                 font.weight: Font.DemiBold
                                             }
                                             MouseArea {

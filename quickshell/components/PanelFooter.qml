@@ -13,30 +13,48 @@ Rectangle {
     required property var services
     required property var appearance
     required property var trayItems
+    property bool summaryOnly: false
+    property bool centerActions: false
+    property int notificationCount: 0
+    property int notificationHistoryCount: 0
+    property bool lockAvailable: false
+    signal notificationsRequested()
+    signal clearNotificationsRequested()
+    signal settingsRequested()
+    signal lockRequested()
     required property date date
     signal menuRequested(var owner, real right, real top)
 
-    implicitHeight: style.stripHeight
-    radius: style.radiusInput
-    color: style.surfaceRaised
-    border.width: 1
-    border.color: style.outline
+    // Budget secondary status fields after the tray, not against the outer
+    // panel width. The panel's normal content width is less than 580px.
+    readonly property real statusWidth: width - trayRow.implicitWidth
+        - (trayItems.length > 0 ? 21 : 0)
+        - (centerActions ? actionRow.implicitWidth + 10 : 0)
+    implicitHeight: 40
+    color: "transparent"
+
+    Rectangle {
+        anchors { top: parent.top; left: parent.left; right: parent.right }
+        height: 1
+        color: footer.style.separator
+    }
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: footer.style.spaceMd
-        anchors.rightMargin: footer.style.spaceMd
-        anchors.topMargin: 6
-        anchors.bottomMargin: 6
-        spacing: 14
+        anchors.leftMargin: footer.style.spaceXs
+        anchors.rightMargin: footer.style.spaceXs
+        anchors.topMargin: 9
+        anchors.bottomMargin: 3
+        spacing: 10
 
         Row {
             spacing: footer.style.spaceSm
             StatusIcon {
                 anchors.verticalCenter: parent.verticalCenter
                 kind: "calendar"
+                visible: !footer.centerActions || footer.statusWidth >= 160
                 ink: footer.style.textSecondary
-                width: 20; height: 20
+                width: 16; height: 16
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
@@ -48,7 +66,7 @@ Rectangle {
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                visible: footer.width >= 580
+                visible: footer.statusWidth >= (footer.summaryOnly ? 320 : 410)
                 text: Qt.formatDateTime(footer.date, "MM-dd · ddd")
                 color: footer.style.textSecondary
                 font.family: footer.style.fontFamily
@@ -60,17 +78,17 @@ Rectangle {
 
         Repeater {
             model: [
-                {kind: "battery", shown: footer.services.battery?.isPresent ?? false,
+                {kind: "battery", shown: (footer.services.battery?.isPresent ?? false) && (!footer.centerActions || footer.statusWidth >= 130),
                     value: Math.round((footer.services.battery?.percentage ?? 0) * 100) + "%",
                     level: footer.services.battery?.percentage ?? 0,
                     hint: footer.services.batteryDetail(footer.services.battery)},
-                {kind: "volume", shown: footer.width >= 580,
+                {kind: "volume", shown: !footer.summaryOnly && footer.statusWidth >= 340,
                     value: footer.services.sink?.audio ? Math.round(footer.services.sink.audio.volume * 100) + "%" : "—",
                     muted: footer.services.sink?.audio?.muted ?? false,
                     hint: footer.services.sink?.audio?.muted ? "Volume · Muted" : "Volume"},
-                {kind: "brightness", shown: footer.width >= 580 && footer.services.brightness >= 0,
+                {kind: "brightness", shown: !footer.summaryOnly && footer.statusWidth >= 460 && footer.services.brightness >= 0,
                     value: Math.round(footer.services.brightness * 100) + "%", hint: "Brightness"},
-                {kind: "appearance", shown: true, level: footer.appearance.darkMode ? 1 : 0,
+                {kind: "appearance", shown: !footer.centerActions || footer.statusWidth >= 180, level: footer.appearance.darkMode ? 1 : 0,
                     value: !footer.appearance.appearanceAvailable ? "!" : !footer.appearance.appearanceKnown ? "?"
                         : footer.appearance.appearanceError ? "!" : "",
                     hint: !footer.appearance.appearanceAvailable ? "Appearance offline"
@@ -89,17 +107,18 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 6
                     StatusIcon {
-                        width: 20; height: 20
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 16; height: 16
                         kind: indicator.modelData.kind
                         ink: indicator.modelData.kind === "battery" && indicator.modelData.level < 0.2
-                            ? footer.style.accentWarm : footer.style.textPrimary
+                            ? footer.style.accentWarm : footer.style.textMuted
                         level: indicator.modelData.level ?? 1
                         muted: indicator.modelData.muted ?? false
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: indicator.modelData.value
-                        color: footer.style.textPrimary
+                        color: footer.style.textSecondary
                         font.family: footer.style.fontFamily
                         font.pixelSize: footer.style.fontSizeSmall
                         font.weight: Font.Medium
@@ -114,12 +133,62 @@ Rectangle {
             }
         }
 
+        Row {
+            id: actionRow
+            visible: footer.centerActions
+            spacing: 2
+            ChoiceButton {
+                objectName: "overview-notifications"
+                width: 56; height: 28
+                style: footer.style
+                label: String(footer.notificationCount)
+                iconKind: "bell"
+                iconSize: 16
+                Accessible.name: "Notifications"
+                tooltip: footer.notificationCount + " pending notifications · "
+                    + footer.notificationHistoryCount + " saved in history"
+                onTriggered: footer.notificationsRequested()
+            }
+            ChoiceButton {
+                objectName: "overview-clear-notifications"
+                width: 28; height: 28
+                style: footer.style
+                label: ""
+                iconKind: "trash"
+                iconSize: 16
+                available: footer.notificationCount > 0
+                tooltip: "Clear pending notifications · keep history"
+                onTriggered: footer.clearNotificationsRequested()
+            }
+            ChoiceButton {
+                objectName: "overview-settings"
+                width: 28; height: 28
+                style: footer.style
+                label: ""
+                iconKind: "settings"
+                iconSize: 16
+                tooltip: "System controls"
+                onTriggered: footer.settingsRequested()
+            }
+            ChoiceButton {
+                width: 28; height: 28
+                style: footer.style
+                label: ""
+                iconKind: "lock"
+                iconSize: 16
+                tooltip: "Lock screen"
+                available: footer.lockAvailable
+                onTriggered: footer.lockRequested()
+            }
+        }
+
         Rectangle {
             visible: footer.trayItems.length > 0
             width: 1; height: 24
             color: footer.style.separator
         }
         Row {
+            id: trayRow
             spacing: footer.style.spaceXs
             Repeater {
                 model: footer.trayItems

@@ -1,8 +1,8 @@
 -- Global Hyprland behavior and appearance.
 hl.config({
   general = {
-    gaps_in = 2,
-    gaps_out = 4,
+    gaps_in = 4,
+    gaps_out = 8,
     border_size = 2,
     resize_on_border = true,
     allow_tearing = false,
@@ -10,14 +10,14 @@ hl.config({
   },
 
   decoration = {
-    rounding = 5,
+    rounding = 10,
     rounding_power = 2,
-    -- Keep application windows opaque; reserve backdrop blur for translucent shell surfaces.
+    -- Keep compositor opacity at 1.0; applications may still supply transparent pixels.
     active_opacity = 1.0,
     inactive_opacity = 1.0,
     shadow = {
       enabled = true,
-      range = 4,
+      range = 18,
       render_power = 3,
     },
     blur = {
@@ -69,10 +69,11 @@ hl.config({
       render_titles = true,
       scrolling = true,
       height = 24,
+      font_family = "Inter",
       font_size = 12,
       text_padding = 6,
-      rounding = 4,
-      gradient_rounding = 4,
+      rounding = 6,
+      gradient_rounding = 6,
       indicator_height = 0,
       indicator_gap = 0,
     },

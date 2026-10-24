@@ -21,8 +21,9 @@ PanelWindow {
     required property var actions
     required property var panelState
     property bool open: false
-    property string homeTab: "desktop"
+    property string homeTab: "overview"
     readonly property var homeTabDefinitions: [
+        {key: "overview", label: "Overview"},
         {key: "desktop", label: "Desktop"},
         {key: "controls", label: "System controls"}
     ]
@@ -30,6 +31,7 @@ PanelWindow {
     // Read actual StackLayout indices so adding/reordering a page cannot change
     // the meaning of navigation or page-specific lifecycle bindings.
     readonly property var pageIndexes: ({
+        overview: overviewPage.StackLayout.index,
         search: searchResultsPage.StackLayout.index,
         controls: statusPage.StackLayout.index,
         details: controlDetails.StackLayout.index,
@@ -37,6 +39,7 @@ PanelWindow {
     })
     property string controlSection: ""
     readonly property bool searching: query.trim().length > 0
+    readonly property bool showingWorkspace: !showingDetails && !searching && homeTab === "desktop"
     readonly property bool showingDetails: controlSection !== ""
     readonly property int activePage: showingDetails ? pageIndexes.details
         : searching ? pageIndexes.search : pageIndexes[homeTab]
@@ -50,15 +53,6 @@ PanelWindow {
     readonly property var results: searchModel.results
 
     function handleKey(event) {
-        if ((event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)
-                && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
-                && open && !searching && !showingDetails && !search.inputMethodComposing) {
-            const tabs = homeTabDefinitions.map(tab => tab.key);
-            const direction = event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier) ? -1 : 1;
-            selectHome(tabs[(tabs.indexOf(homeTab) + direction + tabs.length) % tabs.length]);
-            event.accepted = true;
-            return;
-        }
         if (!(event.modifiers & Qt.ControlModifier)) return;
         if (event.key >= Qt.Key_0 && event.key <= Qt.Key_9) {
             if (!searching) return;
@@ -88,12 +82,13 @@ PanelWindow {
         controlSection = "";
         query = "";
         selectedIndex = 0;
-        // Read the panel state only when opening. A late disk load must not
-        // navigate away from the page the user is already interacting with.
-        const savedTab = panelState.lastHomeTab;
-        homeTab = homeTabDefinitions.some(tab => tab.key === savedTab) ? savedTab : "desktop";
+        // Every invocation starts with the complete desktop state.
+        homeTab = "overview";
         open = true;
-        Qt.callLater(() => { if (panel.open && !panel.showingDetails) search.forceActiveFocus(); });
+        Qt.callLater(() => { if (panel.open && !panel.showingDetails) {
+            if (panel.showingWorkspace) desktopPage.forceActiveFocus();
+            else search.forceActiveFocus();
+        } });
     }
     // Keep the current route on screen until its exit finishes. Opening resets
     // search/details; panelOpen still turns off immediately for service cleanup.
@@ -102,26 +97,32 @@ PanelWindow {
         if (!homeTabDefinitions.some(definition => definition.key === tab)) return;
         trayMenu.dismiss();
         homeTab = tab;
-        panelState.setLastHomeTab(tab);
-        returnToHome();
-    }
-    function returnToHome() {
         query = "";
         controlSection = "";
-        Qt.callLater(() => { if (panel.open && !panel.showingDetails) search.forceActiveFocus(); });
+        Qt.callLater(() => { if (panel.open && !panel.showingDetails) {
+            if (panel.showingWorkspace) desktopPage.forceActiveFocus();
+            else search.forceActiveFocus();
+        } });
+    }
+    function returnToHome() {
+        homeTab = "overview";
+        query = "";
+        controlSection = "";
+        Qt.callLater(() => { if (panel.open && !panel.showingDetails) {
+            if (panel.showingWorkspace) desktopPage.forceActiveFocus();
+            else search.forceActiveFocus();
+        } });
     }
     function showDetails(section) {
         if (!detailSections.includes(section)) return false;
         trayMenu.dismiss();
         query = "";
-        homeTab = "controls";
-        panelState.setLastHomeTab("controls");
         controlSection = section;
         Qt.callLater(() => { if (panel.open && panel.showingDetails) controlDetails.forceActiveFocus(); });
         return true;
     }
     function handleEscape() {
-        if (showingDetails || searching) returnToHome();
+        if (showingDetails || searching || homeTab !== "overview") returnToHome();
         else dismiss();
     }
     function moveSelection(delta) {
@@ -233,13 +234,15 @@ PanelWindow {
         width: Math.min(panel.style.maximumPanelWidth, parent.width - 32)
         readonly property real contentHeight: panel.showingDetails ? controlDetails.naturalHeight
             : panel.searching ? searchResultsPage.naturalHeight
-            : panel.homeTab === "desktop" ? desktopPage.naturalHeight : statusPage.naturalHeight
-        readonly property real chromeHeight: panel.showingDetails ? 0
+            : panel.homeTab === "desktop" ? desktopPage.naturalHeight
+            : panel.homeTab === "controls" ? statusPage.naturalHeight : overviewPage.naturalHeight
+        readonly property real chromeHeight: panel.showingDetails || panel.showingWorkspace ? 0
             : panel.style.stripHeight + footer.implicitHeight + panel.style.panelGap * 2
                 + (homeTabs.visible ? homeTabs.implicitHeight + panel.style.panelGap : 0)
-        // Each page sizes to its own content, subject to one shared ceiling.
-        readonly property real targetHeight: Math.min(panel.style.maximumPanelHeight, parent.height - anchors.topMargin - 16,
-            contentHeight + chromeHeight + panel.style.panelPadding * 2)
+        // Fit the active page; long content scrolls under the shared screen limit.
+        readonly property real targetHeight: Math.max(0, Math.min(panel.style.maximumPanelHeight,
+            parent.height - anchors.topMargin - 16,
+            contentHeight + chromeHeight + panel.style.panelPadding * 2))
         property real layoutHeight: 0
         Binding {
             target: card
@@ -274,19 +277,27 @@ PanelWindow {
 
             Rectangle {
                 id: searchStrip
-                visible: !panel.showingDetails
+                visible: !panel.showingDetails && !panel.showingWorkspace
                 Layout.fillWidth: true
                 Layout.preferredHeight: panel.style.stripHeight
                 Layout.minimumHeight: panel.style.stripHeight
                 Layout.maximumHeight: panel.style.stripHeight
                 radius: panel.style.radiusInput
                 color: panel.style.surfaceRaised
-                border.color: search.activeFocus ? panel.style.accent : panel.style.outline
+                border.color: search.activeFocus ? panel.style.accent : panel.style.separator
                 border.width: 1
+                StatusIcon {
+                    anchors.left: parent.left
+                    anchors.leftMargin: panel.style.spaceLg
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 18; height: 18
+                    kind: "search"
+                    ink: search.activeFocus ? panel.style.accent : panel.style.textMuted
+                }
                 EmacsInput {
                     id: search
                     anchors.fill: parent
-                    anchors.leftMargin: panel.style.spaceMd
+                    anchors.leftMargin: panel.style.spaceLg + 18 + panel.style.spaceMd
                     anchors.rightMargin: keyboardButton.width + panel.style.spaceSm * 2
                     anchors.topMargin: panel.style.spaceSm
                     anchors.bottomMargin: panel.style.spaceSm
@@ -343,22 +354,38 @@ PanelWindow {
 
             RowLayout {
                 id: homeTabs
-                visible: !panel.showingDetails && !panel.searching
+                visible: !panel.showingDetails && !panel.searching && panel.homeTab === "controls"
                 Layout.fillWidth: true
+                implicitHeight: 32
+                Layout.minimumHeight: implicitHeight
+                Layout.maximumHeight: implicitHeight
                 spacing: panel.style.spaceSm
-                Repeater {
-                    model: panel.homeTabDefinitions
-                    ChoiceButton {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 36
-                        style: panel.style
-                        label: modelData.label
-                        selected: panel.homeTab === modelData.key
-                        filled: true
-                        filledColor: panel.style.surfaceRaised
-                        onTriggered: panel.selectHome(modelData.key)
-                    }
+                ChoiceButton {
+                    Layout.preferredWidth: 32
+                    Layout.preferredHeight: 32
+                    style: panel.style
+                    label: ""
+                    iconKind: "back"
+                    tooltip: "Back to overview"
+                    onTriggered: panel.returnToHome()
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: "System controls"
+                    color: panel.style.textPrimary
+                    font.family: panel.style.fontFamily
+                    font.pixelSize: panel.style.fontSizeHeading
+                    font.weight: Font.DemiBold
+                }
+                ChoiceButton {
+                    Layout.preferredWidth: 32
+                    Layout.preferredHeight: 32
+                    style: panel.style
+                    label: ""
+                    iconKind: "lock"
+                    tooltip: "Lock screen"
+                    available: panel.actions.available("lock")
+                    onTriggered: panel.actions.execute("lock")
                 }
             }
 
@@ -381,6 +408,18 @@ PanelWindow {
                 Layout.fillHeight: true
                 clip: true
                 currentIndex: panel.activePage
+                OverviewPage {
+                    id: overviewPage
+                    style: panel.style
+                    services: panel.services
+                    actions: panel.actions
+                    appearance: panel.appearance
+                    notifs: panel.notifs
+                    searchModel: panel.searchModel
+                    controls: panel.hyprControls
+                    panelOpen: panel.open && panel.activePage === panel.pageIndexes.overview
+                    onDismissRequested: panel.dismiss()
+                }
                 SearchResultsPage {
                     id: searchResultsPage
                     style: panel.style
@@ -428,12 +467,13 @@ PanelWindow {
                     controls: panel.hyprControls
                     actions: panel.actions
                     panelOpen: panel.open && panel.activePage === panel.pageIndexes.desktop
+                    onBackRequested: panel.returnToHome()
                     onDismissRequested: panel.dismiss()
                 }
             }
             PanelFooter {
                 id: footer
-                visible: !panel.showingDetails
+                visible: !panel.showingDetails && !panel.showingWorkspace
                 Layout.fillWidth: true
                 Layout.preferredHeight: implicitHeight
                 Layout.minimumHeight: implicitHeight
@@ -441,6 +481,15 @@ PanelWindow {
                 style: panel.style
                 services: panel.services
                 appearance: panel.appearance
+                summaryOnly: panel.homeTab === "overview"
+                centerActions: panel.homeTab === "overview"
+                notificationCount: panel.notifs.current.length
+                notificationHistoryCount: panel.notifs.history.length
+                lockAvailable: panel.actions.available("lock")
+                onNotificationsRequested: panel.showDetails("notifications")
+                onClearNotificationsRequested: panel.notifs.clearCurrent()
+                onSettingsRequested: panel.selectHome("controls")
+                onLockRequested: panel.actions.execute("lock")
                 trayItems: panel.trayItems
                 date: clock.date
                 onMenuRequested: (owner, right, top) => {

@@ -5,10 +5,11 @@
 | Module | Owns | Does not own |
 | --- | --- | --- |
 | `shell.qml` | Object lifetime, dependency injection, feedback-to-notification wiring | Page state or device operations |
-| `PanelState.qml` | Last main tab and its own persistence lifecycle | Other module state or live navigation |
+| `PanelState.qml` | Legacy saved-tab file compatibility (not used by navigation) | Other module state or live navigation |
 | `ShellActions.qml` | Searchable command metadata, shared availability, dispatch | System state, asynchronous completion, panel dismissal |
 | `DesktopSearch.qml` | Search ranking, stable result identity, activation requests | Navigation or keyboard focus |
-| `components/LauncherPanel.qml` | Opening/closing, main tabs, query, selection, focus and shared sizing | Search-result rendering or system commands |
+| `components/LauncherPanel.qml` | Opening/closing, Overview and internal routes, query, selection, focus and shared sizing | Search-result rendering or system commands |
+| `components/OverviewPage.qml` | Compact global status and existing action/adapter invocation | Service state or routing |
 | `components/SearchResultsPage.qml` | Result rendering and scrolling; activation signal | Search ranking, selection ownership or dispatch |
 | `DesktopServices.qml` | Audio, brightness, idle inhibition, media/battery adapters, network editor launch | Page navigation |
 | `SystemControls.qml` | Network/Bluetooth/power actions, pairing lifecycle and connection feedback | Search/UI state |
@@ -75,12 +76,10 @@ per-shell cache only if its new state file does not exist, and preserves the old
 file. Existing empty history is authoritative; a read error must not resurrect
 old notifications.
 
-Only the main tab is remembered for the panel. Query text, detail pages, expanded
-menus, confirmation prompts and window/workspace targets are transient. The
-opening screen still comes from the current monitor or activated hot corner.
-A loaded panel preference is read on opening, so a late disk read cannot move an
-already-open panel to another tab. System state such as audio levels, radio state
-and workspace layouts stays owned by its native service.
+Panel navigation always starts at Overview. The old panel-state file is retained
+for compatibility, but LauncherPanel neither reads its route nor writes new tab
+choices. Query text, details, expanded menus and confirmation targets remain
+transient. Device state is owned by the native services, not the navigation.
 
 ## Action and result contracts
 
@@ -107,17 +106,14 @@ and workspace layouts stays owned by its native service.
 
 ## UI lifetime rules
 
-Main tabs and stack indices are defined in LauncherPanel. Tab buttons and keyboard
-cycling use the same definitions. Search clears back to the selected main tab;
-details return to System controls. Deferred focus changes must check that the
-panel is still open and still on the relevant page.
-
-Result selection follows identity, not a numerical position after the model
-changes. App/action IDs are namespaced; live Wayland windows use object identity.
-Changing the query resets selection. Deferred resets carry a revision so a later
-explicit keyboard selection wins. Supported detail routes are validated before
-changing navigation state. Pages expose `naturalHeight`, while the
-launcher owns the shared height ceiling and chrome.
+Routes and stack indices are defined in LauncherPanel. Ordinary Tab traverses
+focus. Deleting a search query reveals its source page; Esc and detail return
+navigate to Overview, and Esc from Overview dismisses. Reopening always resets
+the route. Deferred focus changes must check the panel is still open and not in
+a detail editor. Search-result identity and query revision rules are unchanged.
+Pages expose `naturalHeight`, while the
+launcher owns the content-driven frame height and chrome, constrained by available
+screen space. Page content scrolls within that frame.
 
 Window action/confirmation state belongs to DesktopPage and is associated with
 the expanded window address. Repeater delegates may be rebuilt when a window

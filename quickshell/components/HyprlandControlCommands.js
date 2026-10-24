@@ -45,5 +45,5 @@ function workspaceAction(action, workspaceRow, layout) {
     if (action !== "layout" || !["dwindle", "master", "scrolling", "monocle"].includes(layout))
         return {error: "Unknown workspace layout"};
     return {code: guard + "hl.workspace_rule({workspace = target.config_name, layout = '" + layout + "'}); "
-        + "hl.dispatch(hl.dsp.event('workspace-layout')); return 'OK'"};
+        + "return 'OK'"};
 }

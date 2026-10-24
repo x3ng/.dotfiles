@@ -17,11 +17,11 @@ Rectangle {
     property bool active: false
     signal triggered()
     signal toggled()
-    implicitHeight: 64
+    implicitHeight: 72
     implicitWidth: 240
     radius: style.radiusCard
-    color: mouse.containsMouse ? style.surfaceHover : active ? style.surfaceSelected : style.surfaceRaised
-    border.width: 1
+    color: mouse.containsMouse ? style.surfaceHover : style.surfaceRaised
+    border.width: 0
     border.color: style.separator
     opacity: available ? 1 : 0.5
     Behavior on color { ColorAnimation { duration: 140 } }

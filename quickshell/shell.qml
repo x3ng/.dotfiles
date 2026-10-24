@@ -58,9 +58,10 @@ ShellRoot {
     }
 
     // Darkman owns the appearance preference; the shell mirrors it locally.
-    // Pages size to their content under one height limit; details own their header.
+    // Pages fit their content under one height limit; details own their header.
     LauncherPanel {
         id: launcher
+        onOpenChanged: { if (open) workspaceLayouts.refresh(); }
         services: desktop
         style: theme
         appearance: appearance

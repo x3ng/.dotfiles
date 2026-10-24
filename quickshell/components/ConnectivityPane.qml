@@ -233,6 +233,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 style: pane.style
                 label: pane.confirmForget ? "Confirm forget" : "Forget"
+                tone: pane.confirmForget ? "danger" : "neutral"
                 visible: pane.wifi ? (pane.selectedDevice?.known ?? false) : (pane.selectedDevice?.paired ?? false)
                 available: !pane.selectedBusy
                 onTriggered: {

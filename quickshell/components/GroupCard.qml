@@ -18,7 +18,7 @@ Rectangle {
     signal activated()
 
     color: card.style.surfaceRaised
-    border.width: 1
+    border.width: 0
     border.color: card.style.separator
     radius: card.style.radiusCard
     implicitWidth: inner.implicitWidth + card.pad * 2
@@ -44,7 +44,7 @@ Rectangle {
                 kind: card.iconKind
                 Layout.preferredWidth: 16
                 Layout.preferredHeight: 16
-                ink: card.style.accent
+                ink: card.style.textSecondary
             }
             Text {
                 Layout.fillWidth: true
