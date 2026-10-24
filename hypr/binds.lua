@@ -13,7 +13,7 @@ end
 -- T = terminal.
 hl.bind("SUPER + T", hl.dsp.exec_cmd(terminal))
 -- Close mirrors SUPER + Q (the launcher): same key with Shift, like SUPER + F / SUPER + SHIFT + F.
--- The C key was avoided on purpose: SUPER + CTRL/SHIFT + C collide with Ctrl+C and Ctrl+Shift+C.
+-- Keep Ctrl+C and Ctrl+Shift+C available to applications.
 hl.bind("SUPER + SHIFT + Q", hl.dsp.window.close())
 hl.bind("SUPER + Space", hl.dsp.window.float({ action = "toggle" }))
 hl.bind("SUPER + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
