@@ -94,20 +94,9 @@ end
 hl.bind("SUPER + N", cycleWindow(true))
 hl.bind("SUPER + P", cycleWindow(false))
 
--- A window completely covered by a floating one cannot be reached by direction,
--- so Tab walks the floats on this workspace and only the floats. This layer is
--- deliberately narrower than N/P: overlapping reachability is the price of Tab
--- being precise, while N/P stays the tour you can never get stuck in.
--- cycle_next moves focus without reordering, hence the explicit raise.
-local function cycleFloating(next)
-  return function()
-    if not hl.get_active_window() then return end
-    hl.dispatch(hl.dsp.window.cycle_next({ floating = true, next = next }))
-    hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top" }))
-  end
-end
-hl.bind("SUPER + TAB", cycleFloating(true))
-hl.bind("SUPER + SHIFT + TAB", cycleFloating(false))
+-- Tab is deliberately left unbound for window cycling: cyclenext only filters by
+-- tiled/floating, so "rotate the windows stacked here" has no native expression
+-- and is not worth a geometric side channel. N/P is the universal tour.
 
 -- R = reshape: change orientation; Enter focuses the master, Shift+Enter promotes to master.
 hl.bind("SUPER + R", layoutAction({ dwindle = "togglesplit", master = "orientationnext" }))
