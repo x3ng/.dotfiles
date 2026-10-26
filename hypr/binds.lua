@@ -77,9 +77,9 @@ hl.bind("SUPER + L", focusDirection("r", true))
 hl.bind("SUPER + K", focusDirection("u", false))
 hl.bind("SUPER + J", focusDirection("d", true))
 
--- Sequence axis, element level: N/P walk the TILED windows of this workspace.
--- Floats are Tab's scope, so the two never reach the same window: a superset would
--- make every float reachable twice.
+-- Sequence axis, element level: N/P tour EVERY window on the workspace, floats
+-- included. This tour must stay universal: Tab below is floats-only, so a
+-- tiled-only N/P would leave a float as a dead end you cannot cycle out of.
 local function cycleWindow(next)
   return function()
     local workspace = activeWorkspace()
@@ -87,7 +87,7 @@ local function cycleWindow(next)
     if workspace and workspace.tiled_layout == "monocle" and window and not window.floating then
       hl.dispatch(hl.dsp.layout(next and "cyclenext" or "cycleprev"))
     else
-      hl.dispatch(hl.dsp.window.cycle_next({ tiled = true, next = next }))
+      hl.dispatch(hl.dsp.window.cycle_next({ next = next }))
     end
   end
 end
@@ -95,8 +95,10 @@ hl.bind("SUPER + N", cycleWindow(true))
 hl.bind("SUPER + P", cycleWindow(false))
 
 -- A window completely covered by a floating one cannot be reached by direction,
--- so Tab walks the floats on this workspace, and only the floats. cycle_next
--- moves focus without reordering, hence the explicit raise.
+-- so Tab walks the floats on this workspace and only the floats. This layer is
+-- deliberately narrower than N/P: overlapping reachability is the price of Tab
+-- being precise, while N/P stays the tour you can never get stuck in.
+-- cycle_next moves focus without reordering, hence the explicit raise.
 local function cycleFloating(next)
   return function()
     if not hl.get_active_window() then return end
