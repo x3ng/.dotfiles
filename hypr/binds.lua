@@ -1,3 +1,17 @@
+-- Two direction vocabularies, one meaning each — never make the same action
+-- reachable from both, because that is how keys start multiplying:
+--
+--   HJKL = geometry: two dimensions between neighbours.
+--          bare = focus · SHIFT = move/swap · CTRL = resize · ALT = into a group.
+--          Four layers is the limit. New geometry work belongs inside a layout-aware
+--          dispatcher on these keys, never on a fresh letter.
+--
+--   FBNP = sequence: one dimension, forward/back through an ordered line.
+--          A sequence has only two directions, so one modifier layer carries two
+--          objects (N/P and F/B). bare = jump · SHIFT = move the object · ALT = container level.
+--
+-- Neither geometry nor sequence (a plain toggle) gets one bare single key.
+
 local terminal = "kitty"
 
 -- A visible special workspace takes precedence over the monitor's regular workspace.
@@ -12,15 +26,17 @@ end
 -- Launch & window controls
 -- T = terminal.
 hl.bind("SUPER + T", hl.dsp.exec_cmd(terminal))
--- Close mirrors SUPER + Q (the launcher): same key with Shift, like SUPER + F / SUPER + SHIFT + F.
+-- Close mirrors SUPER + Q (the launcher): same key with Shift, like SUPER + Z / SUPER + SHIFT + Z.
 -- Keep Ctrl+C and Ctrl+Shift+C available to applications.
 hl.bind("SUPER + SHIFT + Q", hl.dsp.window.close())
 hl.bind("SUPER + Space", hl.dsp.window.float({ action = "toggle" }))
-hl.bind("SUPER + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
-hl.bind("SUPER + SHIFT + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
+-- Fullscreen sits on Z because F now steps through workspaces on the sequence axis.
+hl.bind("SUPER + Z", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
+hl.bind("SUPER + SHIFT + Z", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
 hl.bind("SUPER + SHIFT + Space", hl.dsp.window.pseudo({ action = "toggle" }))
 -- Pin toggles visibility across workspaces on this monitor; the window must be floating.
-hl.bind("SUPER + ALT + P", hl.dsp.window.pin())
+-- Shift keeps the P family together: P = previous window, Alt+P = previous group tab.
+hl.bind("SUPER + SHIFT + P", hl.dsp.window.pin())
 
 -- Set the tiled algorithm on the current workspace only.
 local function setLayout(layout)
@@ -61,7 +77,9 @@ hl.bind("SUPER + L", focusDirection("r", true))
 hl.bind("SUPER + K", focusDirection("u", false))
 hl.bind("SUPER + J", focusDirection("d", true))
 
--- Workspace window cycling is separate from Super+Tab's group tabs.
+-- Sequence axis, element level: N/P walk the TILED windows of this workspace.
+-- Floats are Tab's scope, so the two never reach the same window: a superset would
+-- make every float reachable twice.
 local function cycleWindow(next)
   return function()
     local workspace = activeWorkspace()
@@ -69,12 +87,25 @@ local function cycleWindow(next)
     if workspace and workspace.tiled_layout == "monocle" and window and not window.floating then
       hl.dispatch(hl.dsp.layout(next and "cyclenext" or "cycleprev"))
     else
-      hl.dispatch(hl.dsp.window.cycle_next({ next = next }))
+      hl.dispatch(hl.dsp.window.cycle_next({ tiled = true, next = next }))
     end
   end
 end
 hl.bind("SUPER + N", cycleWindow(true))
 hl.bind("SUPER + P", cycleWindow(false))
+
+-- A window completely covered by a floating one cannot be reached by direction,
+-- so Tab walks the floats on this workspace, and only the floats. cycle_next
+-- moves focus without reordering, hence the explicit raise.
+local function cycleFloating(next)
+  return function()
+    if not hl.get_active_window() then return end
+    hl.dispatch(hl.dsp.window.cycle_next({ floating = true, next = next }))
+    hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top" }))
+  end
+end
+hl.bind("SUPER + TAB", cycleFloating(true))
+hl.bind("SUPER + SHIFT + TAB", cycleFloating(false))
 
 -- R = reshape: change orientation; Enter focuses the master, Shift+Enter promotes to master.
 hl.bind("SUPER + R", layoutAction({ dwindle = "togglesplit", master = "orientationnext" }))
@@ -97,11 +128,13 @@ hl.bind("SUPER + E", layoutAction({ dwindle = "preselect r" }))
 hl.bind("SUPER + SHIFT + E", layoutAction({ dwindle = "preselect l" }))
 hl.bind("SUPER + ALT + Space", layoutAction({ dwindle = "preselect none" }))
 
--- Scrolling columns: brackets move columns, X combines/separates, O extracts/centers.
+-- Scrolling columns form a one-dimensional line, so column order is a sequence
+-- operation: Shift+F/B move the column forward/back. X, O and W stay on their own
+-- keys because they are verbs without a direction.
 -- 0.56.2 consume pulls the next column's FIRST window; expel extracts THIS column's
 -- LAST window. promote extracts the FOCUSED window.
-hl.bind("SUPER + bracketleft", layoutAction({ scrolling = "swapcol l" }))
-hl.bind("SUPER + bracketright", layoutAction({ scrolling = "swapcol r" }))
+hl.bind("SUPER + SHIFT + F", layoutAction({ scrolling = "swapcol r" }))
+hl.bind("SUPER + SHIFT + B", layoutAction({ scrolling = "swapcol l" }))
 hl.bind("SUPER + X", layoutAction({ scrolling = "consume" }))
 hl.bind("SUPER + SHIFT + X", layoutAction({ scrolling = "expel" }))
 hl.bind("SUPER + O", layoutAction({ scrolling = "promote" }))
@@ -130,8 +163,11 @@ hl.bind("SUPER + SHIFT + J", moveDirection("d", 0, 20))
 -- Groups: G toggles the whole group; Alt+G takes only the current tab out.
 hl.bind("SUPER + G", hl.dsp.group.toggle())
 hl.bind("SUPER + ALT + G", hl.dsp.window.move({ out_of_group = "right" }))
-hl.bind("SUPER + TAB", hl.dsp.group.next())
-hl.bind("SUPER + SHIFT + TAB", hl.dsp.group.prev())
+-- Tabs are a sequence too, and Alt is the container level: the same grammar as
+-- Alt+HJKL for moving a window into a group. Tabs need their own keys because
+-- cycle_next stops at group members instead of walking through them.
+hl.bind("SUPER + ALT + N", hl.dsp.group.next())
+hl.bind("SUPER + ALT + P", hl.dsp.group.prev())
 for _, direction in ipairs({ { "H", "left" }, { "J", "down" }, { "K", "up" }, { "L", "right" } }) do
   hl.bind("SUPER + ALT + " .. direction[1], hl.dsp.window.move({ into_group = direction[2] }))
 end
@@ -162,10 +198,11 @@ for workspace = 1, 10 do
   hl.bind("SUPER + SHIFT + " .. key, hl.dsp.window.move({ workspace = workspace, follow = true }))
   hl.bind("SUPER + CTRL + " .. key, hl.dsp.window.move({ workspace = workspace, follow = false }))
 end
--- B = back to the last visited workspace; U/I are adjacent previous/next keys.
-hl.bind("SUPER + B", hl.dsp.focus({ workspace = "previous" }))
-hl.bind("SUPER + U", hl.dsp.focus({ workspace = "e-1" }))
-hl.bind("SUPER + I", hl.dsp.focus({ workspace = "e+1" }))
+-- Sequence axis, container level: F/B step through existing workspaces.
+-- History is a stack rather than a sequence, so going back keeps its own key.
+hl.bind("SUPER + F", hl.dsp.focus({ workspace = "e+1" }))
+hl.bind("SUPER + B", hl.dsp.focus({ workspace = "e-1" }))
+hl.bind("SUPER + grave", hl.dsp.focus({ workspace = "previous" }))
 
 -- Special workspace (scratchpad)
 hl.bind("SUPER + S", hl.dsp.workspace.toggle_special("magic"))
