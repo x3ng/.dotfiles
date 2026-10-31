@@ -23,7 +23,6 @@ ShellRoot {
     ScreenKeyboard {
         id: keyboard
         style: theme
-        panelOpen: launcher.open
         onFeedback: (key, summary, body, critical) =>
             notifications.notifyLocal(key, {summary: summary, body: body, critical: critical})
     }

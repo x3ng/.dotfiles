@@ -13,19 +13,19 @@ Rectangle {
     required property var controls
     property bool interactive: true
     property int padding: 9
-    property int highlightedWorkspaceId: 0
+    property string highlightedWorkspaceAddress: ""
     // Focus/title updates must not reset the nested Repeaters and reload all
     // icons during a workspace animation. Publish only structural icon data;
     // active styling and layout labels retain their own live bindings.
     property var workspaces: []
     readonly property var structureSnapshot: controls.workspaces
-        .filter(w => (w.id > 0 && (w.windowCount > 0
-            || w.id === controls.focusedWorkspaceId)) || w.id === highlightedWorkspaceId)
-        .map(w => ({id: w.id, name: w.name, windows: controls.windows
-            .filter(window => window.workspaceId === w.id)
+        .filter(w => (!w.special && (w.windowCount > 0
+            || w.address === controls.focusedWorkspaceAddress)) || w.address === highlightedWorkspaceAddress)
+        .map(w => ({address: w.address, name: w.name, windows: controls.windows
+            .filter(window => window.workspaceAddress === w.address)
             .map(window => ({address: window.address, appId: window.appId}))
             .sort((a, b) => a.address.localeCompare(b.address))}))
-        .sort((a, b) => a.id - b.id)
+
     onStructureSnapshotChanged: structureDelay.restart()
     Component.onCompleted: structureDelay.restart()
     Timer {
@@ -38,8 +38,8 @@ Rectangle {
     }
 
     function workspaceLabel(workspace) {
-        const name = workspace.id > 0 ? workspace.id : workspace.name.replace(/^special:/, "");
-        return name + "·" + layoutState.marker(workspace.id);
+        const name = workspace.name.replace(/^special:/, "");
+        return name + "·" + layoutState.marker(workspace.address);
     }
 
     function workspaceWidth(workspace) {
@@ -79,18 +79,18 @@ Rectangle {
                 Rectangle {
                     id: workspace
                     required property var modelData
-                    readonly property bool active: modelData.id === summary.controls.focusedWorkspaceId
+                    readonly property bool active: modelData.address === summary.controls.focusedWorkspaceAddress
                     width: Math.min(summary.workspaceWidth(modelData), workspaceFlow.width)
                     height: Math.max(30, icons.implicitHeight)
                     radius: summary.style.radiusControl
-                    border.width: modelData.id === summary.highlightedWorkspaceId ? 1 : 0
+                    border.width: modelData.address === summary.highlightedWorkspaceAddress ? 1 : 0
                     border.color: summary.style.accent
                     color: active ? summary.style.surfaceSelected
                         : workspaceMouse.containsMouse ? summary.style.surfaceHover : "transparent"
                     ShellToolTip {
                         style: summary.style
                         visible: summary.interactive && workspaceMouse.containsMouse
-                        text: summary.layoutState.label(workspace.modelData.id)
+                        text: summary.layoutState.label(workspace.modelData.address)
                     }
                     Behavior on color {
                         ColorAnimation { duration: 140 }
@@ -147,7 +147,7 @@ Rectangle {
                         enabled: summary.interactive
                         anchors.fill: parent
                         hoverEnabled: true
-                        onClicked: summary.controls.focusWorkspace(workspace.modelData.id)
+                        onClicked: summary.controls.focusWorkspace(workspace.modelData.address)
                     }
                 }
             }

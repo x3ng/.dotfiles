@@ -2,83 +2,52 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Hyprland
 
 Scope {
     id: state
-    property var layouts: ({})
-    property bool pending: false
+    // Use the native IPC snapshot. No second query process or independent cache.
+    readonly property var layouts: {
+        const result = {};
+        for (const workspace of Hyprland.workspaces.values) {
+            const layout = workspace.lastIpcObject.tiledLayout;
+            if (workspace.address && typeof layout === "string") result[workspace.address] = layout;
+        }
+        return result;
+    }
 
-    function label(workspaceId) {
-        const layout = layouts[String(workspaceId)];
+    function label(workspaceAddress) {
+        const layout = layouts[workspaceAddress];
         return layout ? layout.toUpperCase() : "—";
     }
 
-    function marker(workspaceId) {
-        const layout = layouts[String(workspaceId)];
+    function marker(workspaceAddress) {
+        const layout = layouts[workspaceAddress];
         return ({dwindle: "D", master: "M", scrolling: "S", monocle: "O"})[layout]
             ?? (layout ? layout.slice(0, 1).toUpperCase() : "—");
     }
 
     function refresh() {
-        if (!Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE")) return;
-        if (read.running) { pending = true; return; }
-        read.running = true;
+        if (Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE")) refreshDelay.restart();
     }
-
-    function scheduleRefresh() {
-        // A queued IPC read may already describe the state before this event.
-        if (read.running) pending = true;
-        refreshDelay.restart();
-    }
-
-    Component.onCompleted: refresh()
 
     Connections {
         target: Hyprland
         function onRawEvent(event) {
-            // Quickshell 0.3 does not refresh monitor.specialWorkspace on this
-            // event; its focusedWorkspace continues to name the regular one.
+            // Native focusedWorkspace names the regular workspace. Refresh the
+            // monitor snapshot to observe the visible special workspace too.
             if (event.name === "activespecialv2") Hyprland.refreshMonitors();
             if (event.name === "configreloaded" || event.name === "workspacev2"
                 || event.name === "activespecialv2" || event.name === "createworkspacev2"
-                || event.name === "destroyworkspacev2" || event.name === "renameworkspace")
-                state.scheduleRefresh();
+                || event.name === "destroyworkspacev2" || event.name === "renameworkspace"
+                || event.name === "changeworkspaceid" || event.name === "moveworkspacev2")
+                state.refresh();
         }
     }
 
-    Timer { id: refreshDelay; interval: 40; onTriggered: state.refresh() }
-    // Hyprland 0.56 exposes layout snapshots but no tiled-layout change event.
-    // Refresh on native lifecycle events and explicit UI requests; do not poll.
-
-    Process {
-        id: read
-        command: ["hyprctl", "-j", "workspaces"]
-        property string output: ""
-        stdout: StdioCollector { onStreamFinished: read.output = text }
-        onExited: (code, status) => {
-            if (code === 0 && status === 0 && !state.pending) {
-                try {
-                    const rows = JSON.parse(output);
-                    if (!Array.isArray(rows)) throw new Error("Expected workspace array");
-                    const next = {};
-                    for (const workspace of rows) {
-                        if (typeof workspace.tiledLayout !== "string") continue;
-                        const key = String(workspace.id);
-                        next[key] = workspace.tiledLayout;
-                    }
-                    if (JSON.stringify(state.layouts) !== JSON.stringify(next))
-                        state.layouts = next;
-                } catch (error) {
-                    console.warn("Workspace layouts:", error);
-                }
-            }
-            output = "";
-            if (state.pending) {
-                state.pending = false;
-                refreshDelay.restart();
-            }
-        }
-    }
+    // Let native initialization populate the model; an eager refresh here can
+    // race its first query. Later requests coalesce after events/panel actions.
+    // Hyprland 0.57 has no tiled-layout change event, so opening the panel also
+    // requests a snapshot. This is a single-shot debounce, not layout polling.
+    Timer { id: refreshDelay; interval: 40; onTriggered: Hyprland.refreshWorkspaces() }
 }

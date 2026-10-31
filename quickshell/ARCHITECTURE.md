@@ -15,9 +15,15 @@
 | `components/ConnectivityPane.qml` | Device selection, credential fields and confirmation UI | Commands or copied device state |
 | `components/bluetooth_pair.py` | On-demand BlueZ agent bridge; bounded JSON protocol | Device lists, persistent state or status polling |
 | `HyprlandControls.qml` | Validated, explicit-target workspace/window requests and completion | Page selection or confirmation dialogs |
-| `components/WorkspaceLayoutState.qml` | Per-workspace layout snapshots on native events and explicit refresh | Optimistic layout changes |
+| `components/WorkspaceLayoutState.qml` | Layout labels from native workspace snapshots; coalesced refresh requests | Optimistic layout changes |
 | `Notifications.qml` | Live notification actions, bounded popup/history lifetimes, application fallback and local alerts | Device operations |
 | `ScreenKeyboard.qml` | Keyboard process, observed visibility and request deadline | Launcher lifecycle |
+
+Workspace keys are address strings throughout the service and views, not numeric
+IDs. Lua commands quote these addresses as data and resolve exact matches at
+execution time. Display names are never used as selectors. Layout changes call
+the same `hypr/workspaces.lua` action as the keyboard bindings; monitor-placement
+protection is not duplicated in generated JavaScript/Lua strings.
 
 The native service/compositor remains the source of truth. Views read adapters;
 they do not copy device state into their own independent stores. Theme tokens

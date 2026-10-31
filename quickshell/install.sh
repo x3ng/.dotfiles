@@ -9,6 +9,18 @@ user_systemd_available() {
     [[ -n "${XDG_RUNTIME_DIR:-}" && -S "$XDG_RUNTIME_DIR/bus" ]]
 }
 
+owned_link() {
+  [[ -L "$2" && "$(readlink "$2")" == "$1" ]]
+}
+
+unlink_owned() {
+  if owned_link "$1" "$2"; then
+    dot_unlink "$2"
+  else
+    log_info "skip (not owned by this package): $2"
+  fi
+}
+
 case "${1:-install}" in
   install)
     # Retire only our obsolete module link; leave user files and saved state intact.
@@ -26,13 +38,14 @@ case "${1:-install}" in
     fi
     ;;
   uninstall)
-    if ! is_dry_run && user_systemd_available; then
+    if owned_link "$SCRIPT_DIR/quickshell.service" "$HOME/.config/systemd/user/quickshell.service" &&
+       ! is_dry_run && user_systemd_available; then
       systemctl --user stop quickshell.service || log_warn "could not stop Quickshell service"
     fi
-    dot_unlink "$HOME/.config/systemd/user/quickshell.service"
-    dot_unlink "$HOME/.config/quickshell/components"
+    unlink_owned "$SCRIPT_DIR/quickshell.service" "$HOME/.config/systemd/user/quickshell.service"
+    unlink_owned "$SCRIPT_DIR/components" "$HOME/.config/quickshell/components"
     for file in "${MODULE_FILES[@]}"; do
-      dot_unlink "$HOME/.config/quickshell/$file"
+      unlink_owned "$SCRIPT_DIR/$file" "$HOME/.config/quickshell/$file"
     done
     if ! is_dry_run && user_systemd_available; then
       systemctl --user daemon-reload || log_warn "could not reload user systemd units"

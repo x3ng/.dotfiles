@@ -6,7 +6,7 @@ import Quickshell.Io
 import Quickshell.Hyprland
 import "components/HyprlandControlCommands.js" as Commands
 
-// Views select explicit workspace IDs and window addresses. Opening the panel
+// Views select explicit workspace addresses and window addresses. Opening the panel
 // must never redirect an operation to whichever window happens to be focused.
 Scope {
     id: root
@@ -19,8 +19,8 @@ Scope {
     property string error: ""
     signal feedback(string key, string summary, string body, bool critical)
     signal operationFinished(bool success, string operation, string target, int requestId, string message)
-    readonly property int focusedWorkspaceId: Hyprland.focusedMonitor?.lastIpcObject.specialWorkspace?.id
-        || Hyprland.focusedWorkspace?.id || 0
+    readonly property string focusedWorkspaceAddress: Hyprland.focusedMonitor?.lastIpcObject.specialWorkspace?.address
+        || Hyprland.focusedWorkspace?.address || ""
     property var workspaces: []
     property var windows: []
     // Snapshot native data, then publish outside the compositor's removal
@@ -38,29 +38,27 @@ Scope {
     }
     readonly property var workspaceSnapshot: {
         const rows = Hyprland.workspaces.values.map(workspace => ({
-            id: workspace.id,
+            address: workspace.address,
             name: workspace.name,
-            configName: workspace.name.startsWith("special:") ? workspace.name
-                : workspace.name === String(workspace.id) ? String(workspace.id) : "name:" + workspace.name,
             monitor: workspace.monitor?.name ?? "",
-            active: workspace.active || workspace.id === root.focusedWorkspaceId,
-            special: workspace.name.startsWith("special:"),
+            active: workspace.active || workspace.address === root.focusedWorkspaceAddress,
+            special: workspace.address.startsWith("special:"),
             exists: true,
-            layout: root.layoutState.layouts[String(workspace.id)] ?? "—",
+            layout: root.layoutState.layouts[workspace.address] ?? "—",
             windowCount: workspace.toplevels.values.length
         }));
-        return rows.sort((a, b) => Number(a.special) - Number(b.special) || a.id - b.id);
+        return rows.sort((a, b) => Commands.compareWorkspaces(a, b));
     }
     readonly property var workspaceTargets: {
         const rows = workspaces.slice();
         if (root.available) {
             for (let id = 1; id <= 10; id++) {
-                if (rows.some(row => row.id === id)) continue;
-                rows.push({id: id, name: String(id), configName: String(id), monitor: "",
+                if (rows.some(row => row.address === String(id))) continue;
+                rows.push({address: String(id), name: String(id), monitor: "",
                     active: false, special: false, exists: false, layout: "—", windowCount: 0});
             }
         }
-        return rows.sort((a, b) => Number(a.special) - Number(b.special) || a.id - b.id);
+        return rows.sort((a, b) => Commands.compareWorkspaces(a, b));
     }
     readonly property var windowSnapshot: Hyprland.toplevels.values
         .filter(window => window.lastIpcObject.mapped !== false && Commands.address(window.address))
@@ -68,13 +66,13 @@ Scope {
             address: Commands.address(window.address),
             title: window.title || window.lastIpcObject.title || "Untitled window",
             appId: window.wayland?.appId || window.lastIpcObject.class || window.lastIpcObject.initialClass || "",
-            workspaceId: window.workspace?.id ?? window.lastIpcObject.workspace?.id ?? 0,
+            workspaceAddress: window.workspace?.address ?? window.lastIpcObject.workspace?.address ?? "",
             workspaceName: window.workspace?.name ?? window.lastIpcObject.workspace?.name ?? "",
             monitor: window.monitor?.name ?? "",
             floating: !!window.lastIpcObject.floating,
             fullscreen: Number(window.lastIpcObject.fullscreen ?? 0) !== 0,
             focused: window.activated
-        })).sort((a, b) => a.workspaceId - b.workspaceId || a.title.localeCompare(b.title) || a.address.localeCompare(b.address))
+        })).sort((a, b) => Commands.compareWorkspaceAddresses(a.workspaceAddress, b.workspaceAddress) || a.title.localeCompare(b.title) || a.address.localeCompare(b.address))
 
     function reject(message) {
         error = message;
@@ -97,20 +95,20 @@ Scope {
         process.running = true;
         return true;
     }
-    function workspaceRow(id) { return workspaceTargets.find(row => row.id === id); }
-    function windowRequest(operation, address, id) {
+    function workspaceRow(address) { return workspaceTargets.find(row => row.address === address); }
+    function windowRequest(operation, address, workspaceAddress) {
         const target = Commands.address(address);
         const window = target ? windows.find(row => row.address === target) : null;
         const names = {focus: "focusWindow", float: "toggleFloat", fullscreen: "toggleFullscreen",
             move: "moveWindow", close: "closeWindow"};
-        return run(Commands.windowAction(operation, window, workspaceRow(id)), names[operation], target);
+        return run(Commands.windowAction(operation, window, workspaceRow(workspaceAddress)), names[operation], target);
     }
-    function focusWorkspace(id) { return run(Commands.workspaceAction("focus", workspaceRow(id)), "focusWorkspace", id); }
-    function setLayout(id, layout) { return run(Commands.workspaceAction("layout", workspaceRow(id), layout), "setLayout", id); }
+    function focusWorkspace(address) { return run(Commands.workspaceAction("focus", workspaceRow(address)), "focusWorkspace", address); }
+    function setLayout(address, layout) { return run(Commands.workspaceAction("layout", workspaceRow(address), layout), "setLayout", address); }
     function focusWindow(address) { return windowRequest("focus", address); }
     function toggleFloat(address) { return windowRequest("float", address); }
     function toggleFullscreen(address) { return windowRequest("fullscreen", address); }
-    function moveWindow(address, id) { return windowRequest("move", address, id); }
+    function moveWindow(address, workspaceAddress) { return windowRequest("move", address, workspaceAddress); }
     function closeWindow(address) { return windowRequest("close", address); }
     function lock() {
         // Acknowledge the launch request; hyprlock owns authentication and lock state.
@@ -119,7 +117,6 @@ Scope {
     function refresh() {
         if (!available) return;
         Hyprland.refreshToplevels();
-        Hyprland.refreshWorkspaces();
         Hyprland.refreshMonitors();
         layoutState.refresh();
     }

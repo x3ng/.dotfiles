@@ -29,7 +29,7 @@ ColumnLayout {
         restoreMode: Binding.RestoreNone
     }
     // The layout picker has an explicit target; the overview always shows every workspace.
-    property int selectedWorkspaceId: 0
+    property string selectedWorkspaceAddress: ""
     property string expandedAddress: ""
     // Keep inline actions with their window address, not with a disposable delegate.
     property string windowActionMode: ""
@@ -37,9 +37,9 @@ ColumnLayout {
     property string pendingDismissAddress: ""
     property bool choosingWorkspace: false
     property bool choosingLayout: false
-    property int pendingWorkspaceId: 0
+    property string pendingWorkspaceAddress: ""
     property int pendingWorkspaceRequestId: 0
-    readonly property var selectedWorkspace: controls.workspaces.find(w => w.id === selectedWorkspaceId) ?? null
+    readonly property var selectedWorkspace: controls.workspaces.find(w => w.address === selectedWorkspaceAddress) ?? null
     readonly property real naturalHeight: detailHeader.implicitHeight + spacing + content.implicitHeight
     spacing: style.spaceLg
     signal backRequested()
@@ -49,10 +49,10 @@ ColumnLayout {
         // panelOpen can be assigned before required services during construction.
         if (!controls) return;
         if (!reset && selectedWorkspace) return;
-        const workspace = controls.workspaces.find(w => w.id === controls.focusedWorkspaceId)
+        const workspace = controls.workspaces.find(w => w.address === controls.focusedWorkspaceAddress)
             ?? controls.workspaces.find(w => w.active && w.special)
             ?? controls.workspaces.find(w => w.active) ?? controls.workspaces[0];
-        selectedWorkspaceId = workspace?.id ?? 0;
+        selectedWorkspaceAddress = workspace?.address ?? "";
     }
 
     function focusWindow(address) {
@@ -64,7 +64,7 @@ ColumnLayout {
 
     function openWorkspace(id) {
         if (controls.focusWorkspace(id)) {
-            pendingWorkspaceId = id;
+            pendingWorkspaceAddress = id;
             pendingWorkspaceRequestId = controls.lastRequestId;
             choosingWorkspace = false;
         }
@@ -72,11 +72,11 @@ ColumnLayout {
 
     Component.onCompleted: ensureSelection(true)
     onExpandedAddressChanged: windowActionMode = ""
-    onSelectedWorkspaceIdChanged: choosingLayout = false
+    onSelectedWorkspaceAddressChanged: choosingLayout = false
     onPanelOpenChanged: {
         pendingDismissRequestId = 0;
         pendingDismissAddress = "";
-        pendingWorkspaceId = 0;
+        pendingWorkspaceAddress = "";
         pendingWorkspaceRequestId = 0;
         choosingWorkspace = false;
         choosingLayout = false;
@@ -95,7 +95,7 @@ ColumnLayout {
         }
         function onOperationFinished(success, operation, target, requestId, message) {
             if (page.pendingWorkspaceRequestId && requestId === page.pendingWorkspaceRequestId) {
-                page.pendingWorkspaceId = 0;
+                page.pendingWorkspaceAddress = "";
                 page.pendingWorkspaceRequestId = 0;
                 if (success && page.panelOpen) page.dismissRequested();
             }
@@ -161,7 +161,7 @@ ColumnLayout {
                             label: modelData.name
                             filled: true
                             available: !page.controls.busy
-                            onTriggered: page.openWorkspace(modelData.id)
+                            onTriggered: page.openWorkspace(modelData.address)
                         }
                     }
                 }
@@ -195,8 +195,8 @@ ColumnLayout {
                                 GroupCard {
                                     id: workspaceCard
                                     required property var modelData
-                                    readonly property var windows: page.displayedWindows.filter(w => w.workspaceId === modelData.id)
-                                    objectName: "workspace-" + modelData.id
+                                    readonly property var windows: page.displayedWindows.filter(w => w.workspaceAddress === modelData.address)
+                                    objectName: "workspace-" + modelData.address
                                     Layout.fillWidth: true
                                     Layout.preferredWidth: 1
                                     Layout.alignment: Qt.AlignTop
@@ -224,23 +224,23 @@ ColumnLayout {
                                                 font.weight: Font.DemiBold
                                             }
                                             MouseArea {
-                                                objectName: "focus-workspace-" + workspaceCard.modelData.id
+                                                objectName: "focus-workspace-" + workspaceCard.modelData.address
                                                 anchors.fill: parent
                                                 enabled: page.controls.available && !page.controls.busy
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: page.openWorkspace(workspaceCard.modelData.id)
+                                                onClicked: page.openWorkspace(workspaceCard.modelData.address)
                                             }
                                         }
                                         ChoiceButton {
                                             Layout.preferredWidth: Math.min(116, workspaceCard.width * 0.48)
                                             style: page.style
-                                            objectName: "layout-workspace-" + workspaceCard.modelData.id
+                                            objectName: "layout-workspace-" + workspaceCard.modelData.address
                                             label: (workspaceCard.modelData.layout ?? "—") + "  ▾"
-                                            selected: page.choosingLayout && page.selectedWorkspaceId === workspaceCard.modelData.id
+                                            selected: page.choosingLayout && page.selectedWorkspaceAddress === workspaceCard.modelData.address
                                             available: page.controls.available && !page.controls.busy && !!workspaceCard.modelData.exists
                                             onTriggered: {
-                                                const wasOpen = page.choosingLayout && page.selectedWorkspaceId === workspaceCard.modelData.id;
-                                                page.selectedWorkspaceId = workspaceCard.modelData.id;
+                                                const wasOpen = page.choosingLayout && page.selectedWorkspaceAddress === workspaceCard.modelData.address;
+                                                page.selectedWorkspaceAddress = workspaceCard.modelData.address;
                                                 page.choosingLayout = !wasOpen;
                                             }
                                         }
@@ -256,7 +256,7 @@ ColumnLayout {
                                         font.pixelSize: page.style.fontSizeSmall
                                     }
                                     GridLayout {
-                                        visible: page.choosingLayout && page.selectedWorkspaceId === workspaceCard.modelData.id
+                                        visible: page.choosingLayout && page.selectedWorkspaceAddress === workspaceCard.modelData.address
                                         Layout.fillWidth: true
                                         columns: 2
                                         columnSpacing: page.style.spaceXs
@@ -272,7 +272,7 @@ ColumnLayout {
                                                 selected: workspaceCard.modelData.layout === modelData
                                                 available: page.controls.available && !page.controls.busy
                                                 onTriggered: {
-                                                    if (page.controls.setLayout(workspaceCard.modelData.id, modelData)) page.choosingLayout = false;
+                                                    if (page.controls.setLayout(workspaceCard.modelData.address, modelData)) page.choosingLayout = false;
                                                 }
                                             }
                                         }
@@ -311,7 +311,7 @@ ColumnLayout {
                                             anchors.fill: parent
                                             enabled: page.controls.available && !page.controls.busy
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: page.openWorkspace(workspaceCard.modelData.id)
+                                            onClicked: page.openWorkspace(workspaceCard.modelData.address)
                                         }
                                     }
                                 }

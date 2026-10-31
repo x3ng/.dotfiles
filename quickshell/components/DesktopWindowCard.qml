@@ -159,7 +159,7 @@ GroupCard {
             Layout.preferredHeight: implicitHeight
             spacing: card.style.spaceXs
             Repeater {
-                model: card.controls.workspaceTargets.filter(w => w.id !== card.windowData.workspaceId)
+                model: card.controls.workspaceTargets.filter(w => w.address !== card.windowData.workspaceAddress)
                 ChoiceButton {
                     required property var modelData
                     width: Math.min(120, Math.max(64, implicitWidth))
@@ -169,7 +169,7 @@ GroupCard {
                     filledColor: card.style.surfaceHover
                     available: !card.controls.busy
                     onTriggered: {
-                        if (card.controls.moveWindow(card.windowData.address, modelData.id)) card.modeRequested("");
+                        if (card.controls.moveWindow(card.windowData.address, modelData.address)) card.modeRequested("");
                     }
                 }
             }

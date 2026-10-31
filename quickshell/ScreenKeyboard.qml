@@ -8,7 +8,6 @@ import Quickshell.Hyprland
 Scope {
     id: root
     required property Theme style
-    property bool panelOpen: false
     property string executable: ""
     readonly property bool available: executable !== ""
     property bool shown: false
@@ -21,8 +20,6 @@ Scope {
         error = message;
         feedback("screen-keyboard", "Screen keyboard", message, false);
     }
-
-    onPanelOpenChanged: { if (panelOpen && !probe.running) probe.running = true; }
 
     function colorArgument(color) { return String(color).slice(1); }
     function toggle() {
@@ -53,9 +50,12 @@ Scope {
 
     Process {
         id: probe
-        command: ["sh", "-c", "command -v wvkbd-mobintl"]
+        // Probe once per shell load without starting a keyboard surface or a shell.
+        command: ["wvkbd-mobintl", "-v"]
         running: true
-        stdout: StdioCollector { onStreamFinished: root.executable = text.trim() }
+        onExited: (code, status) => {
+            root.executable = code === 0 && status === 0 ? "wvkbd-mobintl" : "";
+        }
     }
 
     Process {

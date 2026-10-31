@@ -9,6 +9,7 @@ FILES=(
   compositor.lua
   appearance.lua
   binds.lua
+  workspaces.lua
   rules.lua
   apps.lua
   startup.lua

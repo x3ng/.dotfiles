@@ -1,28 +1,44 @@
 # Hyprland session
 
-These Lua configs target Hyprland 0.56.2. Validate changes without starting a
+These Lua configs target Hyprland 0.57.0. Validate changes without starting a
 second compositor with `Hyprland --verify-config -c "$PWD/hypr/hyprland.lua"`
 from the repository root.
+
+Workspace identity uses Lua `addressable_name` and IPC/Quickshell `address`.
+Named and special workspaces do not have numeric IDs in 0.57.
 
 Hyprland owns window management and key bindings. Quickshell owns launcher,
 notifications and OSD presentation; `Super+Q` calls its launcher IPC endpoint.
 `startup.lua` starts the Quickshell user service, so systemd owns its lifetime
 and restart policy. Do not also run a separate `quickshell` startup command.
 
+`Super+N/P` traverses windows, including floats. Monocle uses native Lua
+window enumeration so its inactive tiles are included too; other layouts use
+the built-in window cycle. Hidden group tabs stay on `Super+Alt+N/P`.
+`workspaces.lua` owns these actions and the shared layout-switch implementation
+used by both key bindings and Quickshell.
+
 `Super+Alt+D/M/S/O` selects dwindle/master/scrolling/monocle for the active
 workspace, with a visible special workspace taking precedence. The binding
 applies a native workspace rule. There is no synthetic layout event or layout
 polling: Quickshell refreshes labels when the panel opens, after panel actions,
-and on native workspace/configuration events. Hyprland 0.56.2 exposes no tiled-layout
+and on native workspace/configuration events. Hyprland 0.57.0 exposes no tiled-layout
 change event, so these bindings do not trigger an OSD. On configuration reload,
 `hyprland.lua` snapshots existing workspaces' live layouts and reapplies their rules before Hyprland's
 deferred layout refresh. This preserves choices from both the key bindings
 and the panel when monitor profiles change (including lid-related reloads),
 without depending on Quickshell. Numeric, named and special workspaces use
-their native `config_name` selectors. The snapshot is restored before
+their native `addressable_name` selectors. The snapshot is restored before
 `rules.lua` and monitor profiles: an explicit layout in those modules takes
 precedence. Layout-only rules merge with other settings such as gaps,
 monitor binding and persistence.
+
+Applying a runtime workspace rule also refreshes every persistent workspace's
+monitor placement in Hyprland 0.57.0. Before the shared layout action applies its
+rule, it updates existing persistent workspaces' monitor rules to their live
+locations, preserving manual moves even when another workspace changes layout.
+These monitor overrides last until reload; loading a monitor profile restores
+its configured assignments.
 
 Layout choices belong to the current session. Rules remain active until
 the next configuration reload, so destroying a workspace and recreating
@@ -55,9 +71,10 @@ profile is applied, displays use their preferred mode with automatic
 position and scale.
 
 Profiles live in `~/.config/hyprmoncfg/profiles/`. The generated
-`~/.config/hypr/monitors.lua` stays outside this repository and is loaded
-only when present. Keep the literal `require("monitors")` in
-`hyprland.lua` so hyprmoncfg can verify the loading path.
+`~/.config/hypr/hyprmoncfg-monitors.lua` stays outside this repository and loads
+last when present. Keep hyprmoncfg's generated include in `hyprland.lua`.
+The optional `monitors.lua` is now for user overrides loaded before that file;
+hyprmoncfg no longer writes it.
 
 These configs expect a session manager with XDG Autostart support, such as
 UWSM. Fcitx5 is started by its `org.fcitx.Fcitx5.desktop` autostart entry,

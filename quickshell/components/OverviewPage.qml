@@ -100,9 +100,9 @@ ColumnLayout {
                                 ChoiceButton {
                                     id: workspaceChip
                                     required property var modelData
-                                    readonly property var apps: [...new Set(page.displayedWindows.filter(w => w.workspaceId === modelData.id).map(w => w.appId))].slice(0, 2)
-                                    objectName: "overview-workspace-" + modelData.id
-                                    width: modelData.special ? 108 : (String(modelData.name || modelData.id).length > 1 ? 40 : 32) + apps.length * 18
+                                    readonly property var apps: [...new Set(page.displayedWindows.filter(w => w.workspaceAddress === modelData.address).map(w => w.appId))].slice(0, 2)
+                                    objectName: "overview-workspace-" + modelData.address
+                                    width: modelData.special ? 108 : (String(modelData.name || modelData.address).length > 1 ? 40 : 32) + apps.length * 18
                                     height: 36
                                     style: page.style
                                     label: ""
@@ -112,7 +112,7 @@ ColumnLayout {
                                         spacing: page.style.spaceXs
                                         Text {
                                             Layout.fillWidth: true
-                                            text: String(workspaceChip.modelData.name || workspaceChip.modelData.id).replace(/^special:/, "")
+                                            text: String(workspaceChip.modelData.name || workspaceChip.modelData.address).replace(/^special:/, "")
                                             elide: Text.ElideRight
                                             color: workspaceChip.selected ? page.style.textPrimary : page.style.textSecondary
                                             font.family: page.style.fontFamily
@@ -142,11 +142,11 @@ ColumnLayout {
                                             }
                                         }
                                     }
-                                    tooltip: "Workspace " + (modelData.name || modelData.id) + " · " + (modelData.windowCount ?? 0) + " windows"
-                                    selected: modelData.id === page.controls.focusedWorkspaceId
+                                    tooltip: "Workspace " + (modelData.name || modelData.address) + " · " + (modelData.windowCount ?? 0) + " windows"
+                                    selected: modelData.address === page.controls.focusedWorkspaceAddress
                                     filled: true
                                     available: page.controls.available && !page.controls.busy
-                                    onTriggered: page.openWorkspace(modelData.id)
+                                    onTriggered: page.openWorkspace(modelData.address)
                                 }
                             }
                         }

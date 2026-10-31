@@ -63,8 +63,15 @@ The workspace manager shows workspace cards in one ordered column. Workspace
 headers switch workspace; their layout controls select dwindle, master, scrolling
 or monocle. Window rows activate the selected window. Right-click or the ellipsis
 opens floating, fullscreen, move and close actions; close requires confirmation.
-Requests use explicit workspace IDs/window addresses and dismiss only after the
+Requests use explicit workspace addresses/window addresses and dismiss only after the
 matching successful completion.
+
+Workspace identity uses Quickshell/IPC `address` and Lua `addressable_name`,
+including named and special workspaces without numeric IDs. Existing targets
+are resolved again at execution time; missing numbered targets 1–10 can still
+be opened from the panel. Layout changes preserve live persistent-workspace
+monitor assignments until configuration reload. The panel and keyboard bindings
+share `hypr/workspaces.lua`; deploy it with the other Hyprland modules.
 
 Wi-Fi details list nearby networks and support personal passwords, connect,
 disconnect and confirmed forget. Advanced or hidden-network setup opens `nmtui`.
@@ -104,12 +111,13 @@ objects/actions and in-memory image handles are not persisted.
 
 OSD covers volume, brightness, microphone mute, output-device changes, regular
 workspace switches and window moves. It uses native service/compositor updates;
-backlight changes use kernel events. Workspace feedback shows workspace numbers,
+backlight changes use kernel events. Workspace feedback shows workspace names,
 layout markers and app icons. Special-workspace open/close has no dedicated OSD.
 
-Hyprland 0.56.2 has no native tiled-layout change event; `activelayout` is a keyboard
-layout event. Layout labels are refreshed on native workspace/configuration events,
-when the panel opens and after panel operations. There is no layout polling or
+Hyprland 0.57.0 has no native tiled-layout change event; `activelayout` is a keyboard
+layout event. Layout labels read `HyprlandWorkspace.lastIpcObject.tiledLayout`. Native snapshots
+are refreshed on workspace/configuration events, when the panel opens and after
+panel operations, without a separate `hyprctl` reader. There is no layout polling or
 synthetic event, and changing the tiling algorithm does not trigger an OSD.
 
 `Theme.qml` defines colour, spacing, radius and motion tokens. The launcher uses
@@ -132,7 +140,8 @@ hyprctl reload
 
 The installer links every root QML module and the components directory, and
 links the user service. Hyprland starts the service from `hypr/startup.lua`;
-systemd restarts it on failure and stops it with the graphical session.
+systemd restarts it on failure and stops it with the graphical session. Uninstall
+only removes links owned by this package and only stops its own linked service.
 
 ```sh
 quickshell ipc call launcher toggle
@@ -148,7 +157,7 @@ independent desktop shell. No username, monitor connector or literal Nix store
 path is embedded in QML. State uses XDG directories; layout sizes, palettes and
 limits are personal defaults that can be adjusted in QML.
 
-- Require Quickshell 0.3.2 APIs and their Qt modules, Hyprland with the Lua
+- Require Quickshell 0.3.2 APIs and their Qt modules, Hyprland 0.57 with the Lua
   configuration/`hyprctl eval` API, and a modern systemd user session supporting
   `systemd-run --expand-environment=no`. Hyprland's appearance Lua module must
   be deployed alongside the shell. Another compositor requires an adapter.
@@ -164,7 +173,8 @@ limits are personal defaults that can be adjusted in QML.
   can be absent. Power-profile availability is probed at startup and panel opening.
   Bluetooth pairing additionally needs `python3`, `bluetoothctl` and `busctl` in
   the shell service PATH; no third-party Python package is needed.
-- The optional screen keyboard uses `wvkbd-mobintl` from `wvkbd` and Hyprland's
+- The optional screen keyboard probes `wvkbd-mobintl -v` once per shell load
+  (reload after installing it). It uses `wvkbd-mobintl` from `wvkbd` and Hyprland's
   virtual-keyboard/layer-shell protocols. It is installed by the Nix Hyprland module.
 - Backlight controls use `brightnessctl` (with user permissions) and `udevadm`.
   Keep-awake uses `systemd-inhibit` and `cat`; application launches use

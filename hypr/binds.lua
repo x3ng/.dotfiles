@@ -13,10 +13,11 @@
 -- Neither geometry nor sequence (a plain toggle) gets one bare single key.
 
 local terminal = "kitty"
+local workspaces = require("workspaces")
 
 -- A visible special workspace takes precedence over the monitor's regular workspace.
 local function activeWorkspace()
-  return hl.get_active_special_workspace() or hl.get_active_workspace()
+  return workspaces.active()
 end
 
 -- ══════════════════════════════════════════════════════════════
@@ -41,10 +42,7 @@ hl.bind("SUPER + SHIFT + P", hl.dsp.window.pin())
 -- Set the tiled algorithm on the current workspace only.
 local function setLayout(layout)
   return function()
-    local workspace = activeWorkspace()
-    if workspace then
-      hl.workspace_rule({ workspace = workspace.config_name, layout = layout })
-    end
+    workspaces.set_layout(activeWorkspace(), layout)
   end
 end
 -- Move focus
@@ -77,22 +75,10 @@ hl.bind("SUPER + L", focusDirection("r", true))
 hl.bind("SUPER + K", focusDirection("u", false))
 hl.bind("SUPER + J", focusDirection("d", true))
 
--- Sequence axis, element level: N/P tour EVERY window on the workspace, floats
--- included. This tour must stay universal: Tab below is floats-only, so a
--- tiled-only N/P would leave a float as a dead end you cannot cycle out of.
-local function cycleWindow(next)
-  return function()
-    local workspace = activeWorkspace()
-    local window = hl.get_active_window()
-    if workspace and workspace.tiled_layout == "monocle" and window and not window.floating then
-      hl.dispatch(hl.dsp.layout(next and "cyclenext" or "cycleprev"))
-    else
-      hl.dispatch(hl.dsp.window.cycle_next({ next = next }))
-    end
-  end
-end
-hl.bind("SUPER + N", cycleWindow(true))
-hl.bind("SUPER + P", cycleWindow(false))
+-- Sequence axis: N/P visit tiled and floating windows, including inactive
+-- monocle tiles. Group tabs retain their separate Alt+N/P bindings.
+hl.bind("SUPER + N", function() workspaces.cycle_window(true) end)
+hl.bind("SUPER + P", function() workspaces.cycle_window(false) end)
 
 -- Tab is deliberately left unbound for window cycling: cyclenext only filters by
 -- tiled/floating, so "rotate the windows stacked here" has no native expression
@@ -122,7 +108,7 @@ hl.bind("SUPER + ALT + Space", layoutAction({ dwindle = "preselect none" }))
 -- Scrolling columns form a one-dimensional line, so column order is a sequence
 -- operation: Shift+F/B move the column forward/back. X, O and W stay on their own
 -- keys because they are verbs without a direction.
--- 0.56.2 consume pulls the next column's FIRST window; expel extracts THIS column's
+-- Scrolling consume pulls the next column's FIRST window; expel extracts THIS column's
 -- LAST window. promote extracts the FOCUSED window.
 hl.bind("SUPER + SHIFT + F", layoutAction({ scrolling = "swapcol r" }))
 hl.bind("SUPER + SHIFT + B", layoutAction({ scrolling = "swapcol l" }))

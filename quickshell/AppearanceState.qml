@@ -79,7 +79,7 @@ Scope {
         }
         onLoadFailed: error => {
             theme.appearanceKnown = true;
-            if (error === 2) savedMode.setText("dark\n");
+            if (error === FileViewError.FileNotFound) savedMode.setText("dark\n");
             else theme.persistenceError = "Could not read saved appearance";
         }
         onSaved: theme.persistenceError = ""

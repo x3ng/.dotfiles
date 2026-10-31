@@ -23,17 +23,17 @@ Scope {
     property real lastVolume: -1
     property bool lastMuted: false
     property bool workspaceReady: false
-    property var lastWorkspaceId: null
+    property var lastWorkspaceAddress: null
     property bool lastMicMuted: false
     property bool microphoneMuted: false
     property string lastOutputKey: ""
     property string outputLabel: ""
     property var pendingMove: null
-    property int moveWorkspaceId: 0
+    property string moveWorkspaceAddress: ""
     property string moveWorkspaceLabel: ""
     property string movedWindowTitle: ""
     readonly property bool workspaceContent: kind === "workspace" || kind === "window-move"
-    readonly property var workspace: Hyprland.focusedWorkspace
+    readonly property string workspaceAddress: Hyprland.focusedWorkspace?.address ?? ""
     readonly property var sink: Pipewire.defaultAudioSink
     readonly property var source: Pipewire.defaultAudioSource
     readonly property var sinkAudio: sink?.ready ? sink.audio : null
@@ -46,18 +46,18 @@ Scope {
     readonly property bool muted: kind === "volume" && (sinkAudio?.muted ?? false)
 
     Component.onCompleted: {
-        lastWorkspaceId = workspace?.id ?? null;
+        lastWorkspaceAddress = workspaceAddress || null;
         workspaceReady = true;
     }
 
-    onWorkspaceChanged: {
-        const nextId = workspace?.id ?? null;
+    onWorkspaceAddressChanged: {
+        const nextAddress = workspaceAddress || null;
         // Initial discovery and losing focus are not workspace switches.
-        if (workspaceReady && lastWorkspaceId !== null && nextId !== null
-                && nextId !== lastWorkspaceId
-                && !(shown && kind === "window-move" && nextId === moveWorkspaceId))
+        if (workspaceReady && lastWorkspaceAddress !== null && nextAddress !== null
+                && nextAddress !== lastWorkspaceAddress
+                && !(shown && kind === "window-move" && nextAddress === moveWorkspaceAddress))
             reveal("workspace");
-        lastWorkspaceId = nextId;
+        lastWorkspaceAddress = nextAddress;
     }
 
     function reveal(nextKind) {
@@ -77,9 +77,9 @@ Scope {
         if (event.name !== "movewindowv2") return false;
         const fields = event.data.split(",");
         const address = fields[0]?.replace(/^0x/i, "").toLowerCase();
-        const id = Number(fields[1]);
-        if (!/^[0-9a-f]+$/.test(address || "") || !Number.isSafeInteger(id) || id === 0) return false;
-        pendingMove = {address: address, workspaceId: id, name: fields.slice(2).join(","), attempts: 0};
+        const targetAddress = fields[1];
+        if (!/^[0-9a-f]+$/.test(address || "") || !targetAddress) return false;
+        pendingMove = {address: address, workspaceAddress: targetAddress, name: fields.slice(2).join(","), attempts: 0};
         Hyprland.refreshToplevels();
         Hyprland.refreshWorkspaces();
         moveDelay.restart();
@@ -91,14 +91,14 @@ Scope {
         const window = controls.windows.find(w => w.address.replace(/^0x/i, "").toLowerCase() === move.address);
         // Native models may update after rawEvent. Confirm the actual target
         // before showing success, with bounded retries and no IPC subprocess.
-        if (!window || window.workspaceId !== move.workspaceId) {
+        if (!window || window.workspaceAddress !== move.workspaceAddress) {
             if (++move.attempts < 5) { moveDelay.restart(); return; }
             pendingMove = null;
             return;
         }
-        const target = controls.workspaces.find(w => w.id === move.workspaceId);
-        moveWorkspaceId = move.workspaceId;
-        moveWorkspaceLabel = target?.name || move.name || String(move.workspaceId);
+        const target = controls.workspaces.find(w => w.address === move.workspaceAddress);
+        moveWorkspaceAddress = move.workspaceAddress;
+        moveWorkspaceLabel = target?.name || move.name || String(move.workspaceAddress);
         movedWindowTitle = window.title || "Window";
         pendingMove = null;
         reveal("window-move");
@@ -283,7 +283,7 @@ Scope {
                             searchModel: osd.searchModel
                             layoutState: osd.layoutState
                             controls: osd.controls
-                            highlightedWorkspaceId: osd.kind === "window-move" ? osd.moveWorkspaceId : 0
+                            highlightedWorkspaceAddress: osd.kind === "window-move" ? osd.moveWorkspaceAddress : ""
                             interactive: false
                             padding: 0
                             color: "transparent"
