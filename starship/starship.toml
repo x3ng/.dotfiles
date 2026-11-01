@@ -1,23 +1,24 @@
 "$schema" = 'https://starship.rs/config-schema.json'
 
-add_newline = true
+# Keep the prompt compact and identical across interactive shells.
+format = '$directory$git_branch$git_status$cmd_duration$character'
+add_newline = false
 
 [directory]
-truncation_length = 5
-truncate_to_repo = true
+truncation_length = 0
+truncate_to_repo = false
+format = '[$path]($style)[$read_only]($read_only_style) '
 
-[time]
-disabled = false
-format = '[$time]($style) '
+[git_branch]
+format = '[$branch]($style) '
+
+[git_status]
+format = '([$all_status$ahead_behind]($style) )'
 
 [cmd_duration]
-min_time = 1500
+min_time = 3000
+format = '[$duration]($style) '
 
-[status]
-disabled = false
-
-[battery]
-display = [
-  { threshold = 20, style = "bold red" },
-  { threshold = 50, style = "bold yellow" },
-]
+[character]
+success_symbol = '[❯](bold green)'
+error_symbol = '[❯](bold red)'
