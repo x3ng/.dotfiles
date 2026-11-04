@@ -11,7 +11,6 @@ deploy/
   lib.sh           # shared helpers (dot_link, dot_template, etc.)
   tui              # CLI and terminal tool profile
   gui              # graphical tool profile
-tests/             # optional local-only checks (ignored, not versioned)
 ```
 
 ## Usage
@@ -85,9 +84,14 @@ sudo ./deploy/deploy grub                     # optional GRUB appearance
 GRUB appearance is opt-in and requires a bootloader configuration hook. See
 [grub/README.md](grub/README.md) for deployment, missing-file fallback, and recovery.
 
-## Local regression checks
+## Verification
 
-Local helpers may be kept under `tests/`, which is intentionally ignored and
-absent from Git history. They are not deployed or started by the desktop.
-Runtime module ownership is documented in
-[quickshell/ARCHITECTURE.md](quickshell/ARCHITECTURE.md).
+Use `bash -n` for modified deployment scripts and `./deploy/deploy --dry-run`
+for deployment plans. Temporary test homes and logs belong outside the repository.
+
+## Independent management
+
+Dotfiles and nix-config are managed separately. This repository has no flake or
+Home Manager module; its existing install scripts own personal configuration.
+Nix package and desktop integration changes belong in nix-config. Do not deploy
+over existing Home Manager-owned paths before their ownership is released.
