@@ -41,16 +41,22 @@
         default = self.apps.${system}.preview-greeter;
         adopt = {
           type = "app";
+          meta.description = "Safely archive legacy dotfiles links before Home Manager adoption";
           program = "${self.packages.${system}.adopt}/bin/dotfiles-adopt";
         };
         preview-greeter = {
           type = "app";
+          meta.description = "Preview the greeter without authentication";
           program = "${self.packages.${system}.shell}/bin/dotfiles-preview-greeter";
         };
         preview-lock = {
           type = "app";
+          meta.description = "Preview the lock screen without locking the session";
           program = "${self.packages.${system}.shell}/bin/dotfiles-preview-lock";
         };
+      });
+      checks = eachSystem (system: {
+        inherit (self.packages.${system}) shell greeter adopt;
       });
       formatter = eachSystem (system: nixpkgs.legacyPackages.${system}.nixfmt);
     };

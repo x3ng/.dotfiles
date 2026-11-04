@@ -11,7 +11,6 @@ deploy/
   lib.sh           # shared helpers (dot_link, dot_template, etc.)
   tui              # CLI and terminal tool profile
   gui              # graphical tool profile
-tests/             # optional local-only checks (ignored, not versioned)
 ```
 
 ## Usage
@@ -85,12 +84,11 @@ sudo ./deploy/deploy grub                     # optional GRUB appearance
 GRUB appearance is opt-in and requires a bootloader configuration hook. See
 [grub/README.md](grub/README.md) for deployment, missing-file fallback, and recovery.
 
-## Local regression checks
+## Verification
 
-Local helpers may be kept under `tests/`, which is intentionally ignored and
-absent from Git history. They are not deployed or started by the desktop.
-Runtime module ownership is documented in
-[quickshell/ARCHITECTURE.md](quickshell/ARCHITECTURE.md).
+Run `nix flake check` for package checks. One-off visual fixtures, logs and
+migration test homes belong outside the repository. Runtime ownership is
+documented in [quickshell/ARCHITECTURE.md](quickshell/ARCHITECTURE.md).
 
 ## Nix users
 

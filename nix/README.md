@@ -60,7 +60,8 @@ Build both host and home outputs first. Review `nix run .#adopt`, run it with
 legacy links to `$XDG_STATE_HOME/dotfiles/adoption/<timestamp>/` (normally under
 `~/.local/state`). Unrelated entries are preserved; ownership conflicts abort
 before any change. Backups retain the absolute target hierarchy for restoration.
-The helper covers all four profiles; use it when adopting that complete set.
+The helper defaults to all four profiles. For partial adoption, pass e.g.
+`--profiles kitty tmux` to match the selected Home Manager profiles.
 
 Do not run `deploy` for the same profiles afterward. The generic installer refuses
 to replace store-managed links; other profiles can keep using their scripts.

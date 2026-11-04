@@ -9,6 +9,8 @@ import sys
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--apply', action='store_true', help='move verified legacy links into a timestamped backup')
 parser.add_argument('--source', type=Path, default=Path.home() / '.dotfiles')
+parser.add_argument('--profiles', nargs='+', choices=['hyprland', 'quickshell', 'kitty', 'tmux'],
+                    default=['hyprland', 'quickshell', 'kitty', 'tmux'])
 args = parser.parse_args()
 source = args.source.expanduser().resolve()
 home = Path.home()
@@ -29,6 +31,13 @@ targets = {
     **{config / 'systemd/user' / (name + '.service'): source / 'quickshell' / (name + '.service')
        for name in ['quickshell', 'quickshell-lock', 'quickshell-polkit']},
 }
+def profile_for(target):
+    if target == home / '.local/bin/qs-lock' or str(target).startswith(str(config / 'systemd/user') + '/'):
+        return 'quickshell'
+    directory = target.relative_to(config).parts[0]
+    return 'hyprland' if directory == 'hypr' else directory
+
+targets = {target: expected for target, expected in targets.items() if profile_for(target) in args.profiles}
 plan = []
 errors = []
 for target, expected in targets.items():
