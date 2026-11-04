@@ -219,7 +219,7 @@ hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd(screenshotAll))
 hl.bind("SUPER + V", hl.dsp.exec_cmd(terminal .. " --class clipse -e clipse"))
 
 -- Lock & exit
-hl.bind("SUPER + M",        hl.dsp.exec_cmd("hyprlock"))
+hl.bind("SUPER + M",        hl.dsp.exec_cmd("qs-lock"))
 hl.bind("SUPER + SHIFT + M", hl.dsp.exec_cmd("hyprshutdown"))
 
 -- ══════════════════════════════════════════════════════════════

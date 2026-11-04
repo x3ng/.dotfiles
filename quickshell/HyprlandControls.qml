@@ -72,7 +72,7 @@ Scope {
             floating: !!window.lastIpcObject.floating,
             fullscreen: Number(window.lastIpcObject.fullscreen ?? 0) !== 0,
             focused: window.activated
-        })).sort((a, b) => Commands.compareWorkspaceAddresses(a.workspaceAddress, b.workspaceAddress) || a.title.localeCompare(b.title) || a.address.localeCompare(b.address))
+        })).sort((a, b) => Commands.compareWorkspaceAddresses(a.workspaceAddress, b.workspaceAddress) || a.address.localeCompare(b.address))
 
     function reject(message) {
         error = message;
@@ -111,8 +111,8 @@ Scope {
     function moveWindow(address, workspaceAddress) { return windowRequest("move", address, workspaceAddress); }
     function closeWindow(address) { return windowRequest("close", address); }
     function lock() {
-        // Acknowledge the launch request; hyprlock owns authentication and lock state.
-        return run({code: Commands.result("hl.dsp.exec_cmd('pidof hyprlock || hyprlock')")}, "lock", "session");
+        // Acknowledge launch; the separate Quickshell locker owns the session lock and PAM.
+        return run({code: Commands.result("hl.dsp.exec_cmd('qs-lock')")}, "lock", "session");
     }
     function refresh() {
         if (!available) return;

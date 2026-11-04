@@ -8,7 +8,7 @@ Workspace identity uses Lua `addressable_name` and IPC/Quickshell `address`.
 Named and special workspaces do not have numeric IDs in 0.57.
 
 Hyprland owns window management and key bindings. Quickshell owns launcher,
-notifications and OSD presentation; `Super+Q` calls its launcher IPC endpoint.
+notifications, OSD, wallpaper and idle policy; `Super+Q` calls its launcher IPC endpoint.
 `startup.lua` starts the Quickshell user service, so systemd owns its lifetime
 and restart policy. Do not also run a separate `quickshell` startup command.
 
@@ -97,15 +97,29 @@ launch with another enabled autostart entry or Fcitx5 user service.
 
 ## Idle and lock
 
-Hypridle dims the laptop backlight after 150 seconds, locks at 300 seconds
-and powers off displays at 600 seconds. Activity restores the saved brightness
-and display power. Inhibitors, including Quickshell's Keep awake control,
-continue to suppress idle actions. No automatic suspend timeout is added.
-Before system sleep, logind requests the configured lock command and hypridle
-waits for the session-lock confirmation. Display power commands use the
-Hyprland 0.56 Lua dispatcher syntax.
+Quickshell's `IdlePolicy.qml` dims the laptop backlight after 150 seconds, starts
+the Quickshell locker at 300 seconds, and powers off displays at 600 seconds.
+Activity restores the saved brightness and display power. Its timers respect
+Wayland idle inhibitors; the command panel's Keep awake control disables all
+three timers and keeps its systemd idle inhibitor for logind. No automatic
+suspend timeout is added. Hypridle remains only for logind's sleep and session
+lock requests, where it waits for the compositor to confirm the lock before
+sleep. Display power commands use the Hyprland Lua dispatcher syntax.
 
-Hyprlock uses a dimmed screenshot background, reduced blur, a light-weight Inter clock and date,
-keyboard layout, and a wider password field with authentication, failure and
-Caps Lock feedback. Its input field uses the shell's dark colours for contrast
-over screenshots; keep those native colour values in sync with `Theme.qml`.
+## Desktop component ownership
+
+`quickshell.service` starts the desktop shell and wants the independent
+`quickshell-lock.service` and `quickshell-polkit.service`. Do not start these
+from additional compositor commands. `Super+M`, the panel and the sleep bridge
+all call `qs-lock`; the locker owns PAM and the Wayland session-lock protocol.
+The Polkit agent presents authorization requests; system Polkit decides policy.
+
+Desktop and lock-screen wallpaper settings live in
+`quickshell/wallpaper.json`, with selections under
+`$XDG_STATE_HOME/quickshell/wallpaper.json`. The panel search accepts `wallpaper` or `壁纸` to open the image picker.
+Greeter files are separately deployed to `/etc/xdg/quickshell/greeter`.
+
+There is no active Hyprlock or Hyprpaper configuration. The installer removes
+only obsolete symlinks owned by this repository, preserving independent user
+files. Keep `hypridle.conf` for the sleep handshake, and retain monitor profiles,
+window rules, input settings and key bindings as compositor configuration.

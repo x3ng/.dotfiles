@@ -17,6 +17,10 @@ ShellRoot {
         onFeedback: (key, summary, body, critical) =>
             notifications.notifyLocal(key, {summary: summary, body: body, critical: critical})
     }
+    WallpaperState { id: wallpaperState }
+    WallpaperWindows { wallpaper: wallpaperState }
+    WallpaperPicker { id: wallpaperPicker; wallpaper: wallpaperState; style: theme }
+    IdlePolicy { keepAwake: desktop.keepAwake; ready: desktop.keepAwakeReady }
     DesktopSearch { id: desktopSearch; query: launcher.query; actions: shellActions }
     Notifications { id: notifications }
     BatteryAlerts { battery: desktop.battery; notifications: notifications }
@@ -40,6 +44,7 @@ ShellRoot {
         keyboard: keyboard
         hyprControls: hyprControls
         onNavigateRequested: section => launcher.navigate(section)
+        onWallpaperRequested: { launcher.dismiss(); wallpaperPicker.showPicker(); }
     }
 
     Connections {
@@ -68,6 +73,24 @@ ShellRoot {
     OsdOverlay { shell: desktop; style: theme; searchModel: desktopSearch; layoutState: workspaceLayouts; controls: hyprControls }
 
     IpcHandler {
+        target: "idle"
+        function setKeepAwake(enabled: bool): bool { return desktop.setKeepAwake(enabled); }
+        function status(): string {
+            return JSON.stringify({ready: desktop.keepAwakeReady, keepAwake: desktop.keepAwake,
+                inhibitorActive: desktop.keepAwakeInhibitorActive});
+        }
+    }
+
+    IpcHandler {
+        target: "wallpaper"
+        function showPicker(): void { launcher.dismiss(); wallpaperPicker.showPicker(); }
+        function status(): string {
+            return JSON.stringify({loaded: wallpaperState.loaded, error: wallpaperState.error,
+                screens: Quickshell.screens.map(screen => ({name: screen.name, wallpaper: wallpaperState.entryFor(screen.name)}))});
+        }
+    }
+
+    IpcHandler {
         target: "appearance"
         function setMode(mode: string): void {
             if (mode === "dark" || mode === "light") appearance.setTheme(mode === "dark");
@@ -81,6 +104,7 @@ ShellRoot {
 
     IpcHandler {
         target: "launcher"
+        function search(query: string): void { launcher.openSearch(query); }
         function toggle(): void { launcher.toggle(); }
         function close(): void { launcher.dismiss(); }
     }

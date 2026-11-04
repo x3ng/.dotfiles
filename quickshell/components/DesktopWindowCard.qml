@@ -16,7 +16,7 @@ GroupCard {
     signal focusRequested(string address)
     readonly property var entry: searchModel.desktopEntryFor({appId: windowData.appId})
     readonly property string iconSource: searchModel.desktopIconSource(entry)
-    pad: style.spaceSm
+    pad: 6
     radius: style.radiusControl
     color: windowMouse.containsMouse ? style.surfaceHover
         : windowData.focused ? style.surfaceSelected : "transparent"
@@ -31,7 +31,7 @@ GroupCard {
         Item {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            Layout.preferredHeight: 38
+            Layout.preferredHeight: 32
             RowLayout {
                 anchors.fill: parent
                 spacing: card.style.spaceSm
@@ -42,7 +42,7 @@ GroupCard {
                         id: icon
                         anchors.fill: parent
                         source: card.iconSource
-                        visible: source !== "" && status !== Image.Error
+                        visible: status === Image.Ready
                     }
                     StatusIcon {
                         anchors.fill: parent
@@ -94,6 +94,7 @@ GroupCard {
         ChoiceButton {
             Layout.preferredWidth: 30
             Layout.minimumWidth: 30
+            Layout.preferredHeight: 30
             style: card.style
             label: "⋯"
             textSize: 22

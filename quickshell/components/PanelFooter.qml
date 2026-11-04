@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Widgets
+import Quickshell.Services.UPower
 import ".."
 
 Rectangle {
@@ -13,6 +14,7 @@ Rectangle {
     required property var services
     required property var appearance
     required property var trayItems
+    property bool searchMode: false
     property bool summaryOnly: false
     property bool centerActions: false
     property int notificationCount: 0
@@ -20,15 +22,22 @@ Rectangle {
     property bool lockAvailable: false
     signal notificationsRequested()
     signal lockRequested()
+    signal appearanceRequested()
+    signal keepAwakeRequested()
     required property date date
     signal menuRequested(var owner, real right, real top)
 
-    // Budget secondary status fields after the tray, not against the outer
-    // panel width. The panel's normal content width is less than 580px.
-    readonly property real statusWidth: width - trayViewport.width
-        - (trayItems.length > 0 ? 21 : 0)
-        - (centerActions ? actionRow.implicitWidth + 10 : 0)
-    implicitHeight: 40
+    readonly property bool hasBattery: services.battery?.isPresent ?? false
+    readonly property string powerState: {
+        const state = services.battery?.state;
+        if (state === UPowerDeviceState.Charging) return "Charging";
+        if (state === UPowerDeviceState.FullyCharged) return "Fully charged";
+        if (state === UPowerDeviceState.Discharging) return width < 500 ? "Battery" : "On battery";
+        if (state === UPowerDeviceState.PendingCharge) return "Plugged in";
+        if (state === UPowerDeviceState.Empty) return "Empty";
+        return "Battery";
+    }
+    implicitHeight: 48
     color: "transparent"
 
     Rectangle {
@@ -38,134 +47,83 @@ Rectangle {
     }
 
     RowLayout {
+        visible: footer.searchMode
         anchors.fill: parent
-        anchors.leftMargin: footer.style.spaceXs
-        anchors.rightMargin: footer.style.spaceXs
         anchors.topMargin: 9
         anchors.bottomMargin: 3
-        spacing: 10
-
-        Row {
-            spacing: footer.style.spaceSm
+        spacing: 18
+        Repeater {
+            model: ["↑ ↓  Navigate", "esc  Back"]
             Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: Qt.formatDateTime(footer.date, "HH:mm")
-                color: footer.style.textPrimary
-                font.family: footer.style.fontFamily
-                font.pixelSize: footer.style.fontSizeControl
-                font.weight: Font.Medium
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                objectName: "footer-date"
-                text: Qt.formatDateTime(footer.date, footer.statusWidth >= 200 ? "MM-dd · ddd" : "MM-dd")
-                color: footer.style.textSecondary
+                required property string modelData
+                text: modelData
                 font.family: footer.style.fontFamily
                 font.pixelSize: footer.style.fontSizeSmall
+                color: footer.style.textMuted
             }
         }
-
         Item { Layout.fillWidth: true }
+    }
 
-        Repeater {
-            model: [
-                {kind: "battery", shown: (footer.services.battery?.isPresent ?? false) && (!footer.centerActions || footer.statusWidth >= 130),
-                    value: Math.round((footer.services.battery?.percentage ?? 0) * 100) + "%",
-                    level: footer.services.battery?.percentage ?? 0,
-                    hint: footer.services.batteryDetail(footer.services.battery)},
-                {kind: "volume", shown: !footer.summaryOnly && footer.statusWidth >= 340,
-                    value: footer.services.sink?.audio ? Math.round(footer.services.sink.audio.volume * 100) + "%" : "—",
-                    muted: footer.services.sink?.audio?.muted ?? false,
-                    hint: footer.services.sink?.audio?.muted ? "Volume · Muted" : "Volume"},
-                {kind: "brightness", shown: !footer.summaryOnly && footer.statusWidth >= 460 && footer.services.brightness >= 0,
-                    value: Math.round(footer.services.brightness * 100) + "%", hint: "Brightness"},
-                {kind: "appearance", shown: !footer.centerActions || footer.statusWidth >= 180, level: footer.appearance.darkMode ? 1 : 0,
-                    value: !footer.appearance.appearanceAvailable ? "!" : !footer.appearance.appearanceKnown ? "?"
-                        : footer.appearance.appearanceError ? "!" : "",
-                    hint: !footer.appearance.appearanceAvailable ? "Appearance offline"
-                        : !footer.appearance.appearanceKnown ? "Appearance unknown"
-                        : footer.appearance.appearanceError ? "Appearance error"
-                        : footer.appearance.darkMode ? "Dark mode" : "Light mode"}
-            ]
-            Item {
-                id: indicator
-                required property var modelData
-                visible: modelData.shown
-                implicitWidth: visible ? indicatorRow.width : 0
-                implicitHeight: 28
-                Row {
-                    id: indicatorRow
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 6
-                    StatusIcon {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 16; height: 16
-                        kind: indicator.modelData.kind
-                        ink: indicator.modelData.kind === "battery" && indicator.modelData.level < 0.2
-                            ? footer.style.accentWarm : footer.style.textMuted
-                        level: indicator.modelData.level ?? 1
-                        muted: indicator.modelData.muted ?? false
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: indicator.modelData.value
-                        color: footer.style.textSecondary
-                        font.family: footer.style.fontFamily
-                        font.pixelSize: footer.style.fontSizeSmall
-                        font.weight: Font.Medium
-                    }
-                }
-                HoverHandler { id: hover }
-                ShellToolTip {
-                    style: footer.style
-                    visible: hover.hovered
-                    text: indicator.modelData.hint
-                }
-            }
+    RowLayout {
+        visible: !footer.searchMode
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 10
+        width: Math.min(implicitWidth, footer.width)
+        height: 36
+        spacing: 6
+        UtilityButton {
+            id: appearanceButton
+            Layout.preferredWidth: 36
+            Layout.preferredHeight: 36
+            style: footer.style
+            label: ""
+            iconKind: footer.appearance.darkMode ? "moon" : "brightness"
+            iconSize: 20
+            available: footer.appearance.appearanceAvailable
+            tooltip: footer.appearance.darkMode ? "Switch to light appearance" : "Switch to dark appearance"
+            onTriggered: footer.appearanceRequested()
         }
-
-        Row {
-            id: actionRow
-            visible: footer.centerActions
-            spacing: 2
-            ChoiceButton {
-                objectName: "overview-notifications"
-                width: 56; height: 28
-                style: footer.style
-                label: String(footer.notificationCount)
-                iconKind: "bell"
-                iconSize: 16
-                Accessible.name: "Notifications"
-                tooltip: footer.notificationCount + " pending notifications · "
-                    + footer.notificationHistoryCount + " saved in history"
-                onTriggered: footer.notificationsRequested()
-            }
-            ChoiceButton {
-                width: 28; height: 28
+        UtilityButton {
+            id: awakeButton
+            Layout.preferredWidth: 36
+            Layout.preferredHeight: 36
+            style: footer.style
+            label: ""
+            iconKind: "coffee"
+            iconSize: 20
+            checkable: true
+            selected: footer.services.keepAwake
+            tooltip: footer.services.keepAwake ? "Keep awake: on · Click to resume idle" : "Keep awake: off · Click to prevent idle"
+            onTriggered: footer.keepAwakeRequested()
+        }
+            UtilityButton {
+                id: lockButton
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
                 style: footer.style
                 label: ""
                 iconKind: "lock"
-                iconSize: 16
+                iconSize: 20
                 tooltip: "Lock screen"
                 available: footer.lockAvailable
                 onTriggered: footer.lockRequested()
             }
-        }
-
-        Rectangle {
-            visible: footer.trayItems.length > 0
-            width: 1; height: 24
-            color: footer.style.separator
-        }
+            Rectangle {
+                visible: footer.trayItems.length > 0
+                width: 1; height: 22
+                color: footer.style.separator
+            }
         Flickable {
             id: trayViewport
             objectName: "footer-tray-viewport"
             visible: footer.trayItems.length > 0
-            Layout.preferredWidth: Math.min(trayRow.implicitWidth, Math.max(28, footer.width - 240))
+            Layout.preferredWidth: Math.min(trayRow.implicitWidth, Math.max(0, footer.width - appearanceButton.width - awakeButton.width - lockButton.width - 37))
             Layout.maximumWidth: Layout.preferredWidth
-            Layout.preferredHeight: 28
+            Layout.preferredHeight: 36
             contentWidth: trayRow.implicitWidth
-            contentHeight: 28
+            contentHeight: 36
             clip: true
             flickableDirection: Flickable.HorizontalFlick
             boundsBehavior: Flickable.StopAtBounds
@@ -201,7 +159,7 @@ Rectangle {
                     Rectangle {
                         id: trayItem
                         required property var modelData
-                        width: 28; height: 28
+                        width: 36; height: 36
                         radius: footer.style.radiusControl
                         color: trayMouse.containsMouse ? footer.style.surfaceHover : "transparent"
                         IconImage {
@@ -209,7 +167,7 @@ Rectangle {
                             anchors.centerIn: parent
                             implicitSize: 20
                             source: trayItem.modelData.icon
-                            visible: source !== "" && status !== Image.Error
+                            visible: status === Image.Ready
                         }
                         Text {
                             anchors.centerIn: parent

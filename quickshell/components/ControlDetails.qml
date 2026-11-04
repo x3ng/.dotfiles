@@ -38,8 +38,8 @@ Rectangle {
     readonly property var rows: renderContent && section === "audio"
         ? (audioInput ? services.audioInputs : services.audioOutputs) : []
     onSectionChanged: { audioInput = false; showHistory = false; viewport.contentY = 0; }
-    readonly property real naturalHeight: detailHeader.implicitHeight + style.spaceLg + content.implicitHeight
-        + (isNotifs ? notificationToolbar.implicitHeight + style.spaceLg : 0)
+    readonly property real naturalHeight: detailHeader.implicitHeight + 10 + content.implicitHeight
+        + (isNotifs ? notificationToolbar.implicitHeight + 10 : 0)
     implicitWidth: 380
     color: "transparent"
     focus: visible
@@ -48,13 +48,39 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: detail.style.spaceLg
+        spacing: 10
         DetailHeader {
             id: detailHeader
             style: detail.style
             title: detail.title
             subtitle: detail.subtitle
             onBackRequested: detail.dismissRequested()
+            actions: [
+                ChoiceButton {
+                    visible: detail.section === "wifi" || detail.section === "bluetooth"
+                    Layout.preferredWidth: 72
+                    Layout.preferredHeight: 30
+                    style: detail.style
+                    label: detail.radioEnabled ? "On" : "Off"
+                    selected: detail.radioEnabled
+                    tone: "toggle"
+                    available: detail.actions.available(detail.section + "-toggle")
+                    onTriggered: detail.actions.execute(detail.section + "-toggle")
+                },
+            ChoiceButton {
+                objectName: "notification-clear-all"
+                Layout.preferredWidth: 112
+                Layout.preferredHeight: 30
+                visible: detail.isNotifs
+                style: detail.style
+                label: detail.showHistory ? "Clear history" : "Clear all"
+                available: detail.notificationEntries.length > 0
+                onTriggered: {
+                    if (detail.showHistory) detail.notifs.clearHistory();
+                    else detail.notifs.clearCurrent();
+                }
+            }
+            ]
         }
         RowLayout {
             id: notificationToolbar
@@ -81,19 +107,7 @@ Rectangle {
                 selected: detail.showHistory
                 onTriggered: { detail.showHistory = true; viewport.contentY = 0; }
             }
-            ChoiceButton {
-                objectName: "notification-clear-all"
-                Layout.preferredWidth: 112
-                Layout.preferredHeight: 36
-                filled: true
-                style: detail.style
-                label: detail.showHistory ? "Clear history" : "Clear all"
-                available: detail.notificationEntries.length > 0
-                onTriggered: {
-                    if (detail.showHistory) detail.notifs.clearHistory();
-                    else detail.notifs.clearCurrent();
-                }
-            }
+
         }
         ClippingRectangle {
             Layout.fillWidth: true
@@ -112,27 +126,7 @@ Rectangle {
                 ColumnLayout {
                     id: content
                     width: viewport.width
-                    spacing: detail.style.spaceLg
-                    RowLayout {
-                        Layout.fillWidth: true
-                        visible: detail.section === "wifi" || detail.section === "bluetooth"
-                        Text {
-                            Layout.fillWidth: true
-                            text: detail.radioEnabled ? "Enabled" : "Disabled"
-                            color: detail.style.textSecondary
-                            font.family: detail.style.fontFamily
-                            font.pixelSize: detail.style.fontSizeBody
-                        }
-                        ChoiceButton {
-                            Layout.preferredWidth: 80
-                            style: detail.style
-                            label: detail.radioEnabled ? "On" : "Off"
-                            filled: true
-                            selected: detail.radioEnabled
-                            available: detail.actions.available(detail.section + "-toggle")
-                            onTriggered: detail.actions.execute(detail.section + "-toggle")
-                        }
-                    }
+                    spacing: 10
                     RowLayout {
                         Layout.fillWidth: true
                         visible: detail.section === "audio"

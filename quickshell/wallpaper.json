@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "default": { "path": "~/Pictures/mystic_forest.png", "fit": "cover" },
+  "outputs": {}
+}

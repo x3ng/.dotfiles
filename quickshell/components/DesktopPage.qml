@@ -41,7 +41,7 @@ ColumnLayout {
     property int pendingWorkspaceRequestId: 0
     readonly property var selectedWorkspace: controls.workspaces.find(w => w.address === selectedWorkspaceAddress) ?? null
     readonly property real naturalHeight: detailHeader.implicitHeight + spacing + content.implicitHeight
-    spacing: style.spaceLg
+    spacing: 10
     signal backRequested()
     signal dismissRequested()
 
@@ -110,8 +110,19 @@ ColumnLayout {
         id: detailHeader
         style: page.style
         title: "Workspaces"
-        subtitle: page.controls.workspaces.length + " workspaces · " + page.controls.windows.length + " windows"
+        subtitle: page.controls.workspaces.length + (page.controls.workspaces.length === 1 ? " workspace · " : " workspaces · ")
+            + page.controls.windows.length + (page.controls.windows.length === 1 ? " window" : " windows")
         onBackRequested: page.backRequested()
+        actions: [ChoiceButton {
+            Layout.preferredWidth: 132
+            Layout.preferredHeight: 30
+            visible: page.controls.workspaceTargets.some(w => !w.exists)
+            style: page.style
+            label: "＋ New workspace"
+            selected: page.choosingWorkspace
+            available: page.controls.available && !page.controls.busy
+            onTriggered: page.choosingWorkspace = !page.choosingWorkspace
+        }]
     }
 
     ClippingRectangle {
@@ -133,20 +144,6 @@ ColumnLayout {
                 width: viewport.width
                 spacing: page.style.spaceMd
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: page.controls.workspaceTargets.some(w => !w.exists)
-                    Item { Layout.fillWidth: true }
-                    ChoiceButton {
-                        Layout.preferredWidth: 136
-                        visible: page.controls.workspaceTargets.some(w => !w.exists)
-                        style: page.style
-                        label: "＋ New workspace"
-                        selected: page.choosingWorkspace
-                        available: page.controls.available && !page.controls.busy
-                        onTriggered: page.choosingWorkspace = !page.choosingWorkspace
-                    }
-                }
                 Flow {
                     Layout.fillWidth: true
                     Layout.preferredHeight: implicitHeight
@@ -175,145 +172,150 @@ ColumnLayout {
                     font.family: page.style.fontFamily
                     font.pixelSize: page.style.fontSizeBody
                 }
-                RowLayout {
+                ColumnLayout {
                     id: workspaceGrid
                     Layout.fillWidth: true
-                    readonly property int columns: 1
-                    spacing: page.style.spaceMd
+                    Layout.preferredHeight: implicitHeight
+                    spacing: 10
+                    FontMetrics {
+                        id: windowTitleMetrics
+                        font.family: page.style.fontFamily
+                        font.pixelSize: page.style.fontSizeBody
+                        font.weight: Font.DemiBold
+                    }
                     Repeater {
-                        model: workspaceGrid.columns
-                        ColumnLayout {
-                            id: workspaceColumn
-                            required property int index
+                        model: StableRows { rows: page.displayedWorkspaces; keyField: "address" }
+                        GroupCard {
+                            id: workspaceCard
+                            required property var record
+                            readonly property var modelData: record
+                            readonly property var windows: page.displayedWindows.filter(w => w.workspaceAddress === modelData.address)
+                            objectName: "workspace-" + modelData.address
                             Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.alignment: Qt.AlignTop
-                            spacing: page.style.spaceMd
-                            // Keep workspace order stable while inline window actions expand.
-                            Repeater {
-                                model: page.displayedWorkspaces.filter((workspace, i) => i % workspaceGrid.columns === workspaceColumn.index)
-                                GroupCard {
-                                    id: workspaceCard
-                                    required property var modelData
-                                    readonly property var windows: page.displayedWindows.filter(w => w.workspaceAddress === modelData.address)
-                                    objectName: "workspace-" + modelData.address
-                                    Layout.fillWidth: true
-                                    Layout.preferredWidth: 1
-                                    Layout.alignment: Qt.AlignTop
-                                    style: page.style
-                                    color: page.style.surfaceRaised
-                                    pad: page.style.spaceMd
-                                    contentSpacing: page.style.spaceXs
+                            style: page.style
+                            color: page.style.surfaceRaised
+                            pad: 10
+                            contentSpacing: page.style.spaceXs
 
-                                    RowLayout {
-                                        Layout.fillWidth: true
-                                        spacing: page.style.spaceXs
-                                        Item {
-                                            Layout.fillWidth: true
-                                            Layout.minimumWidth: 32
-                                            implicitHeight: 34
-                                            Text {
-                                                anchors.fill: parent
-                                                verticalAlignment: Text.AlignVCenter
-                                                text: workspaceCard.modelData.name
-                                                textFormat: Text.PlainText
-                                                elide: Text.ElideRight
-                                                color: workspaceCard.modelData.active ? page.style.accent : page.style.textPrimary
-                                                font.family: page.style.fontFamily
-                                                font.pixelSize: page.style.fontSizeHeading
-                                                font.weight: Font.DemiBold
-                                            }
-                                            MouseArea {
-                                                objectName: "focus-workspace-" + workspaceCard.modelData.address
-                                                anchors.fill: parent
-                                                enabled: page.controls.available && !page.controls.busy
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: page.openWorkspace(workspaceCard.modelData.address)
-                                            }
-                                        }
-                                        ChoiceButton {
-                                            Layout.preferredWidth: Math.min(116, workspaceCard.width * 0.48)
-                                            style: page.style
-                                            objectName: "layout-workspace-" + workspaceCard.modelData.address
-                                            label: (workspaceCard.modelData.layout ?? "—") + "  ▾"
-                                            selected: page.choosingLayout && page.selectedWorkspaceAddress === workspaceCard.modelData.address
-                                            available: page.controls.available && !page.controls.busy && !!workspaceCard.modelData.exists
-                                            onTriggered: {
-                                                const wasOpen = page.choosingLayout && page.selectedWorkspaceAddress === workspaceCard.modelData.address;
-                                                page.selectedWorkspaceAddress = workspaceCard.modelData.address;
-                                                page.choosingLayout = !wasOpen;
-                                            }
-                                        }
-                                    }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: page.style.spaceXs
+                                Item {
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: 32
+                                    implicitHeight: 28
                                     Text {
-                                        Layout.fillWidth: true
-                                        text: (workspaceCard.modelData.monitor ? workspaceCard.modelData.monitor + " · " : "")
-                                            + workspaceCard.windows.length + (workspaceCard.windows.length === 1 ? " window" : " windows")
+                                        anchors.fill: parent
+                                        verticalAlignment: Text.AlignVCenter
+                                        text: workspaceCard.modelData.name
                                         textFormat: Text.PlainText
                                         elide: Text.ElideRight
-                                        color: page.style.textMuted
+                                        color: workspaceCard.modelData.active ? page.style.accent : page.style.textPrimary
                                         font.family: page.style.fontFamily
-                                        font.pixelSize: page.style.fontSizeSmall
+                                        font.pixelSize: page.style.fontSizeBody
+                                        font.weight: Font.DemiBold
                                     }
-                                    GridLayout {
-                                        visible: page.choosingLayout && page.selectedWorkspaceAddress === workspaceCard.modelData.address
+                                    MouseArea {
+                                        objectName: "focus-workspace-" + workspaceCard.modelData.address
+                                        anchors.fill: parent
+                                        enabled: page.controls.available && !page.controls.busy
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: page.openWorkspace(workspaceCard.modelData.address)
+                                    }
+                                }
+                                ChoiceButton {
+                                    Layout.preferredWidth: Math.min(100, workspaceCard.width * 0.48)
+                                    Layout.preferredHeight: 28
+                                    style: page.style
+                                    objectName: "layout-workspace-" + workspaceCard.modelData.address
+                                    label: (workspaceCard.modelData.layout ?? "—") + "  ▾"
+                                    selected: page.choosingLayout && page.selectedWorkspaceAddress === workspaceCard.modelData.address
+                                    available: page.controls.available && !page.controls.busy && !!workspaceCard.modelData.exists
+                                    onTriggered: {
+                                        const wasOpen = page.choosingLayout && page.selectedWorkspaceAddress === workspaceCard.modelData.address;
+                                        page.selectedWorkspaceAddress = workspaceCard.modelData.address;
+                                        page.choosingLayout = !wasOpen;
+                                    }
+                                }
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: (workspaceCard.modelData.monitor ? workspaceCard.modelData.monitor + " · " : "")
+                                    + workspaceCard.windows.length + (workspaceCard.windows.length === 1 ? " window" : " windows")
+                                textFormat: Text.PlainText
+                                elide: Text.ElideRight
+                                color: page.style.textMuted
+                                font.family: page.style.fontFamily
+                                font.pixelSize: page.style.fontSizeSmall
+                            }
+                            GridLayout {
+                                visible: page.choosingLayout && page.selectedWorkspaceAddress === workspaceCard.modelData.address
+                                Layout.fillWidth: true
+                                columns: 2
+                                columnSpacing: page.style.spaceXs
+                                rowSpacing: page.style.spaceXs
+                                Repeater {
+                                    model: ["dwindle", "master", "scrolling", "monocle"]
+                                    ChoiceButton {
+                                        required property string modelData
                                         Layout.fillWidth: true
-                                        columns: 2
-                                        columnSpacing: page.style.spaceXs
-                                        rowSpacing: page.style.spaceXs
-                                        Repeater {
-                                            model: ["dwindle", "master", "scrolling", "monocle"]
-                                            ChoiceButton {
-                                                required property string modelData
-                                                Layout.fillWidth: true
-                                                Layout.preferredWidth: 1
-                                                style: page.style
-                                                label: modelData.charAt(0).toUpperCase() + modelData.slice(1)
-                                                selected: workspaceCard.modelData.layout === modelData
-                                                available: page.controls.available && !page.controls.busy
-                                                onTriggered: {
-                                                    if (page.controls.setLayout(workspaceCard.modelData.address, modelData)) page.choosingLayout = false;
-                                                }
-                                            }
+                                        Layout.preferredWidth: 1
+                                        style: page.style
+                                        label: modelData.charAt(0).toUpperCase() + modelData.slice(1)
+                                        selected: workspaceCard.modelData.layout === modelData
+                                        available: page.controls.available && !page.controls.busy
+                                        onTriggered: {
+                                            if (page.controls.setLayout(workspaceCard.modelData.address, modelData)) page.choosingLayout = false;
                                         }
                                     }
-                                    Repeater {
-                                        model: workspaceCard.windows
-                                        DesktopWindowCard {
-                                            required property var modelData
-                                            objectName: "window-" + modelData.address
-                                            Layout.fillWidth: true
-                                            style: page.style
-                                            windowData: modelData
-                                            controls: page.controls
-                                            searchModel: page.searchModel
-                                            expanded: page.expandedAddress === modelData.address
-                                            actionMode: expanded ? page.windowActionMode : ""
-                                            onExpandRequested: page.expandedAddress = expanded ? "" : modelData.address
-                                            onModeRequested: mode => {
-                                                if (page.expandedAddress === modelData.address) page.windowActionMode = mode;
-                                            }
-                                            onFocusRequested: address => page.focusWindow(address)
+                                }
+                            }
+                            Flow {
+                                id: windowFlow
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: implicitHeight
+                                spacing: 6
+                                Repeater {
+                                    model: StableRows { rows: workspaceCard.windows; keyField: "address" }
+                                    DesktopWindowCard {
+                                        required property var record
+                                        readonly property var modelData: record
+                                        objectName: "window-" + modelData.address
+                                        width: Math.min(windowFlow.width, expanded ? Math.max(300, naturalWidth) : naturalWidth)
+                                        property real naturalWidth: 150
+                                        Component.onCompleted: naturalWidth = Math.max(150,
+                                            windowTitleMetrics.advanceWidth(modelData.title || modelData.appId || "Untitled window") + 104)
+                                        height: implicitHeight
+                                        style: page.style
+                                        windowData: modelData
+                                        controls: page.controls
+                                        searchModel: page.searchModel
+                                        expanded: page.expandedAddress === modelData.address
+                                        actionMode: expanded ? page.windowActionMode : ""
+                                        onExpandRequested: page.expandedAddress = expanded ? "" : modelData.address
+                                        onModeRequested: mode => {
+                                            if (page.expandedAddress === modelData.address) page.windowActionMode = mode;
                                         }
+                                        onFocusRequested: address => page.focusWindow(address)
                                     }
-                                    Item {
-                                        visible: workspaceCard.windows.length === 0
-                                        Layout.fillWidth: true
-                                        implicitHeight: 32
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "Empty workspace"
-                                            color: page.style.textMuted
-                                            font.family: page.style.fontFamily
-                                            font.pixelSize: page.style.fontSizeSmall
-                                        }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            enabled: page.controls.available && !page.controls.busy
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: page.openWorkspace(workspaceCard.modelData.address)
-                                        }
-                                    }
+                                }
+                            }
+                            Item {
+                                visible: workspaceCard.windows.length === 0
+                                Layout.fillWidth: true
+                                implicitHeight: 32
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "Empty workspace"
+                                    color: page.style.textMuted
+                                    font.family: page.style.fontFamily
+                                    font.pixelSize: page.style.fontSizeSmall
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    enabled: page.controls.available && !page.controls.busy
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: page.openWorkspace(workspaceCard.modelData.address)
                                 }
                             }
                         }

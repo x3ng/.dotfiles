@@ -1,12 +1,14 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Layouts
 import ".."
 
 Rectangle {
     id: card
     required property Theme style
     property string label: ""
+    property string icon: "volume"
     property string value: ""
     property bool caution: false
     property bool showProgress: false
@@ -20,6 +22,7 @@ Rectangle {
     color: style.surface
     border.color: style.outline
     border.width: 1
+    Accessible.name: label + " " + value
 
     Column {
         id: body
@@ -29,51 +32,26 @@ Rectangle {
         anchors.leftMargin: card.style.spaceLg
         anchors.rightMargin: card.style.spaceLg
         anchors.topMargin: card.style.spaceMd
-        spacing: card.style.spaceXs
 
-        Text {
-            width: parent.width
-            text: card.label
-            textFormat: Text.PlainText
-            elide: Text.ElideRight
-            color: card.style.textSecondary
-            font.family: card.style.fontFamily
-            font.pixelSize: card.style.fontSizeBody
-        }
-
-        Text {
+        RowLayout {
             visible: !card.customContent
             width: parent.width
-            text: card.value
-            textFormat: Text.PlainText
-            elide: Text.ElideRight
-            color: card.caution ? card.style.accentWarm : card.style.textPrimary
-            font.family: card.style.fontFamily
-            font.pixelSize: card.style.fontSizeControl
-            font.weight: Font.DemiBold
-        }
-
-        Item {
-            id: customSlot
-            visible: card.customContent
-            width: parent.width
-            height: childrenRect.height
-        }
-
-        Item {
-            visible: card.showProgress
-            width: parent.width
-            height: card.style.spaceSm + 5
-
+            height: 26
+            spacing: 12
+            StatusIcon {
+                kind: card.icon
+                muted: card.caution
+                ink: card.caution ? card.style.accentWarm : card.style.textSecondary
+                Layout.preferredWidth: 20
+                Layout.preferredHeight: 20
+            }
             Rectangle {
                 id: track
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: 5
+                visible: card.showProgress
+                Layout.fillWidth: true
+                Layout.preferredHeight: 5
                 radius: 3
                 color: card.style.separator
-
                 Rectangle {
                     width: track.width * Math.max(0, Math.min(1, card.progress))
                     height: parent.height
@@ -84,6 +62,24 @@ Rectangle {
                     }
                 }
             }
+            Text {
+                Layout.fillWidth: !card.showProgress
+                Layout.preferredWidth: card.showProgress ? 48 : -1
+                text: card.value
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                horizontalAlignment: card.showProgress ? Text.AlignRight : Text.AlignLeft
+                color: card.caution ? card.style.accentWarm : card.style.textPrimary
+                font.family: card.style.fontFamily
+                font.pixelSize: card.style.fontSizeBody
+                font.weight: Font.Medium
+            }
+        }
+        Item {
+            id: customSlot
+            visible: card.customContent
+            width: parent.width
+            height: childrenRect.height
         }
     }
 }

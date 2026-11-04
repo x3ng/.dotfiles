@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Hyprland
 
 Scope {
     id: searchModel
@@ -10,72 +11,74 @@ Scope {
     property var actions: null
     // Terminal executable and its argument separator; argv stays an array.
     property list<string> terminalCommand: ["kitty", "--"]
+    // Optional scopes keep the default query global without requiring a mode switch.
+    // A bare scope shows its complete catalog; an empty global query shows home.
+    readonly property string scope: query.trim().startsWith(">") ? "ACTION"
+        : query.trim().startsWith("@") ? "WINDOW"
+        : (query.trim().startsWith("/") || /^apps:/i.test(query.trim())) ? "APP" : "ALL"
+    readonly property string searchText: {
+        const value = query.trim();
+        return (scope === "ACTION" || scope === "WINDOW" ? value.slice(1)
+            : scope === "APP" ? value.slice(value.startsWith("/") ? 1 : 5) : value).trim();
+    }
+    readonly property string scopeLabel: scope === "ACTION" ? "Commands"
+        : scope === "WINDOW" ? "Open windows" : scope === "APP" ? "Applications" : "Results"
+
+    function matchScore(text, needle) {
+        const value = String(text || "").toLocaleLowerCase();
+        if (!needle) return 0;
+        if (value === needle) return 0;
+        if (value.startsWith(needle)) return 10;
+        const terms = needle.split(/\s+/).filter(Boolean);
+        let total = 0;
+        for (const term of terms) {
+            const index = value.indexOf(term);
+            if (index < 0) return 1000;
+            total += index === 0 ? 10 : /[\s\-_./]/.test(value[index - 1]) ? 20 : 30;
+        }
+        return total / terms.length;
+    }
+
     readonly property var results: {
-        const q = query.trim().toLocaleLowerCase();
-        const terms = q ? q.split(/\s+/).filter(t => t) : [];
-        const matches = text => terms.every(t => text.toLocaleLowerCase().includes(t));
-        // Match tiers, best to worst: a prefix (0), a word start (1), any
-        // substring (2), no match (3). Word start means the match sits after a
-        // space, dot, dash or underscore ("files" in "gnome-files").
-        const PREFIX = 0, WORD = 1, SUBSTRING = 2, NONE = 3;
-        const oneScore = (t, needle) => {
-            const i = t.indexOf(needle);
-            if (i === 0) return PREFIX;
-            if (i > 0 && /[\s\-_./]/.test(t[i - 1])) return WORD;
-            return i > 0 ? SUBSTRING : NONE;
+        if (!query.trim()) return [];
+        const q = searchText.toLocaleLowerCase();
+        const terms = q ? q.split(/\s+/).filter(Boolean) : [];
+        const matches = text => terms.every(term => String(text).toLocaleLowerCase().includes(term));
+        const ranked = (name, metadata) => {
+            const title = matchScore(name, q);
+            // All query terms must match the title for it to receive title priority.
+            // Keywords remain searchable without outranking a direct name match.
+            return title < 1000 ? title : 100 + matchScore(metadata, q);
         };
-        const score = text => {
-            if (!q) return WORD;
-            const t = text.toLocaleLowerCase();
-            if (t.includes(q)) return oneScore(t, q);
-            // Multi-word query: rank by the best-matching word.
-            return Math.min(...terms.map(term => oneScore(t, term)));
-        };
-        const windows = ToplevelManager.toplevels.values.map((w, i) => ({
-            // This Wayland API has no persistent window ID. Its live QObject
-            // identity stays stable across title changes and model reordering.
-            key: w, kind: "WINDOW", title: w.title || w.appId, detail: w.appId,
-            entry: desktopEntryFor(w), target: w, order: i
-        })).filter(r => matches(r.title + " " + r.detail))
-            .map(r => {
-                // The title decides a window's rank. When only the app id
-                // matches it is demoted one tier, so it never outranks a name
-                // match but still outranks an unmatched window; the final
-                // sort then prefers windows on ties.
-                const titleScore = score(r.title);
-                const appIdScore = score(r.detail);
-                r.score = titleScore < NONE
-                    ? titleScore : Math.min(NONE, appIdScore + 1);
-                return r;
-            });
-        const apps = DesktopEntries.applications.values.filter(a => !a.noDisplay
-            && matches(a.name + " " + a.genericName + " " + a.comment + " " + a.id))
-            .map(a => {
-                // The name decides an app's rank; a hit in only the comment or
-                // desktop id is demoted one tier, so a descriptive match such
-                // as "browser" cannot outrank a real name match.
-                const nameScore = Math.min(score(a.name), score(a.genericName || a.name));
-                const metaScore = Math.min(score(a.comment || ""), score(a.id));
-                return { key: "app:" + a.id, kind: "APP", title: a.name,
-                    detail: a.genericName || a.comment || a.id,
-                    entry: a, target: a,
-                    score: Math.min(nameScore, Math.min(NONE, metaScore + 1)) };
-            })
-            .sort((a, b) => a.title.localeCompare(b.title))
-            .map((a, i) => { a.order = i; return a; });
-        const commands = (actions?.entries ?? []).map((action, order) => {
-            const keywords = Array.isArray(action.keywords)
-                ? action.keywords.join(" ") : action.keywords || "";
-            return {key: "action:" + action.id, kind: "ACTION", title: action.title, detail: keywords,
-                icon: action.icon || "app", enabled: action.enabled !== false,
-                target: action, order: order};
-        }).filter(r => matches(r.title + " " + r.detail)).map(r => {
-            const nameScore = score(r.title);
-            r.score = nameScore < NONE ? nameScore : Math.min(NONE, score(r.detail) + 1);
-            return r;
-        });
-        // Strongest match first; ties prefer an existing window, then an app,
-        // then a shell action. Preserve each source's deterministic ordering.
+        const windows = scope === "ALL" || scope === "WINDOW"
+            ? ToplevelManager.toplevels.values.map((window, order) => {
+                const entry = desktopEntryFor(window);
+                const nativeWindow = Hyprland.toplevels.values.find(w => w.wayland === window);
+                const workspace = nativeWindow?.workspace;
+                const location = workspace?.name || workspace?.address || "";
+                const appName = entry?.name || window.appId;
+                return {key: window, kind: "WINDOW", title: window.title || window.appId,
+                    detail: appName + (location ? " · Workspace " + String(location).replace(/^special:/, "") : ""), appId: window.appId, entry: entry, target: window, order: order};
+            }).filter(row => matches(row.title + " " + row.detail + " " + row.appId))
+                .map(row => { row.score = ranked(row.title, row.title + " " + row.detail + " " + row.appId); return row; }) : [];
+        const apps = scope === "ALL" || scope === "APP"
+            ? DesktopEntries.applications.values.filter(app => !app.noDisplay
+                && matches([app.name, app.genericName, app.comment, app.id].join(" ")))
+                .map(app => ({key: "app:" + app.id, kind: "APP", title: app.name,
+                    detail: app.genericName && app.genericName !== app.name ? app.genericName : app.comment || "Open application",
+                    entry: app, target: app,
+                    score: ranked(app.name, [app.name, app.genericName, app.comment, app.id].join(" "))}))
+                .sort((a, b) => a.title.localeCompare(b.title))
+                .map((app, order) => { app.order = order; return app; }) : [];
+        const commands = scope === "ALL" || scope === "ACTION"
+            ? (actions?.entries ?? []).map((action, order) => {
+                const keywords = Array.isArray(action.keywords) ? action.keywords.join(" ") : action.keywords || "";
+                return {key: "action:" + action.id, kind: "ACTION", title: action.title,
+                    detail: action.description || "Desktop command", keywords: keywords,
+                    icon: action.icon || "app", enabled: action.enabled !== false,
+                    target: action, order: order};
+            }).filter(row => matches(row.title + " " + row.keywords))
+                .map(row => { row.score = ranked(row.title, row.title + " " + row.keywords); return row; }) : [];
         const kindOrder = {WINDOW: 0, APP: 1, ACTION: 2};
         return windows.concat(apps, commands).sort((a, b) => a.score - b.score
             || kindOrder[a.kind] - kindOrder[b.kind] || a.order - b.order);

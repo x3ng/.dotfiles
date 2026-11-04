@@ -14,25 +14,28 @@ FILES=(
   apps.lua
   startup.lua
   hypridle.conf
-  hyprlock.conf
 )
 
-remove_legacy_settings() {
-  local target="$HOME/.config/hypr/settings.lua"
-  if [[ -L "$target" && "$(readlink "$target")" == "$SCRIPT_DIR/settings.lua" ]]; then
-    dot_unlink "$target"
-  fi
+# Retire only symlinks owned by this package; preserve user-created files.
+remove_legacy_links() {
+  local name target
+  for name in settings.lua hyprlock.conf hyprpaper.conf; do
+    target="$HOME/.config/hypr/$name"
+    if [[ -L "$target" && "$(readlink "$target")" == "$SCRIPT_DIR/$name" ]]; then
+      dot_unlink "$target"
+    fi
+  done
 }
 
 case "${1:-install}" in
   install)
-    remove_legacy_settings
+    remove_legacy_links
     for f in "${FILES[@]}"; do
       dot_link "$SCRIPT_DIR/$f" "$HOME/.config/hypr/$f"
     done
     ;;
   uninstall)
-    remove_legacy_settings
+    remove_legacy_links
     for f in "${FILES[@]}"; do
       target="$HOME/.config/hypr/$f"
       if [[ -L "$target" && "$(readlink "$target")" == "$SCRIPT_DIR/$f" ]]; then

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ ! -e /etc/pam.d/quickshell-lock ]]; then
+  echo "quickshell-lock PAM service is not installed" >&2
+  exit 1
+fi
+lock_config="$HOME/.config/quickshell/lock"
+request_lock() {
+  [[ "$(timeout 1s quickshell ipc --path "$lock_config" call locker lock 2>/dev/null)" == "locked" ]]
+}
+# Use the existing agent without waiting for a systemd transaction.
+if request_lock; then exit 0; fi
+# One owner and one startup path, including after a failed/stopped service.
+if ! timeout 5s systemctl --user start quickshell-lock.service; then
+  echo "Could not start the lock service" >&2
+  exit 1
+fi
+# Type=exec does not mean the QML IPC handler is ready yet.
+lock_deadline=$((SECONDS + 5))
+while (( SECONDS < lock_deadline )); do
+  if request_lock; then exit 0; fi
+  sleep 0.05
+done
+echo "Lock service did not accept the lock request" >&2
+exit 1

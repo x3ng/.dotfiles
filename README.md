@@ -21,7 +21,7 @@ tests/             # optional local-only checks (ignored, not versioned)
 ./deploy/deploy -f deploy/tui    # install CLI and terminal tools
 ./deploy/deploy -f deploy/gui    # install graphical tools
 ./deploy/deploy vim tmux         # install specific packages
-./deploy/deploy hypr quickshell waybar  # deploy optional desktop configs explicitly
+./deploy/deploy hypr quickshell  # deploy the current Hyprland desktop
 
 ./deploy/deploy --undo -f deploy/tui
 ./deploy/deploy --undo vim
@@ -54,7 +54,10 @@ orchestrator.
 
 Desktop-specific configurations remain versioned but are intentionally absent
 from the TUI and GUI profiles. Deploy them explicitly when that desktop is in
-use.
+use. The current Hyprland session uses `hypr/` for compositor configuration and
+`quickshell/` for the desktop, lock screen and Polkit agent. The greeter is copied
+separately by `quickshell/install.sh install-greeter`. Optional desktop packages
+such as Waybar are independent alternatives, not dependencies of this session.
 
 ## install.sh convention
 

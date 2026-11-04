@@ -67,6 +67,17 @@ PanelWindow {
         event.accepted = true;
     }
 
+    function openSearch(text) {
+        if (!open) {
+            const name = Hyprland.focusedMonitor?.name;
+            openOnScreen(Quickshell.screens.find(s => s.name === name) ?? Quickshell.screens[0]);
+        }
+        homeTab = "overview";
+        controlSection = "";
+        query = text;
+        Qt.callLater(() => { if (panel.open) search.forceActiveFocus(); });
+    }
+
     function toggle() {
         if (open) { dismiss(); return; }
         const name = Hyprland.focusedMonitor?.name;
@@ -236,14 +247,14 @@ PanelWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         // Keep the search field stationary as status/search content changes height.
-        anchors.topMargin: Math.max(16, Math.round((parent.height - panel.style.maximumPanelHeight) / 2))
-        width: Math.min(panel.style.maximumPanelWidth, parent.width - 32)
+        anchors.topMargin: Math.max(16, Math.round(parent.height * 0.18))
+        width: Math.min(680, parent.width - 32)
         readonly property real contentHeight: panel.showingDetails ? controlDetails.naturalHeight
             : panel.searching ? searchResultsPage.naturalHeight
             : panel.homeTab === "desktop" ? desktopPage.naturalHeight
             : overviewPage.naturalHeight
         readonly property real chromeHeight: panel.showingDetails || panel.showingWorkspace ? 0
-            : panel.style.stripHeight + footer.implicitHeight + panel.style.panelGap * 2
+            : searchStrip.implicitHeight + footer.implicitHeight + panel.style.panelGap * 2
         // Fit the active page; long content scrolls under the shared screen limit.
         readonly property real targetHeight: Math.max(0, Math.min(panel.style.maximumPanelHeight,
             parent.height - anchors.topMargin - 16,
@@ -262,9 +273,9 @@ PanelWindow {
             NumberAnimation { duration: panel.style.motionResize; easing.type: Easing.OutCubic }
         }
         clip: true
-        radius: panel.style.radiusPanel
+        radius: 20
         color: panel.style.panelSurface
-        border.color: panel.style.outline
+        border.color: panel.style.separator
         border.width: 1
         // Stop clicks in blank areas reaching the outside-dismiss handler.
         MouseArea { anchors.fill: parent }
@@ -284,31 +295,27 @@ PanelWindow {
                 id: searchStrip
                 visible: !panel.showingDetails && !panel.showingWorkspace
                 Layout.fillWidth: true
-                Layout.preferredHeight: panel.style.stripHeight
-                Layout.minimumHeight: panel.style.stripHeight
-                Layout.maximumHeight: panel.style.stripHeight
+                implicitHeight: 44
+                Layout.preferredHeight: implicitHeight
+                Layout.minimumHeight: implicitHeight
+                Layout.maximumHeight: implicitHeight
                 radius: panel.style.radiusInput
-                color: panel.style.surfaceRaised
-                border.color: search.activeFocus ? panel.style.accent : panel.style.separator
-                border.width: 1
-                StatusIcon {
-                    anchors.left: parent.left
-                    anchors.leftMargin: panel.style.spaceLg
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 18; height: 18
-                    kind: "search"
-                    ink: search.activeFocus ? panel.style.accent : panel.style.textMuted
+                color: "transparent"
+                Rectangle {
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                    height: 1
+                    color: panel.style.separator
                 }
                 EmacsInput {
                     id: search
                     anchors.fill: parent
-                    anchors.leftMargin: panel.style.spaceLg + 18 + panel.style.spaceMd
-                    anchors.rightMargin: keyboardButton.width + panel.style.spaceSm * 2
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 4
                     anchors.topMargin: panel.style.spaceSm
                     anchors.bottomMargin: panel.style.spaceSm
                     verticalAlignment: TextInput.AlignVCenter
                     font.family: panel.style.fontFamily
-                    font.pixelSize: panel.style.fontSizeControl
+                    font.pixelSize: 18
                     color: panel.style.textPrimary
                     selectionColor: panel.style.surfaceSelected
                     selectedTextColor: panel.style.textSelected
@@ -321,40 +328,57 @@ PanelWindow {
                     Keys.onReturnPressed: event => panel.activate(panel.selectedIndex, !!(event.modifiers & Qt.ShiftModifier))
                     Keys.onEnterPressed: event => panel.activate(panel.selectedIndex, !!(event.modifiers & Qt.ShiftModifier))
                     Keys.onEscapePressed: panel.handleEscape()
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: !search.text
-                        text: "Search apps, windows and actions…"
-                        color: panel.style.textMuted
-                        font: search.font
+                    Accessible.name: "Search apps, windows and commands"
+                    cursorDelegate: Rectangle {
+                        implicitWidth: 1
+                        color: panel.style.textPrimary
+                        visible: search.text.length > 0 || search.preeditText.length > 0
                     }
+
                 }
-                ChoiceButton {
-                    id: keyboardButton
-                    anchors.right: parent.right
-                    anchors.rightMargin: panel.style.spaceXs
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 36
-                    height: 32
-                    style: panel.style
-                    label: ""
-                    iconKind: "keyboard"
-                    iconSize: 20
-                    selected: panel.keyboard.shown
-                    available: panel.keyboard.available && !panel.keyboard.pending
-                    ShellToolTip {
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 4
+                    spacing: 12
+                    visible: search.text.length === 0 && search.preeditText.length === 0
+                    SearchStatus {
                         style: panel.style
-                        visible: keyboardHover.hovered
-                        text: panel.keyboard.error || (!panel.keyboard.available
-                            ? "Screen keyboard unavailable" : panel.keyboard.shown
-                                ? "Hide screen keyboard" : "Show screen keyboard")
+                        services: panel.services
+                        date: clock.date
+                        expanded: searchStrip.width >= 600
                     }
-                    HoverHandler { id: keyboardHover }
-                    onTriggered: {
-                        search.forceActiveFocus();
-                        panel.actions.execute("keyboard");
+                    Item { Layout.fillWidth: true; Layout.minimumWidth: 0 }
+                    RowLayout {
+                        spacing: 6
+                        Repeater {
+                            model: [
+                                {prefix: "@", label: "Windows"},
+                                {prefix: ">", label: "Commands"},
+                                {prefix: "/", label: "Applications"}
+                            ]
+                            ChoiceButton {
+                                required property var modelData
+                                Layout.preferredHeight: 28
+                                Layout.preferredWidth: hintText.implicitWidth + 14
+                                style: panel.style
+                                label: ""
+                                tooltip: "Search " + modelData.label.toLowerCase() + " · Type " + modelData.prefix + " to filter"
+                                Accessible.name: "Search " + modelData.label.toLowerCase()
+                                onTriggered: panel.openSearch(modelData.prefix + " ")
+                                Text {
+                                    id: hintText
+                                    anchors.centerIn: parent
+                                    text: modelData.prefix + (searchStrip.width >= 600 ? " " + modelData.label : "")
+                                    color: panel.style.textSecondary
+                                    font.family: panel.style.fontFamily
+                                    font.pixelSize: 12
+                                }
+                            }
+                        }
                     }
                 }
+
             }
 
             StackLayout {
@@ -378,6 +402,7 @@ PanelWindow {
                 currentIndex: panel.activePage
                 OverviewPage {
                     id: overviewPage
+                    date: clock.date
                     style: panel.style
                     services: panel.services
                     actions: panel.actions
@@ -437,13 +462,16 @@ PanelWindow {
                 style: panel.style
                 services: panel.services
                 appearance: panel.appearance
-                summaryOnly: panel.homeTab === "overview"
+                searchMode: panel.searching
+                summaryOnly: true
                 centerActions: panel.homeTab === "overview"
                 notificationCount: panel.notifs.current.length
                 notificationHistoryCount: panel.notifs.history.length
                 lockAvailable: panel.actions.available("lock")
                 onNotificationsRequested: panel.showDetails("notifications")
                 onLockRequested: panel.actions.execute("lock")
+                onAppearanceRequested: panel.actions.execute(panel.appearance.darkMode ? "light" : "dark")
+                onKeepAwakeRequested: panel.actions.execute("keep-awake")
                 trayItems: panel.trayItems
                 date: clock.date
                 onMenuRequested: (owner, right, top) => {

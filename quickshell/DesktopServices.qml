@@ -13,7 +13,11 @@ Scope {
     readonly property var battery: UPower.displayDevice
     readonly property var players: Mpris.players.values
     readonly property var player: players.find(p => p.isPlaying) ?? players[0] ?? null
-    readonly property bool keepAwake: idleInhibitor.running
+    // Persisted user intent gates idle before the transient inhibitor starts.
+    readonly property bool keepAwake: keepAwakeRequested
+    readonly property bool keepAwakeInhibitorActive: idleInhibitor.running
+    property bool keepAwakeRequested: false
+    property bool keepAwakeReady: false
     readonly property var source: Pipewire.defaultAudioSource
     property list<string> terminalCommand: ["kitty", "--"]
     signal feedback(string key, string summary, string body, bool critical)
@@ -52,24 +56,56 @@ Scope {
         }
         stderr: StdioCollector { onStreamFinished: idleInhibitor.failure = text.trim() }
         onExited: (code, status) => {
+            // Rapid off/on can arrive while the old cat is closing its stdin.
+            if (root.keepAwakeRequested && code === 0 && status === 0)
+                Qt.callLater(root.reconcileIdleInhibitor);
             if (!startFailed && (code !== 0 || status !== 0))
                 root.feedback("keep-awake", "Could not keep the desktop awake",
                     failure || "The idle inhibitor stopped unexpectedly.", false);
         }
     }
 
-    function toggleKeepAwake() {
-        if (idleInhibitor.running) {
+    FileView {
+        id: keepAwakeFile
+        path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state")
+            + "/quickshell/keep-awake"
+        blockLoading: true
+        blockWrites: true
+        atomicWrites: true
+        printErrors: false
+        onSaveFailed: root.feedback("keep-awake-save", "Could not save Keep awake",
+            "The current choice is active, but could not be saved for the next shell start.", false)
+    }
+
+    Component.onCompleted: {
+        keepAwakeRequested = keepAwakeFile.text().trim() === "true";
+        keepAwakeReady = true;
+        reconcileIdleInhibitor();
+    }
+
+    function reconcileIdleInhibitor() {
+        if (!keepAwakeReady) return;
+        if (!keepAwakeRequested) {
             idleInhibitor.stdinEnabled = false;
-        } else {
+        } else if (!idleInhibitor.running) {
             idleInhibitor.stdinEnabled = true;
             idleInhibitor.failure = "";
             idleInhibitor.startFailed = false;
             idleInhibitor.awaitingStart = true;
             idleInhibitor.running = true;
         }
+    }
+
+    function setKeepAwake(value) {
+        if (!keepAwakeReady) return false;
+        keepAwakeRequested = value;
+        // Tiny local state; complete the atomic write before allowing a reload.
+        keepAwakeFile.setText(value ? "true\n" : "false\n");
+        reconcileIdleInhibitor();
         return true;
     }
+
+    function toggleKeepAwake() { return setKeepAwake(!keepAwakeRequested); }
 
     function openNetworkEditor() {
         if (!terminalCommand.length) return false;

@@ -1,33 +1,87 @@
 # Quickshell desktop panel
 
+## Login and lock screen
+
+The desktop, lock screen, and greeter share `Theme.qml` and `LoginView.qml`.
+They are separate Quickshell processes: the desktop runs as the user, the locker
+runs in the user's existing Wayland session, and greetd starts the greeter as
+`greeter` in a private Cage session. The greeter lists the installed Wayland
+sessions and prefers Hyprland UWSM on this host.
+The locker uses a dark frosted surface over the shared blurred wallpaper; the
+greeter uses a system-deployed dark theme and never reads the user's state.
+
+Preview the common login view in a normal window, without authentication or
+locking the session:
+
+```bash
+./quickshell/preview.sh greeter
+./quickshell/preview.sh lock
+```
+
+`QS_PREVIEW_LIGHT=1 ./quickshell/preview.sh greeter` checks the greeter light palette.
+The preview exercises only the visual layer; the greetd and PAM paths need one
+real login and lock test after deployment.
+
+`IdlePolicy.qml` owns the desktop's 150-second dim, 300-second lock, and
+600-second display-off timers. The command panel's Keep awake control suspends
+those timers. Hypridle has no idle listeners; it remains for sleep and external
+session-lock requests, which need logind's lock handshake.
+
+Deploy the greeter QML explicitly from the dotfiles root with
+`./quickshell/install.sh install-greeter`. This copies only the four public QML
+files it needs to `/etc/xdg/quickshell/greeter`; it does not expose the user's
+home directory to the greeter. `./quickshell/install.sh install` links the user
+locker and `qs-lock` command. Install the greeter files before the NixOS switch;
+install the user locker after the switch creates `/etc/pam.d/quickshell-lock`.
+The NixOS greeter command is declared in `nix-config/software/hyprland.nix`.
+It starts Cage and Quickshell directly. Install the QML files before activating
+the NixOS change; use another TTY to recover if the greeter cannot start.
+
+To activate the NixOS change without restarting the active greetd service,
+run `nh os boot path:.` in `nix-config` after installing the greeter files,
+then reboot. A normal `nh os switch path:.` also works but can interrupt the
+current graphical session when greetd changes.
+
+Because a conforming compositor stays locked if the locker crashes, test the
+new locker from a session where another TTY is available. Before the PAM service
+is installed, `qs-lock` exits without locking the session.
+
 A barless desktop panel for Hyprland. `Super+Q` toggles it; each opening starts
 on Status. The upper screen corners also open it after a dwell, configured in
 `components/PanelHotCorners.qml`.
 
 ## Status and navigation
 
-Status is the only control overview. It contains workspace/app summaries,
-Wi-Fi and Bluetooth controls, volume and brightness sliders, microphone mute,
-appearance, keep-awake, power profiles and playback controls when a player exists.
+Status is the compact default view: Wi-Fi and Bluetooth connection summaries,
+volume and brightness, a workspace strip, recent notification preview, and playback
+controls when a player exists. Search receives focus immediately on opening.
 
-- Workspace chips switch workspace. The window icon opens the workspace manager.
-- Radio icons toggle Wi-Fi/Bluetooth; the tile text opens device details.
-- The headphones button opens output/input device selection.
-- The footer shows time/date, battery and appearance state, notification count,
-  lock and tray. Tray items scroll horizontally when they exceed the available width.
-- The bell opens the notification center. Notifications are not expanded in Status,
-  and clearing is available only in the center beside its visible list.
+- Connection entries open device details; radio toggles remain in those pages and search.
+- The workspace strip shows numbers and up to three application icons per workspace;
+  extra windows appear as a count. Click a workspace to switch; the adjacent window
+  button opens management. The strip scrolls horizontally when needed.
+- Workspaces stack vertically in one column. Inside each workspace, window cards
+  flow horizontally at content-based widths, capped to the row width, and wrap naturally. Window search results include their workspace location.
+- The headphones button opens audio device selection; the speaker toggles mute.
+- Empty input shows time, date and battery beside clickable scope hints. Typing
+  or composing text replaces the status with the query; clearing restores it.
+  The latest pending notification has its own compact row opening the center.
+- The footer groups icon-only appearance, keep-awake, lock and tray controls.
+- Power profiles, microphone mute, wallpaper and screen keyboard remain searchable commands.
 - Detail pages share a back/title header. Back or Esc returns to Status; Esc on
   Status closes the panel. Clicking outside, `Super+Q` or `Ctrl+G` also closes it.
 
-The panel has a maximum width of 600px and fits narrower screens. Height follows
-the displayed content up to 700px or the available screen space; overflow scrolls.
-Width does not change between pages. These values are in `Theme.qml`.
+The panel has a maximum width of 680px and fits screen width minus 32px. Its top
+edge stays at about 18% of the available height. Height follows the content up to
+700px or available space; overflow scrolls. Panel geometry is in
+`components/LauncherPanel.qml`; shared colors and typography remain in `Theme.qml`.
 
 ## Search and keyboard
 
 Typing in Status searches applications, open windows and shell actions. Ranking
-uses prefix, word-start and substring matches. Search and visible controls share
+prioritizes exact names, prefixes, words and substrings over metadata; all query terms must match.
+Use `>` for commands, `@` for windows and `/` for applications (`apps:` is also accepted). A bare prefix
+lists its catalog. Search covers these three sources, not files or arbitrary shell commands. Search and visible controls share
 `ShellActions.qml`; disabled actions cannot execute.
 
 | Input | Action |
@@ -81,8 +135,8 @@ Bluetooth detail page cancels an in-progress pairing agent.
 
 Audio details select output/input devices. Media controls show artwork/title and
 previous/play-pause/next; there is no player selector or seek control. Keep-awake
-inhibits automatic idle locking and screen power-off until disabled or the shell
-exits; manual locking remains available.
+inhibits automatic dimming, locking and screen power-off until disabled. The
+choice persists across reloads and login; manual locking remains available.
 
 ## Notifications
 
@@ -153,8 +207,9 @@ quickshell log --tail 50
 ## Portability and dependencies
 
 This is a reusable **Hyprland/Linux** shell configuration, not a compositor-
-independent desktop shell. No username, monitor connector or literal Nix store
-path is embedded in QML. State uses XDG directories; layout sizes, palettes and
+independent desktop shell. The greeter currently pre-fills the personal username
+in `greeter/shell.qml`; change it when reusing the configuration. No monitor
+connector or literal Nix store path is embedded in QML. State uses XDG directories; layout sizes, palettes and
 limits are personal defaults that can be adjusted in QML.
 
 - Require Quickshell 0.3.2 APIs and their Qt modules, Hyprland 0.57 with the Lua
@@ -235,3 +290,71 @@ gdbus call --session --dest org.freedesktop.portal.Desktop \
   --method org.freedesktop.portal.Settings.ReadOne \
   org.freedesktop.appearance color-scheme
 ```
+
+## Wallpaper
+
+Quickshell draws a static background layer for each connected display. The
+command panel's **Choose wallpaper** search action opens the image picker. Choose all
+displays or one output, select Fill/Fit/Stretch, then Apply. Applying to all
+displays clears saved output overrides. Disconnecting a display preserves its
+choice for reconnection.
+
+`wallpaper.json` contains defaults; the initial image is `~/Pictures/mystic_forest.png`. User selections are atomically saved
+to `$XDG_STATE_HOME/quickshell/wallpaper.json` (normally
+`~/.local/state/quickshell/wallpaper.json`). Desktop and locker watch the same
+state. Missing images use a solid background. Lock screens use the matching
+output's image with a dark overlay; greeter deployment is independent.
+
+Hyprpaper is no longer started by the Hyprland configuration. Quickshell's
+background windows follow display hotplug and request no keyboard focus or
+exclusive area. Images decode asynchronously at display-sized resolution.
+
+### Lock screen standby
+
+`quickshell.service` wants the independent `quickshell-lock.service`. It preloads
+wallpapers asynchronously and waits for `qs-lock` to call the lock-only IPC
+method; successful PAM authentication clears credentials and returns to standby.
+No unlock IPC is exposed. `qs-lock` starts the systemd service if needed and
+waits a bounded time for its IPC handler; it never spawns an unmanaged locker.
+Native-size decoded images stay in the lock process cache.
+The lock wallpaper uses Qt Quick MultiEffect blur, a dark tint, and a translucent
+card; the desktop and greeter retain their own appearance settings.
+
+QML hot reload is disabled in the locker so a reload cannot reset lock state.
+After editing lock QML, unlock first, then run
+`systemctl --user restart quickshell-lock.service`. For safe visual iteration,
+use `./quickshell/preview.sh lock`. Do not restart the service while locked.
+
+### Polkit authentication
+
+An independent `quickshell-polkit.service` provides the user-session Polkit
+authentication dialog, using `Quickshell.Services.Polkit`. The system Polkit
+authority continues to enforce policy; the agent does not run as root or alter
+authorization rules. `quickshell.service` starts it as a dependency. Its unit
+conflicts with `hyprpolkitagent.service` so only one agent registers.
+
+The dialog supports identity selection, hidden/visible prompts, retries,
+cancellation (Cancel or Escape), and clears the input after each response.
+Queued requests and requester cancellation are handled by Quickshell's Polkit
+module. It appears on the focused monitor. No credentials are sent over IPC.
+
+Preview without registering another agent:
+`quickshell --path ~/.config/quickshell/polkit/preview.qml`.
+Preview responses deliberately show a retry; Cancel closes the preview.
+Inspect registration with
+`quickshell ipc --path ~/.config/quickshell/polkit call polkit status`.
+QML hot reload is disabled; restart `quickshell-polkit.service` after edits
+when no authorization request is active.
+
+Service lifecycle checks: the installer preflights lock and authentication state
+before uninstalling any component. Unknown or active state blocks uninstall.
+Idle policy restores brightness and output power when the desktop shell reloads
+or exits normally. A process crash cannot run this cleanup.
+
+Keep awake is persisted in `$XDG_STATE_HOME/quickshell/keep-awake` (normally
+`~/.local/state/quickshell/keep-awake`). Both on and off survive reload, service
+restart and login. Idle monitors remain disabled until the saved choice has
+loaded; the choice is independent of the transient systemd-inhibit process.
+The setting pauses automatic idle behavior, not explicit suspend or lid policy.
+`quickshell ipc --path ~/.config/quickshell call idle status` reports the saved
+intent and the running inhibitor separately.

@@ -1,5 +1,14 @@
 # Quickshell structure
 
+The login UI lives in `LoginView.qml` and uses the existing `Theme.qml`.
+`greeter/shell.qml` owns the greetd conversation and selected session launch;
+`SessionCatalog.qml` reads Wayland session desktop entries for the greeter and
+preview;
+`lock/shell.qml` owns the Wayland session lock and PAM conversation. Neither
+loads desktop services. `preview.qml` renders the shared view in a normal
+window without authentication. The system greeter receives a copy of only
+these public QML files via `install.sh install-greeter`.
+
 ## Ownership
 
 | Module | Owns | Does not own |
@@ -11,6 +20,11 @@
 | `components/OverviewPage.qml` | Compact global status and existing action/adapter invocation | Service state or routing |
 | `components/SearchResultsPage.qml` | Result rendering and scrolling; activation signal | Search ranking, selection ownership or dispatch |
 | `DesktopServices.qml` | Audio, brightness, idle inhibition, media/battery adapters, network editor launch | Page navigation |
+| `WallpaperState.qml` | Defaults, per-output wallpaper choices, atomic state persistence | Windows and controls |
+| `WallpaperWindows.qml` / `WallpaperPicker.qml` | Background surfaces / image selection | Greeter deployment |
+| `lock/shell.qml` | Standby image cache, Wayland session lock, PAM | Desktop service lifetime |
+| `polkit/shell.qml` / `polkit/AuthView.qml` | Polkit agent registration and authentication dialog | Authorization policy or privileged operations |
+| `IdlePolicy.qml` | Wayland idle timeouts, dim/restore, lock request, and display power | Sleep handoff to logind |
 | `SystemControls.qml` | Network/Bluetooth/power actions, pairing lifecycle and connection feedback | Search/UI state |
 | `components/ConnectivityPane.qml` | Device selection, credential fields and confirmation UI | Commands or copied device state |
 | `components/bluetooth_pair.py` | On-demand BlueZ agent bridge; bounded JSON protocol | Device lists, persistent state or status polling |
@@ -70,7 +84,7 @@ page routing. Search and visible buttons use that same action path.
 | --- | --- | --- | --- |
 | Status | Super+Q, return, status search action | Workspace summary, radio/audio/display/session controls, media | None for unseen notifications |
 | Search | Query in Status | Apps, windows, shared commands | Only explicit command results |
-| Workspaces | Window icon or search | Workspace/window management | Close requires an inline confirmation |
+| Workspaces | Workspace summary or search | Workspace/window management | Close requires an inline confirmation |
 | Wi-Fi / Bluetooth / audio | Relevant control or search | Devices and connection/device actions | Forget is confirmed next to the selected device |
 | Notifications | Bell/count or search | Pending list, history, per-entry actions | Clear belongs above the list it affects |
 
@@ -159,7 +173,11 @@ succeeds, and model refreshes must not discard that pending completion.
 ## Deployment
 
 `install.sh` links each root QML module explicitly and links `components/` as a
-directory. `quickshell.service` owns the runtime process. The BlueZ pairing helper
+directory. `quickshell.service` owns the desktop process and wants the separate
+`quickshell-lock.service` and `quickshell-polkit.service`. The installer links
+`lock/` and `polkit/` as directories. Both share `Theme.qml` by relative symlink;
+locked/authentication processes do not load the desktop services. Their QML
+hot reload is disabled; restart only while no lock/authentication is active. The BlueZ pairing helper
 is part of runtime and lives in `components/`. Local regression helpers under
 ignored `tests/` are neither deployed nor loaded by the shell.
 

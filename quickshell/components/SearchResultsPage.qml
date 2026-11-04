@@ -17,21 +17,44 @@ ColumnLayout {
 
     function showSelection(index) { resultList.positionViewAtIndex(index, ListView.Contain); }
     function resetScroll() { resultList.positionViewAtBeginning(); }
+    function kindLabel(kind) {
+        return kind === "WINDOW" ? "Window" : kind === "APP" ? "Application" : "Command";
+    }
 
     readonly property real naturalHeight: resultHeading.implicitHeight + spacing
-        + Math.max(80, page.results.length * 40
-            + Math.max(0, page.results.length - 1) * resultList.spacing)
+        + (page.results.length ? page.results.length * 58
+            + Math.max(0, page.results.length - 1) * resultList.spacing : 110)
     Layout.minimumHeight: 0
     Layout.fillWidth: true
     Layout.fillHeight: true
-    spacing: page.style.spaceSm
-    Text {
+    spacing: 10
+
+    RowLayout {
         id: resultHeading
-        text: "RESULTS · " + page.results.length
-        color: page.style.textMuted
-        font.family: page.style.fontFamily
-        font.pixelSize: page.style.fontSizeCaption
-        font.letterSpacing: page.style.sectionLetterSpacing
+        spacing: 16
+        Layout.fillWidth: true
+        Layout.leftMargin: 10
+        Layout.rightMargin: 10
+        Text {
+            text: page.searchModel.scopeLabel || "Results"
+            color: page.style.textMuted
+            font.family: page.style.fontFamily
+            font.pixelSize: page.style.fontSizeCaption
+        }
+        Item { Layout.fillWidth: true }
+        Text {
+            visible: page.width >= 520 && page.searchModel.scope === "ALL"
+            text: "> Commands    @ Windows    / Applications"
+            color: page.style.textMuted
+            font.family: page.style.fontFamily
+            font.pixelSize: page.style.fontSizeCaption
+        }
+        Text {
+            text: page.results.length === 1 ? "1 result" : page.results.length + " results"
+            color: page.style.textMuted
+            font.family: page.style.fontFamily
+            font.pixelSize: page.style.fontSizeCaption
+        }
     }
     ListView {
         id: resultList
@@ -39,65 +62,77 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
         clip: true
-        model: page.active ? page.results : []
-        spacing: 2
+        model: StableRows { rows: page.active ? page.results : [] }
+        spacing: 3
         delegate: Rectangle {
             id: resultRow
-            required property var modelData
+            required property var record
+            readonly property var modelData: record
             required property int index
             width: resultList.width
-            height: 40
+            height: 58
             opacity: modelData.enabled === false ? 0.45 : 1
             radius: page.style.radiusControl
             color: index === page.selectedIndex ? page.style.surfaceSelected
                 : rowMouse.containsMouse ? page.style.surfaceHover : "transparent"
             RowLayout {
                 anchors.fill: parent
-                anchors.margins: page.style.spaceSm
-                spacing: 10
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                spacing: 12
                 Item {
-                    Layout.preferredWidth: 24
-                    Layout.preferredHeight: 24
+                    Layout.preferredWidth: 30
+                    Layout.preferredHeight: 30
                     IconImage {
                         id: resultIcon
                         anchors.fill: parent
-                        implicitSize: 24
+                        implicitSize: 30
                         source: page.searchModel.desktopIconSource(resultRow.modelData.entry)
-                        visible: source !== "" && status !== Image.Error
+                        visible: status === Image.Ready
                     }
                     StatusIcon {
                         anchors.centerIn: parent
                         visible: !resultIcon.visible
                         kind: resultRow.modelData.kind === "ACTION" ? resultRow.modelData.icon
                             : resultRow.modelData.kind === "WINDOW" ? "window" : "app"
-                        width: 20
-                        height: 20
+                        width: 22
+                        height: 22
                         ink: page.style.textSecondary
                     }
                 }
-                Text {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    text: resultRow.modelData.title
-                    textFormat: Text.PlainText
-                    color: resultRow.index === page.selectedIndex
-                        ? page.style.textSelected : page.style.textPrimary
-                    elide: Text.ElideRight
-                    font.family: page.style.fontFamily
-                    font.pixelSize: page.style.fontSizeBody
+                    spacing: 3
+                    Text {
+                        Layout.fillWidth: true
+                        text: resultRow.modelData.title
+                        textFormat: Text.PlainText
+                        color: resultRow.index === page.selectedIndex
+                            ? page.style.textSelected : page.style.textPrimary
+                        elide: Text.ElideRight
+                        font.family: page.style.fontFamily
+                        font.pixelSize: page.style.fontSizeBody
+                        font.weight: Font.Medium
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: resultRow.modelData.enabled === false ? "Currently unavailable"
+                            : resultRow.modelData.detail || page.kindLabel(resultRow.modelData.kind)
+                        textFormat: Text.PlainText
+                        color: page.style.textMuted
+                        elide: Text.ElideRight
+                        font.family: page.style.fontFamily
+                        font.pixelSize: page.style.fontSizeCaption
+                    }
                 }
                 Text {
-                    text: resultRow.modelData.kind
-                    color: page.style.textMuted
+                    text: resultRow.index === page.selectedIndex && resultRow.modelData.enabled !== false
+                        ? "↵" : page.kindLabel(resultRow.modelData.kind)
+                    color: resultRow.index === page.selectedIndex ? page.style.textSecondary : page.style.textMuted
                     font.family: page.style.fontFamily
-                    font.pixelSize: page.style.fontSizeMicro
-                }
-                Text {
-                    visible: resultRow.index < 10
-                    text: "Ctrl+" + (resultRow.index === 9 ? "0" : String(resultRow.index + 1))
-                    color: resultRow.index === page.selectedIndex
-                        ? page.style.textSelected : page.style.textMuted
-                    font.family: page.style.fontFamily
-                    font.pixelSize: page.style.fontSizeCaption
+                    font.pixelSize: resultRow.index === page.selectedIndex ? 18 : page.style.fontSizeCaption
+                    Layout.preferredWidth: 70
+                    horizontalAlignment: Text.AlignRight
                 }
             }
             MouseArea {
@@ -108,12 +143,30 @@ ColumnLayout {
                 onClicked: page.activateRequested(resultRow.index)
             }
         }
-        Text {
+        Column {
             anchors.centerIn: parent
+            width: parent.width - 24
             visible: !page.results.length
-            text: "No matching apps, windows or actions"
-            color: page.style.textMuted
-            font.pixelSize: page.style.fontSizeBody
+            spacing: 8
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: page.searchModel.scope === "ALL" ? "No results" : "No matching " + page.searchModel.scopeLabel.toLowerCase()
+                color: page.style.textPrimary
+                font.family: page.style.fontFamily
+                font.pixelSize: page.style.fontSizeBody
+            }
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: page.searchModel.scope === "ALL"
+                    ? "Try an app name, window title or command. Use >, @ or / to narrow the search."
+                    : "Try a different name, or remove the prefix to search everything."
+                wrapMode: Text.Wrap
+                color: page.style.textMuted
+                font.family: page.style.fontFamily
+                font.pixelSize: page.style.fontSizeCaption
+            }
         }
     }
 }

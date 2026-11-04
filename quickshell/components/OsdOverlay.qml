@@ -40,7 +40,7 @@ Scope {
     readonly property var sourceAudio: source?.ready ? source.audio : null
     readonly property string outputKey: sink?.ready ? (sink.name || String(sink.id)) : ""
     readonly property string feedbackTitle: kind === "microphone" ? "MICROPHONE" : "AUDIO OUTPUT"
-    readonly property string feedbackValue: kind === "microphone" ? (microphoneMuted ? "MUTED" : "UNMUTED") : outputLabel
+    readonly property string feedbackValue: kind === "microphone" ? (microphoneMuted ? "Muted" : "Unmuted") : outputLabel
     readonly property real level: kind === "brightness"
         ? shell.brightness : (sinkAudio?.volume ?? 0)
     readonly property bool muted: kind === "volume" && (sinkAudio?.muted ?? false)
@@ -236,12 +236,14 @@ Scope {
                             ? Math.min(titleMetrics.advanceWidth(osd.movedWindowTitle), 360) : 0)
                         + 2 * osd.style.spaceLg : 320
                     style: osd.style
+                    icon: osd.kind === "microphone" ? "mic" : osd.kind === "output" ? "headphones"
+                        : osd.kind === "brightness" ? "brightness" : "volume"
                     label: osd.kind === "window-move" ? "MOVED TO " + osd.moveWorkspaceLabel
                         : osd.kind === "workspace" ? "WORKSPACES"
                         : osd.kind === "volume" ? "VOLUME"
                         : osd.kind === "brightness" ? "BRIGHTNESS" : osd.feedbackTitle
                     value: showProgress
-                        ? (osd.muted ? "MUTED · " : "") + Math.round(Math.max(0, osd.level) * 100) + "%"
+                        ? Math.round(Math.max(0, osd.level) * 100) + "%"
                         : osd.feedbackValue
                     caution: osd.muted || (osd.kind === "microphone" && osd.microphoneMuted)
                     showProgress: osd.kind === "volume" || osd.kind === "brightness"
@@ -267,7 +269,7 @@ Scope {
                         Text {
                             visible: osd.kind === "window-move"
                             width: parent.width
-                            text: osd.movedWindowTitle
+                            text: osd.movedWindowTitle + " → " + osd.moveWorkspaceLabel
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
                             color: osd.style.textPrimary
