@@ -33,6 +33,10 @@ dot_link() {
     local src="$1" dst="$2"
 
     if [[ -L "$dst" ]]; then
+        if [[ "$(readlink "$dst")" == /nix/store/* ]]; then
+            log_err "Nix owns $dst; update Home Manager or remove its declaration first"
+            return 1
+        fi
         if [[ "$(readlink "$dst")" = "$src" ]]; then
             log_info "skip (correct link): $dst"
             return 0
@@ -68,6 +72,10 @@ dot_unlink() {
         return 0
     fi
 
+    if [[ "$(readlink "$dst")" == /nix/store/* ]]; then
+        log_err "Nix owns $dst; remove its Home Manager declaration first"
+        return 1
+    fi
     if is_dry_run; then
         log_info "DRY: rm $dst"
         _restore_latest_backup "$dst"

@@ -119,7 +119,7 @@ ShellRoot {
             busy: root.busy
             showPowerActions: true
             onSelectSession: id => catalog.choose(id)
-            onPowerRequested: action => Quickshell.execDetached(["/run/current-system/sw/bin/systemctl", action])
+            onPowerRequested: action => Quickshell.execDetached(["systemctl", action])
             onSubmit: (userName, secret) => root.submit(userName, secret)
         }
 

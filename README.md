@@ -91,3 +91,10 @@ Local helpers may be kept under `tests/`, which is intentionally ignored and
 absent from Git history. They are not deployed or started by the desktop.
 Runtime module ownership is documented in
 [quickshell/ARCHITECTURE.md](quickshell/ARCHITECTURE.md).
+
+## Nix users
+
+An optional [flake adapter](nix/README.md) exports packages and NixOS/Home Manager
+modules. Native configs and portable install scripts remain the source of truth.
+Select store deployment for reproducibility or development links for local UI
+iteration. Do not let Home Manager and `deploy/` own the same target paths.

@@ -1,4 +1,6 @@
 import QtQuick
+import QtQml.Models
+import Quickshell
 import Qt.labs.folderlistmodel
 import Quickshell.Io
 
@@ -94,19 +96,30 @@ Item {
         }
     }
 
-    FolderListModel {
-        folder: "file:///run/current-system/sw/share/wayland-sessions"
-        nameFilters: ["*.desktop"]
-        showDirs: false
-        showDotAndDotDot: false
-        onStatusChanged: {
-            if (status !== FolderListModel.Ready) return;
-            for (let i = 0; i < count; i++) {
-                let path = get(i, "filePath");
-                if (path.startsWith("file://")) path = path.slice(7);
-                if (!root.loadedPaths[path]) {
-                    root.loadedPaths[path] = true;
-                    desktopReader.createObject(root, {"filePath": path});
+    // Honor XDG paths on other distributions, with the NixOS system profile fallback.
+    readonly property var sessionDirectories: Array.from(new Set(
+        (Quickshell.env("XDG_DATA_DIRS") || "/usr/local/share:/usr/share").split(":")
+            .concat(["/run/current-system/sw/share"])
+            .filter(path => path.startsWith("/"))
+            .map(path => path + "/wayland-sessions")
+    ))
+    Instantiator {
+        model: root.sessionDirectories
+        delegate: FolderListModel {
+            required property string modelData
+            folder: "file://" + modelData
+            nameFilters: ["*.desktop"]
+            showDirs: false
+            showDotAndDotDot: false
+            onStatusChanged: {
+                if (status !== FolderListModel.Ready) return;
+                for (let i = 0; i < count; i++) {
+                    let path = get(i, "filePath");
+                    if (path.startsWith("file://")) path = path.slice(7);
+                    if (!root.loadedPaths[path]) {
+                        root.loadedPaths[path] = true;
+                        desktopReader.createObject(root, {"filePath": path});
+                    }
                 }
             }
         }
