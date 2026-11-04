@@ -93,7 +93,7 @@ documented in the independent [nullshell specification](https://github.com/x3ng/
 
 ## Nix users
 
-An optional [flake adapter](nix/README.md) exports packages and NixOS/Home Manager
-modules. Native configs and portable install scripts remain the source of truth.
-Select store deployment for reproducibility or development links for local UI
-iteration. Do not let Home Manager and `deploy/` own the same target paths.
+An optional [flake adapter](nix/README.md) exports the adoption tool and a Home Manager
+module. Native configs and portable install scripts remain the source of truth.
+Select store deployment for reproducibility or development links for local preference
+editing. Do not let Home Manager and `deploy/` own the same target paths.
