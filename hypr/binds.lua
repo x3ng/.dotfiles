@@ -206,7 +206,7 @@ end
 -- ══════════════════════════════════════════════════════════════
 
 -- Application launcher (Q); Super+T launches the terminal.
-hl.bind("SUPER + Q", hl.dsp.exec_cmd("quickshell ipc call launcher toggle"))
+hl.bind("SUPER + Q", hl.dsp.exec_cmd("nullshell ipc call launcher toggle"))
 
 -- Screenshot (region select → annotate with satty → copy)
 local screenshotArea = "sh -c 'geometry=$(slurp) || exit 0; [ -n \"$geometry\" ] || exit 0; grim -g \"$geometry\" - | satty -f - --copy-command wl-copy'"
@@ -219,7 +219,7 @@ hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd(screenshotAll))
 hl.bind("SUPER + V", hl.dsp.exec_cmd(terminal .. " --class clipse -e clipse"))
 
 -- Lock & exit
-hl.bind("SUPER + M",        hl.dsp.exec_cmd("qs-lock"))
+hl.bind("SUPER + M",        hl.dsp.exec_cmd("nullshell lock"))
 hl.bind("SUPER + SHIFT + M", hl.dsp.exec_cmd("hyprshutdown"))
 
 -- ══════════════════════════════════════════════════════════════

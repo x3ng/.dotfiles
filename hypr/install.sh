@@ -13,13 +13,12 @@ FILES=(
   rules.lua
   apps.lua
   startup.lua
-  hypridle.conf
 )
 
 # Retire only symlinks owned by this package; preserve user-created files.
 remove_legacy_links() {
   local name target
-  for name in settings.lua hyprlock.conf hyprpaper.conf; do
+  for name in settings.lua hyprlock.conf hyprpaper.conf hypridle.conf; do
     target="$HOME/.config/hypr/$name"
     if [[ -L "$target" && "$(readlink "$target")" == "$SCRIPT_DIR/$name" ]]; then
       dot_unlink "$target"

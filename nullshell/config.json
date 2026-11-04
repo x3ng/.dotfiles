@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "terminal": ["kitty", "--"],
+  "idle": {
+    "dimSeconds": 150,
+    "lockSeconds": 300,
+    "displayOffSeconds": 600
+  }
+}

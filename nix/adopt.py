@@ -9,31 +9,26 @@ import sys
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--apply', action='store_true', help='move verified legacy links into a timestamped backup')
 parser.add_argument('--source', type=Path, default=Path.home() / '.dotfiles')
-parser.add_argument('--profiles', nargs='+', choices=['hyprland', 'quickshell', 'kitty', 'tmux'],
-                    default=['hyprland', 'quickshell', 'kitty', 'tmux'])
+parser.add_argument('--profiles', nargs='+', choices=['hyprland', 'nullshell', 'kitty', 'tmux'],
+                    default=['hyprland', 'nullshell', 'kitty', 'tmux'])
 args = parser.parse_args()
 source = args.source.expanduser().resolve()
 home = Path.home()
 config = Path(os.environ.get('XDG_CONFIG_HOME', home / '.config'))
 state = Path(os.environ.get('XDG_STATE_HOME', home / '.local/state'))
-if not (source / 'quickshell/shell.qml').is_file():
-    sys.exit('Source must be a dotfiles checkout containing quickshell/shell.qml')
+if not (source / 'deploy/lib.sh').is_file():
+    sys.exit('Source must be a dotfiles checkout containing deploy/lib.sh')
 
 targets = {
     **{config / 'hypr' / p.name: p for p in (source / 'hypr').iterdir()
-       if p.suffix == '.lua' or p.name == 'hypridle.conf'},
-    **{config / 'quickshell' / p.name: p for p in (source / 'quickshell').iterdir()
-       if p.suffix in ['.qml', '.json'] or p.name in ['components', 'lock', 'polkit', 'greeter']},
+       if p.suffix == '.lua'},
+    config / 'nullshell/config.json': source / 'nullshell/config.json',
+    config / 'nullshell/wallpaper.json': source / 'nullshell/wallpaper.json',
     config / 'kitty/kitty.conf': source / 'kitty/kitty.conf',
     config / 'kitty/shaders': source / 'kitty/shaders',
     config / 'tmux/tmux.conf': source / 'tmux/tmux.conf',
-    home / '.local/bin/qs-lock': source / 'quickshell/qs-lock',
-    **{config / 'systemd/user' / (name + '.service'): source / 'quickshell' / (name + '.service')
-       for name in ['quickshell', 'quickshell-lock', 'quickshell-polkit']},
 }
 def profile_for(target):
-    if target == home / '.local/bin/qs-lock' or str(target).startswith(str(config / 'systemd/user') + '/'):
-        return 'quickshell'
     directory = target.relative_to(config).parts[0]
     return 'hyprland' if directory == 'hypr' else directory
 

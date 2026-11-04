@@ -20,7 +20,7 @@ deploy/
 ./deploy/deploy -f deploy/tui    # install CLI and terminal tools
 ./deploy/deploy -f deploy/gui    # install graphical tools
 ./deploy/deploy vim tmux         # install specific packages
-./deploy/deploy hypr quickshell  # deploy the current Hyprland desktop
+./deploy/deploy hypr nullshell  # deploy the current Hyprland desktop
 
 ./deploy/deploy --undo -f deploy/tui
 ./deploy/deploy --undo vim
@@ -54,8 +54,9 @@ orchestrator.
 Desktop-specific configurations remain versioned but are intentionally absent
 from the TUI and GUI profiles. Deploy them explicitly when that desktop is in
 use. The current Hyprland session uses `hypr/` for compositor configuration and
-`quickshell/` for the desktop, lock screen and Polkit agent. The greeter is copied
-separately by `quickshell/install.sh install-greeter`. Optional desktop packages
+`nullshell/` for personal settings. The shell itself, its Rust backend, greeter
+and service integration are maintained in the independent nullshell repository.
+Install that package before starting this desktop. Optional desktop packages
 such as Waybar are independent alternatives, not dependencies of this session.
 
 ## install.sh convention
@@ -88,7 +89,7 @@ GRUB appearance is opt-in and requires a bootloader configuration hook. See
 
 Run `nix flake check` for package checks. One-off visual fixtures, logs and
 migration test homes belong outside the repository. Runtime ownership is
-documented in [quickshell/ARCHITECTURE.md](quickshell/ARCHITECTURE.md).
+documented in the independent [nullshell specification](https://github.com/x3ng/nullshell/blob/main/docs/SPEC.md).
 
 ## Nix users
 

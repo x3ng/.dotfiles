@@ -1,5 +1,5 @@
 -- Hyprland-only palette adapter. Quickshell saves the last observed Darkman mode.
--- Palette sync: the shell palette lives in quickshell/Theme.qml. Panel,
+-- Palette sync: the shell palette lives in nullshell (qml/Theme.qml). Panel,
 -- selection and text colours are mirrored here (202328/f4f4f2, 3a4545/dce6e1,
 -- f0f1f3/24272d, e4bb80/805313). The window and groupbar borders are tuned for
 -- visibility on top of that palette instead of copied verbatim: the dark
@@ -13,7 +13,7 @@ function M.apply(mode)
   if not mode then
     local state = os.getenv("XDG_STATE_HOME")
     if not state or state == "" then state = os.getenv("HOME") .. "/.local/state" end
-    local file = io.open(state .. "/quickshell/appearance-mode", "r")
+    local file = io.open(state .. "/nullshell/appearance-mode", "r")
     if file then
       mode = file:read("*a"):match("^%s*(.-)%s*$")
       file:close()
