@@ -4,8 +4,9 @@ import QtQuick
 import QtQuick.Layouts
 import ".."
 
-Rectangle {
+MaterialSurface {
     id: card
+    materialTheme: style
     required property Theme style
     property string label: ""
     property string icon: "volume"
@@ -20,7 +21,7 @@ Rectangle {
     implicitHeight: body.implicitHeight + 2 * style.spaceMd
     radius: style.radiusPopup
     color: style.surface
-    border.color: style.outline
+    border.color: style.materialEdge
     border.width: 1
     Accessible.name: label + " " + value
 

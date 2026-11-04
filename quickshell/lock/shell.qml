@@ -55,7 +55,15 @@ ShellRoot {
         }
     }
 
-    Theme { id: loginTheme; darkMode: true }
+    Theme { id: loginTheme; darkMode: appearance.text().trim() !== "light" }
+    FileView {
+        id: appearance
+        path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/quickshell/appearance-mode"
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+    }
 
     IpcHandler {
         target: "locker"
@@ -121,7 +129,7 @@ ShellRoot {
 
         WlSessionLockSurface {
             id: lockSurface
-            color: "#191b1f"
+            color: loginTheme.panelSurface
 
             WallpaperImage {
                 anchors.fill: parent
@@ -138,16 +146,16 @@ ShellRoot {
                     blurMax: 48
                 }
                 fit: wallpaperState.entryFor(lockSurface.screen ? lockSurface.screen.name : "").fit
-                fallbackColor: "#191b1f"
+                fallbackColor: loginTheme.panelSurface
             }
-            Rectangle { anchors.fill: parent; color: "#55000000" }
+            Rectangle { anchors.fill: parent; color: loginTheme.wallpaperScrim }
 
             LoginView {
                 id: loginView
                 anchors.fill: parent
                 theme: root.style
                 transparentBackground: true
-                cardOpacity: 0.55
+                cardOpacity: loginTheme.frostedOpacity
                 frosted: true
                 userName: Quickshell.env("USER")
                 message: root.status

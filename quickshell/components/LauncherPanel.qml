@@ -232,8 +232,9 @@ PanelWindow {
         MouseArea { anchors.fill: parent; enabled: panel.open; onClicked: panel.dismiss() }
     }
 
-    Rectangle {
+    MaterialSurface {
         id: card
+        materialTheme: panel.style
         property real revealProgress: panel.open && panel.surfaceReady ? 1 : 0
         opacity: revealProgress
         enabled: panel.open
@@ -275,7 +276,7 @@ PanelWindow {
         clip: true
         radius: 20
         color: panel.style.panelSurface
-        border.color: panel.style.separator
+        border.color: panel.style.materialEdge
         border.width: 1
         // Stop clicks in blank areas reaching the outside-dismiss handler.
         MouseArea { anchors.fill: parent }

@@ -2,9 +2,9 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/../deploy/lib.sh"
-MODULE_FILES=(shell.qml Theme.qml AppearanceState.qml Appearance.qml DesktopServices.qml IdlePolicy.qml WallpaperState.qml WallpaperImage.qml WallpaperWindows.qml WallpaperPicker.qml wallpaper.json SystemControls.qml DesktopSearch.qml Notifications.qml BatteryAlerts.qml ScreenKeyboard.qml HyprlandControls.qml ShellActions.qml)
+MODULE_FILES=(shell.qml Theme.qml MaterialSurface.qml AppearanceState.qml Appearance.qml DesktopServices.qml IdlePolicy.qml WallpaperState.qml WallpaperImage.qml WallpaperWindows.qml WallpaperPicker.qml wallpaper.json SystemControls.qml DesktopSearch.qml Notifications.qml BatteryAlerts.qml ScreenKeyboard.qml HyprlandControls.qml ShellActions.qml)
 GREETER_DIR=/etc/xdg/quickshell/greeter
-GREETER_FILES=(shell.qml Theme.qml LoginView.qml SessionCatalog.qml)
+GREETER_FILES=(shell.qml Theme.qml MaterialSurface.qml LoginView.qml SessionCatalog.qml)
 
 user_systemd_available() {
   command -v systemctl >/dev/null 2>&1 &&

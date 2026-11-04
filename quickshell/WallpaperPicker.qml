@@ -19,6 +19,7 @@ Window {
     title: "Wallpaper"
     color: style.panelSurface
     visible: false
+    MaterialSurface { anchors.fill: parent; materialTheme: root.style; radius: 0 }
 
     function loadSelection() {
         const entry = wallpaper.entryFor(outputName);

@@ -7,13 +7,15 @@ import Quickshell.Services.Notifications
 import ".."
 import "NotificationUtils.js" as NotificationUtils
 
-Rectangle {
+MaterialSurface {
     id: card
+    materialTheme: style
     required property Theme style
     required property var entry
     property var actions: []
     property string activationLabel: ""
     property bool compact: false
+    materialEnabled: !compact
     property bool expandable: true
     property bool expanded: false
     property int maximumBodyHeight: 220
@@ -35,7 +37,7 @@ Rectangle {
     radius: style.radiusCard
     color: compact ? (hovered ? style.surfaceHover : "transparent") : style.surfaceRaised
     border.width: compact && !activeFocus ? 0 : 1
-    border.color: activeFocus ? style.accent : critical ? style.accentWarm : style.separator
+    border.color: activeFocus ? style.accent : critical ? style.accentWarm : style.materialEdge
     activeFocusOnTab: visible
     Accessible.role: activationLabel ? Accessible.Button : Accessible.ListItem
     Accessible.name: [entry.appName, entry.summary].filter(Boolean).join(". ")

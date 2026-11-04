@@ -32,11 +32,12 @@ Controls.ToolTip {
         font.family: tip.style.fontFamily
         font.pixelSize: tip.style.fontSizeSmall
     }
-    background: Rectangle {
+    background: MaterialSurface {
+        materialTheme: tip.style
         color: tip.style.panelSurface
         radius: tip.style.radiusPopup
         border.width: 1
-        border.color: tip.style.outline
+        border.color: tip.style.materialEdge
     }
     enter: Transition {
         NumberAnimation { property: "opacity"; from: 0; to: 1; duration: tip.style.motionHintEnter; easing.type: Easing.OutCubic }

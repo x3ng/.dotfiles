@@ -123,14 +123,5 @@ ShellRoot {
             onSubmit: (userName, secret) => root.submit(userName, secret)
         }
 
-        Text {
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 24
-            text: catalog.current ? catalog.current.name : "Wayland"
-            color: root.style.textMuted
-            font.family: root.style.fontFamily
-            font.pixelSize: 12
-        }
     }
 }

@@ -1,14 +1,12 @@
 import QtQuick
+import Quickshell
 
 Item {
     id: root
     required property var theme
     property bool transparentBackground: false
-    property real cardOpacity: 1
+    property real cardOpacity: root.frosted ? root.theme.frostedOpacity : 1
     property bool frosted: false
-    function surfaceColor(color, alpha) {
-        return Qt.rgba(color.r, color.g, color.b, color.a * alpha);
-    }
     property string userName: ""
     property bool editableUser: false
     property string message: ""
@@ -52,28 +50,29 @@ Item {
 
     Column {
         anchors.centerIn: parent
-        width: Math.min(root.width - 40, 420)
+        width: Math.min(root.width - 40, 440)
         spacing: 24
 
-        Rectangle {
+        MaterialSurface {
+            materialTheme: root.theme
+            frosted: root.frosted
+            materialOpacity: root.cardOpacity
+            shadowEnabled: true
             width: parent.width
             height: (root.powerMenuOpen ? powerPage.implicitHeight : form.implicitHeight) + 56
             radius: root.theme.radiusPanel
-            color: root.surfaceColor(root.theme.surfaceRaised, root.cardOpacity)
-            border.color: root.frosted ? "#20ffffff" : root.surfaceColor(root.theme.separator, root.cardOpacity)
-            border.width: 1
 
             Column {
                 id: form
                 x: 28
                 y: 28
                 width: parent.width - 56
-                spacing: 16
+                spacing: 18
                 visible: !root.powerMenuOpen
 
                 Item {
                     width: parent.width
-                    height: 24
+                    height: 40
 
                     Text {
                         id: clockText
@@ -81,60 +80,86 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         color: root.theme.textPrimary
                         font.family: root.theme.fontFamily
-                        font.pixelSize: 13
-                        text: Qt.formatTime(new Date(), "HH:mm")
+                        font.pixelSize: 26
+                        font.weight: Font.DemiBold
+                        text: Qt.formatDateTime(clock.date, "HH:mm")
                     }
 
                     Text {
                         id: dateText
+                        anchors.left: clockText.right
+                        anchors.leftMargin: 16
                         anchors.right: root.showPowerActions ? powerTrigger.left : parent.right
-                        anchors.rightMargin: root.showPowerActions ? 18 : 0
+                        anchors.rightMargin: 8
+                        elide: Text.ElideRight
                         anchors.verticalCenter: parent.verticalCenter
                         color: root.theme.textSecondary
                         font.family: root.theme.fontFamily
-                        font.pixelSize: 13
-                        text: Qt.formatDate(new Date(), "ddd · d MMM")
+                        font.pixelSize: 14
+                        font.weight: Font.Medium
+                        text: Qt.formatDateTime(clock.date, "ddd, d MMM")
                     }
 
-                    Text {
+                    Rectangle {
                         id: powerTrigger
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
+                        width: 36; height: 36; radius: 8
                         visible: root.showPowerActions
-                        text: "⏻"
-                        color: root.theme.textSecondary
-                        font.pixelSize: 18
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: {
-                                root.powerMenuOpen = !root.powerMenuOpen;
-                                if (!root.powerMenuOpen) root.pendingPowerAction = "";
+                        color: powerMouse.containsMouse || activeFocus ? root.theme.surfaceHover : "transparent"
+                        activeFocusOnTab: visible
+                        Accessible.role: Accessible.Button
+                        Accessible.name: "Power options"
+                        function activate() { root.powerMenuOpen = true; }
+                        Accessible.onPressAction: activate()
+                        Keys.onReturnPressed: activate()
+                        Keys.onSpacePressed: activate()
+                        Canvas {
+                            anchors.centerIn: parent
+                            width: 20; height: 20
+                            readonly property color ink: root.theme.textSecondary
+                            onInkChanged: requestPaint()
+                            onPaint: {
+                                const c = getContext("2d"); c.reset();
+                                c.strokeStyle = ink; c.lineWidth = 1.8; c.lineCap = "round";
+                                c.beginPath(); c.arc(10, 11, 6.5, -0.8, Math.PI + 0.8); c.stroke();
+                                c.beginPath(); c.moveTo(10, 2); c.lineTo(10, 10); c.stroke();
                             }
                         }
+                        MouseArea {
+                            id: powerMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: powerTrigger.activate()
+                        }
                     }
+
                 }
 
                 Rectangle {
                     width: parent.width
-                    height: root.editableUser ? 50 : 56
+                    height: 48
                     radius: root.theme.radiusInput
-                    color: root.editableUser ? root.theme.panelSurface : "transparent"
-                    border.width: root.editableUser ? 1 : 0
+                    color: root.theme.inputSurface
+                    border.width: 1
                     border.color: userInput.activeFocus ? root.theme.accent : root.theme.separator
 
                     TextInput {
                         id: userInput
                         anchors.left: parent.left
-                        anchors.leftMargin: root.editableUser ? 15 : 0
+                        anchors.leftMargin: 14
                         anchors.right: parent.right
-                        anchors.rightMargin: root.editableUser ? 15 : 0
+                        anchors.rightMargin: 14
                         anchors.verticalCenter: parent.verticalCenter
                         color: root.theme.textPrimary
                         font.family: root.theme.fontFamily
-                        font.pixelSize: root.editableUser ? 15 : 24
-                        font.weight: root.editableUser ? Font.Normal : Font.Medium
+                        font.pixelSize: 16
+                        font.weight: Font.Normal
                         text: root.userName
                         readOnly: !root.editableUser
+                        activeFocusOnPress: root.editableUser
+                        activeFocusOnTab: root.editableUser
                         selectByMouse: root.editableUser
                         clip: true
                         enabled: !root.busy
@@ -150,20 +175,21 @@ Item {
 
                 Rectangle {
                     width: parent.width
-                    height: 50
+                    height: 48
                     radius: root.theme.radiusInput
-                    color: root.frosted ? "#40101418" : root.surfaceColor(root.theme.panelSurface, root.cardOpacity)
+                    color: root.theme.inputSurface
                     border.color: passwordInput.activeFocus ? root.theme.accent : root.theme.separator
                     border.width: 1
 
                     TextInput {
                         id: passwordInput
                         anchors.fill: parent
-                        anchors.margins: 15
+                        anchors.margins: 14
+                        anchors.rightMargin: 60
                         verticalAlignment: TextInput.AlignVCenter
                         color: root.theme.textPrimary
                         font.family: root.theme.fontFamily
-                        font.pixelSize: 15
+                        font.pixelSize: 16
                         echoMode: TextInput.Password
                         enabled: !root.busy
                         onAccepted: root.submit(userInput.text.trim(), text)
@@ -173,11 +199,43 @@ Item {
                             verticalAlignment: Text.AlignVCenter
                             color: root.theme.textMuted
                             font.family: root.theme.fontFamily
-                            font.pixelSize: 15
+                            font.pixelSize: 16
                             visible: passwordInput.text.length === 0
                             text: "Password"
                         }
                     }
+                    Rectangle {
+                        id: submitButton
+                        anchors.right: parent.right
+                        anchors.rightMargin: 6
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 36; height: 36; radius: 8
+                        color: submitArea.containsMouse || activeFocus ? root.theme.accent : root.theme.surfaceSelected
+                        opacity: root.busy ? 0.5 : 1
+                        activeFocusOnTab: !root.busy
+                        Accessible.role: Accessible.Button
+                        Accessible.name: root.editableUser ? "Sign in" : "Unlock"
+                        function activate() { if (!root.busy) root.submit(userInput.text.trim(), passwordInput.text); }
+                        Accessible.onPressAction: activate()
+                        Keys.onReturnPressed: activate()
+                        Keys.onSpacePressed: activate()
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.busy ? "…" : "→"
+                            font.family: root.theme.fontFamily
+                            font.pixelSize: 22
+                            color: submitArea.containsMouse || submitButton.activeFocus ? root.theme.accentInk : root.theme.textPrimary
+                        }
+                        MouseArea {
+                            id: submitArea
+                            anchors.fill: parent
+                            enabled: !root.busy
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: submitButton.activate()
+                        }
+                    }
+
                 }
 
                 Column {
@@ -199,7 +257,7 @@ Item {
                             text: "Session"
                             color: root.theme.textMuted
                             font.family: root.theme.fontFamily
-                            font.pixelSize: 13
+                            font.pixelSize: 14
                         }
 
                         Text {
@@ -211,7 +269,7 @@ Item {
                             text: root.selectedSessionName
                             color: root.theme.textPrimary
                             font.family: root.theme.fontFamily
-                            font.pixelSize: 13
+                            font.pixelSize: 14
                             elide: Text.ElideRight
                         }
 
@@ -259,11 +317,14 @@ Item {
                                     Text {
                                         anchors.left: parent.left
                                         anchors.leftMargin: 14
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: 14
+                                        elide: Text.ElideRight
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: optionRow.modelData.name
                                         color: root.theme.textPrimary
                                         font.family: root.theme.fontFamily
-                                        font.pixelSize: 13
+                                        font.pixelSize: 14
                                     }
 
                                     MouseArea {
@@ -286,33 +347,12 @@ Item {
                     visible: text.length > 0
                     color: root.theme.accentWarm
                     font.family: root.theme.fontFamily
-                    font.pixelSize: 13
+                    font.pixelSize: 14
                     text: root.message
+                    textFormat: Text.PlainText
                 }
 
-                Rectangle {
-                    width: parent.width
-                    height: 44
-                    radius: root.theme.radiusInput
-                    color: submitArea.pressed ? root.theme.surfaceHover : root.theme.accent
-                    opacity: root.busy ? 0.6 : 1
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.busy ? "Authenticating…" : "Continue"
-                        color: root.theme.accentInk
-                        font.family: root.theme.fontFamily
-                        font.pixelSize: 14
-                        font.weight: Font.Medium
-                    }
-
-                    MouseArea {
-                        id: submitArea
-                        anchors.fill: parent
-                        enabled: !root.busy
-                        onClicked: root.submit(userInput.text.trim(), passwordInput.text)
-                    }
-                }
 
             }
 
@@ -321,7 +361,7 @@ Item {
                 x: 28
                 y: 28
                 width: parent.width - 56
-                spacing: 16
+                spacing: 18
                 visible: root.powerMenuOpen
 
                 Item {
@@ -351,13 +391,13 @@ Item {
                         text: "Power"
                         color: root.theme.textPrimary
                         font.family: root.theme.fontFamily
-                        font.pixelSize: 15
+                        font.pixelSize: 16
                     }
                 }
 
                 Rectangle {
                     width: parent.width
-                    height: 50
+                    height: 48
                     radius: root.theme.radiusInput
                     color: restartArea.containsMouse ? root.theme.surfaceHover : "transparent"
                     border.color: root.theme.outline
@@ -369,7 +409,7 @@ Item {
                         text: root.pendingPowerAction === "reboot" ? "Confirm restart" : "Restart"
                         color: root.theme.textPrimary
                         font.family: root.theme.fontFamily
-                        font.pixelSize: 15
+                        font.pixelSize: 16
                     }
                     MouseArea {
                         id: restartArea
@@ -381,7 +421,7 @@ Item {
 
                 Rectangle {
                     width: parent.width
-                    height: 50
+                    height: 48
                     radius: root.theme.radiusInput
                     color: shutdownArea.containsMouse ? root.theme.surfaceHover : "transparent"
                     border.color: root.theme.outline
@@ -393,7 +433,7 @@ Item {
                         text: root.pendingPowerAction === "poweroff" ? "Confirm shut down" : "Shut down"
                         color: root.theme.textPrimary
                         font.family: root.theme.fontFamily
-                        font.pixelSize: 15
+                        font.pixelSize: 16
                     }
                     MouseArea {
                         id: shutdownArea
@@ -412,14 +452,5 @@ Item {
         onTriggered: root.pendingPowerAction = ""
     }
 
-    Timer {
-        interval: 1000
-        repeat: true
-        running: true
-        onTriggered: {
-            const now = new Date();
-            clockText.text = Qt.formatTime(now, "HH:mm");
-            dateText.text = Qt.formatDate(now, "ddd · d MMM");
-        }
-    }
+    SystemClock { id: clock; precision: SystemClock.Minutes }
 }

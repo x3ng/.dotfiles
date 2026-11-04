@@ -2,14 +2,15 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Rectangle {
+MaterialSurface {
     id: root
+    materialTheme: theme
     required property var theme
     required property var flow
     implicitHeight: form.implicitHeight + 48
     radius: theme.radiusPanel
     color: theme.panelSurface
-    border.color: theme.separator
+    border.color: theme.materialEdge
     border.width: 1
     signal cancelled()
     readonly property bool waiting: !!flow && flow.isResponseRequired && !flow.isCompleted
@@ -116,7 +117,7 @@ Rectangle {
             rightPadding: 14
             background: Rectangle {
                 radius: root.theme.radiusInput
-                color: root.theme.surfaceRaised
+                color: root.theme.inputSurface
                 border.width: 1
                 border.color: secret.activeFocus ? root.theme.accent : root.theme.separator
             }

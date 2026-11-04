@@ -85,7 +85,8 @@ PopupWindow {
         menu: popup.currentMenu
     }
 
-    Rectangle {
+    MaterialSurface {
+        materialTheme: popup.style
         anchors.fill: parent
         focus: true
         Keys.onEscapePressed: {
@@ -95,7 +96,7 @@ PopupWindow {
         radius: popup.style.radiusPopup
         color: popup.style.surface
         border.width: 1
-        border.color: popup.style.outline
+        border.color: popup.style.materialEdge
 
         Item {
             id: header

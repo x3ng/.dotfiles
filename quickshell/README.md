@@ -174,7 +174,9 @@ are refreshed on workspace/configuration events, when the panel opens and after
 panel operations, without a separate `hyprctl` reader. There is no layout polling or
 synthetic event, and changing the tiling algorithm does not trigger an OSD.
 
-`Theme.qml` defines colour, spacing, radius and motion tokens. The launcher uses
+`Theme.qml` defines colour, spacing, radius and motion tokens. Shared surface
+rendering lives in `MaterialSurface.qml`; see [MATERIALS.md](MATERIALS.md) for
+material rules, previews and deployment. The launcher uses
 200ms entrance / 140ms exit; OSD uses 100ms / 80ms. Hyprland layer rules disable a
 second compositor animation for these two surfaces. Panel and card surfaces are
 opaque; accents are limited to state and keyboard focus. Hyprland colours are

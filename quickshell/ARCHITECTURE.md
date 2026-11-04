@@ -175,7 +175,7 @@ succeeds, and model refreshes must not discard that pending completion.
 `install.sh` links each root QML module explicitly and links `components/` as a
 directory. `quickshell.service` owns the desktop process and wants the separate
 `quickshell-lock.service` and `quickshell-polkit.service`. The installer links
-`lock/` and `polkit/` as directories. Both share `Theme.qml` by relative symlink;
+`lock/` and `polkit/` as directories. Both share `Theme.qml` and `MaterialSurface.qml` by relative symlink;
 locked/authentication processes do not load the desktop services. Their QML
 hot reload is disabled; restart only while no lock/authentication is active. The BlueZ pairing helper
 is part of runtime and lives in `components/`. Local regression helpers under

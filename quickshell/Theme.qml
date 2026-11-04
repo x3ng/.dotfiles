@@ -35,20 +35,24 @@ Scope {
     readonly property int radiusCard: 16
     readonly property int radiusControl: 10
     readonly property int radiusSmall: 3
-    // Opaque surfaces keep background windows from competing with controls.
-    // QML uses #AARRGGBB.
-    readonly property color backdrop: darkMode ? "#65000000" : "#28000000"
-    readonly property color panelSurface: darkMode ? "#191b1f" : "#f3f3f1"
-    readonly property color surface: darkMode ? "#f2191b1f" : "#faf3f3f1"
-    // Cards sit visibly above the panel: white-on-grey in light mode keeps
-    // the light theme from reading as one flat sheet.
-    readonly property color surfaceRaised: darkMode ? "#25282e" : "#ffffff"
-    readonly property color surfaceHover: darkMode ? "#30343c" : "#e7e8eb"
-    // Selection is neutral; colour is reserved for local action/status marks.
-    readonly property color surfaceSelected: darkMode ? "#363c46" : "#dce0e6"
+    // Neutral, layered surfaces: opacity is not a substitute for backdrop blur.
+    readonly property color backdrop: darkMode ? "#50000000" : "#18202730"
+    readonly property color panelSurface: darkMode ? "#202328" : "#f4f4f2"
+    readonly property color surface: panelSurface
+    readonly property color surfaceRaised: darkMode ? "#292d33" : "#fdfdfc"
+    readonly property color surfaceHover: darkMode ? "#343a41" : "#e7eae8"
+    readonly property color surfaceSelected: darkMode ? "#3a4545" : "#dce6e1"
+    readonly property color materialTop: darkMode ? "#2b3036" : "#fdfdfc"
+    readonly property color materialBottom: darkMode ? "#22262b" : "#f0f2ef"
+    readonly property color materialEdge: darkMode ? "#850d1116" : "#302c3b34"
+    readonly property color materialHighlight: darkMode ? "#12ffffff" : "#c0ffffff"
+    readonly property color materialShadow: darkMode ? "#60000000" : "#24202b25"
+    readonly property real frostedOpacity: darkMode ? 0.9 : 0.94
+    readonly property color wallpaperScrim: darkMode ? "#420b1118" : "#26e8eeeb"
+    readonly property color inputSurface: darkMode ? "#1b1f24" : "#ffffff"
     readonly property color textSelected: textPrimary
-    readonly property color outline: darkMode ? "#454a54" : "#cdd0d6"
-    readonly property color separator: darkMode ? "#30343c" : "#dfe1e5"
+    readonly property color outline: darkMode ? "#4a535c" : "#c1cbc5"
+    readonly property color separator: darkMode ? "#373e45" : "#dce1dc"
     readonly property color textPrimary: darkMode ? "#f0f1f3" : "#24272d"
     readonly property color textSecondary: darkMode ? "#bdc1ca" : "#525965"
     readonly property color textMuted: darkMode ? "#969da9" : "#69717e"
