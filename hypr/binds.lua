@@ -216,7 +216,8 @@ hl.bind("SUPER + A", hl.dsp.exec_cmd(screenshotArea))
 hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd(screenshotAll))
 
 -- Clipboard history
-hl.bind("SUPER + V", hl.dsp.exec_cmd(terminal .. " --class clipse -e clipse"))
+-- Use a compact font and explicit terminal dimensions for the floating picker.
+hl.bind("SUPER + V", hl.dsp.exec_cmd(terminal .. " --class clipse -o font_size=11 -o initial_window_width=100c -o initial_window_height=30c -e clipse"))
 
 -- Lock & exit
 hl.bind("SUPER + M",        hl.dsp.exec_cmd("qs-lock"))
