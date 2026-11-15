@@ -7,27 +7,35 @@ from the repository root.
 Workspace identity uses Lua `addressable_name` and IPC/Quickshell `address`.
 Named and special workspaces do not have numeric IDs in 0.57.
 
-Hyprland owns window management and key bindings. Quickshell owns launcher,
+Hyprland owns window management and key bindings. nullshell owns launcher,
 notifications, OSD, wallpaper and idle policy; `Super+Q` calls its launcher IPC endpoint.
-`startup.lua` starts the Quickshell user service, so systemd owns its lifetime
-and restart policy. Do not also run a separate `quickshell` startup command.
+`startup.lua` directly starts independent desktop, locker, Polkit and sleep-bridge
+processes. Quickshell uses `--no-duplicate`; no nullshell keepalive units are used.
+Native Quickshell configuration discovery loads the independent `nullshell` QML
+checkout (normally `~/.config/quickshell/nullshell`). Edit QML directly; use
+`./bin/nullshell preview-panel` from that checkout for an isolated preview.
+Do not start another desktop, notification owner or authentication agent alongside it.
+Install nullshell and its system integration before using these configs.
+`hypridle.conf` belongs to these dotfiles and is deployed by `hypr/install.sh`.
+The sleep bridge invokes native `hypridle` without a configuration argument;
+its standard discovery loads the user's lock/sleep hooks.
 
 `Super+N/P` traverses windows, including floats. Monocle uses native Lua
 window enumeration so its inactive tiles are included too; other layouts use
 the built-in window cycle. Hidden group tabs stay on `Super+Alt+N/P`.
-`workspaces.lua` owns these actions and the shared layout-switch implementation
-used by both key bindings and Quickshell.
+`workspaces.lua` implements these key binding actions; nullshell ships its own
+compositor adapter for panel actions.
 
 `Super+Alt+D/M/S/O` selects dwindle/master/scrolling/monocle for the active
 workspace, with a visible special workspace taking precedence. The binding
 applies a native workspace rule. There is no synthetic layout event or layout
-polling: Quickshell refreshes labels when the panel opens, after panel actions,
+polling: nullshell refreshes labels when the panel opens, after panel actions,
 and on native workspace/configuration events. Hyprland 0.57.0 exposes no tiled-layout
 change event, so these bindings do not trigger an OSD. On configuration reload,
 `hyprland.lua` snapshots existing workspaces' live layouts and reapplies their rules before Hyprland's
 deferred layout refresh. This preserves choices from both the key bindings
 and the panel when monitor profiles change (including lid-related reloads),
-without depending on Quickshell. Numeric, named and special workspaces use
+without depending on nullshell. Numeric, named and special workspaces use
 their native `addressable_name` selectors. The snapshot is restored before
 `rules.lua` and monitor profiles: an explicit layout in those modules takes
 precedence. Layout-only rules merge with other settings such as gaps,
@@ -55,14 +63,14 @@ a compositor restart. Live workspace names are captured anew on every
 reload. Renaming a workspace without reloading does not migrate its old
 runtime selector rule; that is Hyprland's native rule behavior.
 
-Darkman owns the appearance mode. Quickshell applies its observed mode through
-`appearance.lua` and saves a snapshot for compositor startup/config reload.
-Missing or invalid saved state falls back to the dark palette. The adapter's
-explicit `apply("dark")` / `apply("light")` interface is shared with Quickshell;
-keep the palettes in sync with `quickshell/Theme.qml`.
+nullshell owns manual/automatic appearance and publishes it through its Settings
+portal backend. It applies compositor colours through its loaded
+compositor adapter and saves a snapshot. On startup/config reload,
+`appearance.lua` reads that snapshot; missing or invalid state falls back to
+the dark palette. The shell palette is maintained in nullshell's `Theme.qml`.
 
-Window styling follows the shell's muted green palette, with 4px inner / 8px
-outer gaps, 10px corners and a soft 18px shadow. Compositor opacity multipliers stay at 1.0; applications may supply transparency.
+Window styling follows the shell's neutral grey and muted blue palette, with 4px inner / 8px
+outer gaps, 4px corners and a soft 12px shadow. Compositor opacity multipliers stay at 1.0; applications may supply transparency.
 Grouped-window titles use the same Inter family as the panel.
 
 Run `hyprmoncfg` to arrange displays and save profiles. `startup.lua` starts
@@ -97,29 +105,32 @@ launch with another enabled autostart entry or Fcitx5 user service.
 
 ## Idle and lock
 
-Quickshell's `IdlePolicy.qml` dims the laptop backlight after 150 seconds, starts
-the Quickshell locker at 300 seconds, and powers off displays at 600 seconds.
-Activity restores the saved brightness and display power. Its timers respect
-Wayland idle inhibitors; the command panel's Keep awake control disables all
-three timers and keeps its systemd idle inhibitor for logind. No automatic
-suspend timeout is added. Hypridle remains only for logind's sleep and session
-lock requests, where it waits for the compositor to confirm the lock before
-sleep. Display power commands use the Hyprland Lua dispatcher syntax.
+nullshell owns dim/lock/display-off timers and the Keep awake control. Its
+`nullshell sleep-bridge` directly runs the packaged hypridle configuration for logind
+lock/suspend coordination, waiting for the compositor to confirm the lock before
+sleep. Do not separately start `hypridle.service` or deploy another sleep bridge.
+Timer policy belongs to nullshell's personal configuration, not these Lua files.
 
 ## Desktop component ownership
 
-`quickshell.service` starts the desktop shell and wants the independent
-`quickshell-lock.service` and `quickshell-polkit.service`. Do not start these
-from additional compositor commands. `Super+M`, the panel and the sleep bridge
-all call `qs-lock`; the locker owns PAM and the Wayland session-lock protocol.
-The Polkit agent presents authorization requests; system Polkit decides policy.
+The compositor launches desktop, locker, Polkit and sleep bridge separately.
+`Super+Q` calls `nullshell ipc call launcher toggle`; `Super+M` calls `nullshell lock`.
+The locker owns PAM authentication and remains independent of desktop reloads.
+No supervisor automatically restarts Quickshell. Use its native log/IPC commands
+for diagnostics. Clients terminate when Wayland disconnects; this host's UWSM
+session also owns cgroup cleanup. The old `nullshell*.service` and target must not
+be enabled alongside these direct processes. During migration, switch Home Manager
+and then log out/in or reboot rather than starting the new stack in the old session.
 
-Desktop and lock-screen wallpaper settings live in
-`quickshell/wallpaper.json`, with selections under
-`$XDG_STATE_HOME/quickshell/wallpaper.json`. The panel search accepts `wallpaper` or `壁纸` to open the image picker.
-Greeter files are separately deployed to `/etc/xdg/quickshell/greeter`.
+Personal shell preferences live in `~/.config/nullshell/config.json` and
+`~/.config/nullshell/wallpaper.json`; dynamic state lives under
+`$XDG_STATE_HOME/nullshell` (default `~/.local/state/nullshell`). These files
+are managed independently of this Hyprland package. Greeter configuration and
+system integration belong to nullshell's installation, not dotfiles deployment.
 
-There is no active Hyprlock or Hyprpaper configuration. The installer removes
-only obsolete symlinks owned by this repository, preserving independent user
-files. Keep `hypridle.conf` for the sleep handshake, and retain monitor profiles,
-window rules, input settings and key bindings as compositor configuration.
+The existing `quickshell-launcher` and `quickshell:osd` layer namespaces are
+retained by nullshell, so their compositor animation rules remain intentional.
+There is no active Hyprlock, Hyprpaper or standalone hypridle configuration here.
+The installer removes only obsolete symlinks owned by this repository, preserving
+independent user files. Monitor profiles, window rules, input settings and key
+bindings remain compositor configuration.

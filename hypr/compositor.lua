@@ -10,14 +10,14 @@ hl.config({
   },
 
   decoration = {
-    rounding = 10,
+    rounding = 4,
     rounding_power = 2,
     -- Keep compositor opacity at 1.0; applications may still supply transparent pixels.
     active_opacity = 1.0,
     inactive_opacity = 1.0,
     shadow = {
       enabled = true,
-      range = 18,
+      range = 12,
       render_power = 3,
     },
     blur = {
@@ -42,6 +42,10 @@ hl.config({
   misc = {
     force_default_wallpaper = 0,
     disable_hyprland_logo = true,
+    -- Wake outputs directly on input; do not wait for the shell's idle callback
+    -- to spawn hyprctl. Nullshell still owns the display-off deadline.
+    key_press_enables_dpms = true,
+    mouse_move_enables_dpms = true,
   },
 
   dwindle = {
@@ -64,7 +68,7 @@ hl.config({
   group = {
     groupbar = {
       enabled = true,
-      gradients = true,
+      gradients = false,
       blur = true,
       render_titles = true,
       scrolling = true,
@@ -72,8 +76,8 @@ hl.config({
       font_family = "Inter",
       font_size = 12,
       text_padding = 6,
-      rounding = 6,
-      gradient_rounding = 6,
+      rounding = 3,
+      gradient_rounding = 3,
       indicator_height = 0,
       indicator_gap = 0,
     },

@@ -1,10 +1,12 @@
 -- Autostart (exec-once equivalent)
 hl.on("hyprland.start", function()
-  -- Sleep/logind bridge only; Quickshell owns the idle timers.
-  hl.exec_cmd("systemctl --user start hypridle.service")
   hl.exec_cmd("systemctl --user start hyprmoncfgd.service")
-  -- Also starts the independent locker and Polkit agent through Wants=.
-  hl.exec_cmd("systemctl --user start quickshell.service")
+  -- Independent processes, started once by this compositor; no keepalive units.
+  -- QML lives in ~/.config/quickshell/nullshell. Do not also enable old units.
+  hl.exec_cmd("nullshell locker --no-duplicate")
+  hl.exec_cmd("nullshell polkit --no-duplicate")
+  hl.exec_cmd("nullshell desktop --no-duplicate")
+  hl.exec_cmd("nullshell sleep-bridge")
   hl.exec_cmd("clipse -listen")
   hl.exec_cmd("udiskie")
   -- Fcitx5 starts through XDG Autostart (handled by UWSM in this session).

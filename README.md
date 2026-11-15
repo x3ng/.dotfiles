@@ -20,7 +20,7 @@ deploy/
 ./deploy/deploy -f deploy/tui    # install CLI and terminal tools
 ./deploy/deploy -f deploy/gui    # install graphical tools
 ./deploy/deploy vim tmux         # install specific packages
-./deploy/deploy hypr quickshell  # deploy the current Hyprland desktop
+./deploy/deploy hypr             # configure Hyprland; install nullshell separately
 
 ./deploy/deploy --undo -f deploy/tui
 ./deploy/deploy --undo vim
@@ -54,8 +54,10 @@ orchestrator.
 Desktop-specific configurations remain versioned but are intentionally absent
 from the TUI and GUI profiles. Deploy them explicitly when that desktop is in
 use. The current Hyprland session uses `hypr/` for compositor configuration and
-`quickshell/` for the desktop, lock screen and Polkit agent. The greeter is copied
-separately by `quickshell/install.sh install-greeter`. Optional desktop packages
+the separately packaged [nullshell](https://github.com/x3ng/nullshell) for the
+desktop, lock screen and Polkit agent. Its package supplies the runtime; Hyprland
+starts the independent processes. System integration supplies PAM and the optional greeter. This repository does
+not deploy shell code or service units. Optional desktop packages
 such as Waybar are independent alternatives, not dependencies of this session.
 
 ## install.sh convention

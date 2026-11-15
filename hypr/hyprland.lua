@@ -38,7 +38,7 @@ if package.searchpath("monitors", package.path) then
   require("monitors")
 end
 
--- Follow Quickshell's saved mode on startup and config reload.
+-- Follow nullshell's saved mode on startup and config reload.
 require("appearance").apply()
 
 -- Added by hyprmoncfg: its generated monitor rules load last, so nothing before this can override the applied layout.
