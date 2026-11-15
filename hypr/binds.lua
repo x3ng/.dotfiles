@@ -219,9 +219,9 @@ hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd(screenshotAll))
 -- Use a compact font and explicit terminal dimensions for the floating picker.
 hl.bind("SUPER + V", hl.dsp.exec_cmd(terminal .. " --class clipse -o font_size=11 -o initial_window_width=100c -o initial_window_height=30c -e clipse"))
 
--- Lock & exit
+-- Lock and end the UWSM-managed session
 hl.bind("SUPER + M",        hl.dsp.exec_cmd("qs-lock"))
-hl.bind("SUPER + SHIFT + M", hl.dsp.exec_cmd("hyprshutdown"))
+hl.bind("SUPER + SHIFT + M", hl.dsp.exec_cmd("uwsm stop"))
 
 -- ══════════════════════════════════════════════════════════════
 -- 媒体 / 硬件控制键
