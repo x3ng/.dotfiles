@@ -84,8 +84,60 @@ hl.bind("SUPER + P", function() workspaces.cycle_window(false) end)
 -- tiled/floating, so "rotate the windows stacked here" has no native expression
 -- and is not worth a geometric side channel. N/P is the universal tour.
 
--- R = reshape: change orientation; Enter focuses the master, Shift+Enter promotes to master.
-hl.bind("SUPER + R", layoutAction({ dwindle = "togglesplit", master = "orientationnext" }))
+-- Sway-style adjustment mode: release Super, then keep both hands on the keyboard.
+-- Remember only the address; never keep window userdata after a window closes.
+local floatAdjustmentTarget
+local function leaveFloatAdjustment()
+  floatAdjustmentTarget = nil
+  hl.dispatch(hl.dsp.submap("reset"))
+end
+
+local function adjustFloat(x, y, resize)
+  return function()
+    local window = hl.get_active_window()
+    -- Mouse focus changes or closing the target must not move another window.
+    if not window or not window.floating or window.address ~= floatAdjustmentTarget then
+      leaveFloatAdjustment()
+      return
+    end
+    local options = { x = x, y = y, relative = true }
+    hl.dispatch(resize and hl.dsp.window.resize(options) or hl.dsp.window.move(options))
+  end
+end
+
+hl.define_submap("float-adjust", function()
+  for _, direction in ipairs({
+    { key = "H", x = -1, y = 0 },
+    { key = "J", x = 0, y = 1 },
+    { key = "K", x = 0, y = -1 },
+    { key = "L", x = 1, y = 0 },
+  }) do
+    hl.bind(direction.key, adjustFloat(direction.x * 20, direction.y * 20, false), { repeating = true })
+    -- Keep the existing Ctrl+HJKL resize semantics: K grows height, J shrinks it.
+    hl.bind("CTRL + " .. direction.key, adjustFloat(direction.x * 10, -direction.y * 10, true), { repeating = true })
+  end
+  hl.bind("Return", leaveFloatAdjustment)
+  hl.bind("Escape", leaveFloatAdjustment)
+  -- Unrelated typing must not reach the application while adjusting its window.
+  hl.bind("catchall", function() end)
+end)
+
+-- R = reshape: floating adjustment, or change the tiled layout's orientation.
+-- Enter focuses the master, Shift+Enter promotes to master.
+local reshapeLayout = layoutAction({ dwindle = "togglesplit", master = "orientationnext" })
+hl.bind("SUPER + R", function()
+  local window = hl.get_active_window()
+  if not window or not window.floating then
+    reshapeLayout()
+    return
+  end
+  floatAdjustmentTarget = window.address
+  hl.dispatch(hl.dsp.submap("float-adjust"))
+  hl.notification.create({
+    text = "Float: H/J/K/L move | Ctrl resize | Enter/Esc exit",
+    timeout = 6000,
+  })
+end)
 hl.bind("SUPER + Return", layoutAction({ master = "focusmaster previous" }))
 hl.bind("SUPER + SHIFT + Return", layoutAction({ master = "swapwithmaster master" }))
 -- W = width preset; Shift reverses the cycle. Only scrolling has column presets.
@@ -117,25 +169,27 @@ hl.bind("SUPER + SHIFT + X", layoutAction({ scrolling = "expel" }))
 hl.bind("SUPER + O", layoutAction({ scrolling = "promote" }))
 hl.bind("SUPER + SHIFT + O", layoutAction({ scrolling = "center" }))
 
--- Shift+directions changes position: tiled swap, or 20px floating movement.
--- Monocle has no spatial neighbors: do not accidentally swap across monitors.
-local function moveDirection(direction, x, y)
-  return function()
+-- Repeat pixel movement for floats. Tiled swaps fire once per keypress.
+local function bindMove(key, direction, x, y)
+  local chord = "SUPER + SHIFT + " .. key
+  hl.bind(chord, function()
     local window = hl.get_active_window()
-    if not window then return end
-    if window.floating then
+    if not window or window.floating then return end
+    local workspace = activeWorkspace()
+    if workspace and workspace.tiled_layout == "monocle" then return end
+    hl.dispatch(hl.dsp.window.swap({ direction = direction }))
+  end)
+  hl.bind(chord, function()
+    local window = hl.get_active_window()
+    if window and window.floating then
       hl.dispatch(hl.dsp.window.move({ x = x, y = y, relative = true }))
-    else
-      local workspace = activeWorkspace()
-      if workspace and workspace.tiled_layout == "monocle" then return end
-      hl.dispatch(hl.dsp.window.swap({ direction = direction }))
     end
-  end
+  end, { repeating = true })
 end
-hl.bind("SUPER + SHIFT + H", moveDirection("l", -20, 0))
-hl.bind("SUPER + SHIFT + L", moveDirection("r", 20, 0))
-hl.bind("SUPER + SHIFT + K", moveDirection("u", 0, -20))
-hl.bind("SUPER + SHIFT + J", moveDirection("d", 0, 20))
+bindMove("H", "l", -20, 0)
+bindMove("L", "r", 20, 0)
+bindMove("K", "u", 0, -20)
+bindMove("J", "d", 0, 20)
 
 -- Groups: G toggles the whole group; Alt+G takes only the current tab out.
 hl.bind("SUPER + G", hl.dsp.group.toggle())

@@ -26,6 +26,20 @@ the built-in window cycle. Hidden group tabs stay on `Super+Alt+N/P`.
 `workspaces.lua` implements these key binding actions; nullshell ships its own
 compositor adapter for panel actions.
 
+Focus a floating window and hold `Super+Shift+H/J/K/L` to move continuously
+in 20px steps. `Super+Space` toggles floating. For longer adjustments,
+press `Super+R`, then release Super. In this Sway-inspired
+`float-adjust` submap, hold `H/J/K/L` to move left/down/up/right in 20px steps.
+Hold `Ctrl+H/L` to shrink/grow width and `Ctrl+J/K` to shrink/grow height in 10px
+steps, matching the existing global resize bindings. `Enter` or `Esc` exits;
+unrelated keys are consumed so they do not type into the application. A native
+notification shows the controls on entry. If focus changes or the target closes,
+the next adjustment exits without changing another window. On tiled windows,
+`Super+R` retains its layout orientation action. Mouse dragging remains available.
+This follows Sway's enter-adjust-exit pattern, extending its resize mode with
+movement and keeping this configuration's HJKL/Ctrl vocabulary:
+https://github.com/swaywm/sway/blob/master/config.in
+
 `Super+Alt+D/M/S/O` selects dwindle/master/scrolling/monocle for the active
 workspace, with a visible special workspace taking precedence. The binding
 applies a native workspace rule. There is no synthetic layout event or layout
