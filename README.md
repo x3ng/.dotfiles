@@ -20,7 +20,6 @@ deploy/
 ./deploy/deploy -f deploy/tui    # install CLI and terminal tools
 ./deploy/deploy -f deploy/gui    # install graphical tools
 ./deploy/deploy vim tmux         # install specific packages
-./deploy/deploy hypr             # configure Hyprland; install nullshell separately
 
 ./deploy/deploy --undo -f deploy/tui
 ./deploy/deploy --undo vim
@@ -51,14 +50,9 @@ implements `install` and `uninstall`. Keeping those two layers separate lets
 simple symlinked packages and interactive/system-level packages use the same
 orchestrator.
 
-Desktop-specific configurations remain versioned but are intentionally absent
-from the TUI and GUI profiles. Deploy them explicitly when that desktop is in
-use. The current Hyprland session uses `hypr/` for compositor configuration and
-the separately packaged [nullshell](https://github.com/x3ng/nullshell) for the
-desktop, lock screen and Polkit agent. Its package supplies the runtime; Hyprland
-starts the independent processes. System integration supplies PAM and the optional greeter. This repository does
-not deploy shell code or service units. Optional desktop packages
-such as Waybar are independent alternatives, not dependencies of this session.
+Optional desktop-specific packages are deployed explicitly, not through the TUI
+or GUI profiles. The Hyprland session configuration moved to
+[x3ng/hypr](https://github.com/x3ng/hypr) and is no longer deployed here.
 
 ## install.sh convention
 
