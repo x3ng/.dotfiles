@@ -87,16 +87,10 @@ Window styling follows the shell's neutral grey and muted blue palette, with 4px
 outer gaps, 4px corners and a soft 12px shadow. Compositor opacity multipliers stay at 1.0; applications may supply transparency.
 Grouped-window titles use the same Inter family as the panel.
 
-Run `hyprmoncfg` to arrange displays and save profiles. `startup.lua` starts
-`hyprmoncfgd.service` to switch saved profiles automatically. Before a
-profile is applied, displays use their preferred mode with automatic
-position and scale.
-
-Profiles live in `~/.config/hyprmoncfg/profiles/`. The generated
-`~/.config/hypr/hyprmoncfg-monitors.lua` stays outside this repository and loads
-last when present. Keep hyprmoncfg's generated include in `hyprland.lua`.
-The optional `monitors.lua` is now for user overrides loaded before that file;
-hyprmoncfg no longer writes it.
+`monitor.lua` owns display setup: preferred modes, automatic position and scale
+are the native baseline. Hyprland loads a confirmed layout when the connected
+outputs match one saved through nullshell, even when the shell is not running.
+There is no separate monitor daemon or second static Lua file to load.
 
 These configs expect a session manager with XDG Autostart support, such as
 UWSM. Fcitx5 is started by its `org.fcitx.Fcitx5.desktop` autostart entry,

@@ -7,6 +7,7 @@ FILES=(
   hyprland.lua
   environment.lua
   compositor.lua
+  monitor.lua
   appearance.lua
   binds.lua
   workspaces.lua

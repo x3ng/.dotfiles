@@ -26,20 +26,7 @@ require("rules")
 require("apps")
 require("startup")
 
--- Apply the fallback first, then optional user monitor rules.
--- hyprmoncfg's generated file loads last below.
-hl.monitor({
-  output = "",
-  mode = "preferred",
-  position = "auto",
-  scale = "auto",
-})
-if package.searchpath("monitors", package.path) then
-  require("monitors")
-end
+require("monitor")
 
 -- Follow nullshell's saved mode on startup and config reload.
 require("appearance").apply()
-
--- Added by hyprmoncfg: its generated monitor rules load last, so nothing before this can override the applied layout.
-do local path = (os.getenv("XDG_CONFIG_HOME") or os.getenv("HOME") .. "/.config") .. "/hypr/hyprmoncfg-monitors.lua"; local file = io.open(path, "r"); if file then file:close(); dofile(path) end end

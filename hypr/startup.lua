@@ -1,6 +1,5 @@
 -- Autostart (exec-once equivalent)
 hl.on("hyprland.start", function()
-  hl.exec_cmd("systemctl --user start hyprmoncfgd.service")
   -- Independent processes, started once by this compositor; no keepalive units.
   -- QML lives in ~/.config/quickshell/nullshell. Do not also enable old units.
   hl.exec_cmd("nullshell locker --no-duplicate")
