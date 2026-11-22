@@ -1,5 +1,5 @@
 -- Hyprland-only palette adapter. nullshell owns and persists the effective appearance mode.
--- Keep neutral surfaces and selection colours in sync with nullshell (Theme.qml).
+-- Use the shell's effective mode with this configuration's own colours.
 -- Window borders use a quieter blue than the shell's interactive accent.
 local M = {}
 

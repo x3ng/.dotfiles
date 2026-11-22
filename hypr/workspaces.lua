@@ -10,13 +10,32 @@ function M.active()
   return hl.get_active_special_workspace() or hl.get_active_workspace()
 end
 
+-- During reload the previous rule table is gone, but live layouts remain
+-- available until Hyprland's deferred layout refresh. Keep plain data only.
+function M.snapshot_layouts()
+  local rules = {}
+  for _, workspace in ipairs(hl.get_workspaces()) do
+    local name, layout = workspace.addressable_name, workspace.tiled_layout
+    if type(name) == "string" and name ~= "" and M.is_layout(layout) then
+      rules[#rules + 1] = { workspace = name, layout = layout }
+    end
+  end
+  return rules
+end
+
+function M.restore_layouts(rules)
+  for _, rule in ipairs(rules) do
+    hl.workspace_rule(rule)
+  end
+end
+
 function M.set_layout(workspace, layout)
   if not M.is_layout(layout) then return false, "Unknown workspace layout" end
   local name = workspace and workspace.addressable_name
   if type(name) ~= "string" or name == "" then return false, "Workspace no longer exists" end
 
-  -- Workspace rules refresh persistent monitor placement too. Preserve manual
-  -- moves until reload, when hyprmoncfg's configured assignments take precedence.
+  -- Workspace rules also refresh persistent monitor placement. Preserve manual
+  -- moves until reload, when confirmed display assignments can take precedence.
   for _, existing in ipairs(hl.get_workspaces()) do
     local monitor = existing.monitor
     if existing.is_persistent and monitor then
